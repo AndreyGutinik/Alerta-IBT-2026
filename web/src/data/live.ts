@@ -197,3 +197,13 @@ export function rateLimitLeft(record: UserRecord | null, role: Role, serverNow: 
   const leftMs = record.lastSentAt + RATE_LIMIT_MS - serverNow
   return leftMs > 0 ? Math.ceil(leftMs / 1000) : 0
 }
+
+/** A pílula do cabeçalho da aba Status: sem conexão (do celular), PC offline ou PC online. */
+export function pcPill(s: { connected: boolean; live: LiveState | null; serverNow: number }): {
+  tone: Tone
+  label: string
+} {
+  if (!s.connected) return { tone: 'bad', label: 'Sem conexão' }
+  if (!isPcOnline(s.live, s.serverNow)) return { tone: 'bad', label: 'PC offline' }
+  return { tone: 'ok', label: 'PC online' }
+}

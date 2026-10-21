@@ -4,6 +4,7 @@ import {
   headerPill,
   isPcOnline,
   normalizeLive,
+  pcPill,
   plateFromText,
   rateLimitLeft,
 } from './live'
@@ -234,5 +235,19 @@ describe('rateLimitLeft', () => {
     expect(rateLimitLeft(record(undefined), 'member', NOW)).toBe(0)
     expect(rateLimitLeft(record(NOW - 1_000), 'admin', NOW)).toBe(0)
     expect(rateLimitLeft(null, 'member', NOW)).toBe(0)
+  })
+})
+
+describe('pcPill', () => {
+  it('sem conexão, PC offline (sem /live ou heartbeat velho) e PC online', () => {
+    expect(pcPill({ connected: false, live: live(), serverNow: NOW })).toEqual({ tone: 'bad', label: 'Sem conexão' })
+    expect(pcPill({ connected: true, live: null, serverNow: NOW })).toEqual({ tone: 'bad', label: 'PC offline' })
+    expect(pcPill({ connected: true, live: live({ heartbeatAt: NOW - 90_001 }), serverNow: NOW }).label).toBe('PC offline')
+    expect(pcPill({ connected: true, live: live({ heartbeatAt: NOW - 90_000 }), serverNow: NOW })).toEqual({
+      tone: 'ok',
+      label: 'PC online',
+    })
+    // LED desligado ou pausa não derrubam o "PC online": isso é das pílulas LED e Barra
+    expect(pcPill({ connected: true, live: live({ led: false, paused: true }), serverNow: NOW }).label).toBe('PC online')
   })
 })

@@ -1,6 +1,6 @@
 import { Activity, Send, Users } from 'lucide-react'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { headerPill } from '../data/live'
+import { headerPill, pcPill } from '../data/live'
 import { SendTab } from '../send/SendTab'
 import { useActiveSession } from '../session/SessionProvider'
 import { useConnected, useLive, useServerNow } from '../state/AppData'
@@ -45,7 +45,7 @@ export function Shell() {
     }
   }, [menuOpen])
 
-  const pill = headerPill({ connected, live, serverNow })
+  const pill = (current === 'status' ? pcPill : headerPill)({ connected, live, serverNow })
   const tabs: { id: Tab; label: string; icon: typeof Send }[] = [
     { id: 'send', label: 'Enviar', icon: Send },
     { id: 'status', label: 'Status', icon: Activity },
