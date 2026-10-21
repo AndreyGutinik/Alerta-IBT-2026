@@ -407,7 +407,7 @@ svg.lucide {
   font-size: 0.6875rem;
   color: var(--mu);
   text-align: center;
-  min-height: 1.1rem;
+  min-height: 2.2rem;
 }
 
 /* Enviar: campo, balão de ajuda e prévia. */
@@ -580,6 +580,148 @@ textarea:focus {
 
 @media (prefers-reduced-motion: reduce) {
   .pre.busy .pre-icon {
+    animation: none;
+  }
+}
+
+/* Microfone: pequeno e apagado, dentro do campo (a área de toque é maior que o desenho). */
+.mic {
+  position: absolute;
+  right: 0.125rem;
+  bottom: 0.1875rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  background: none;
+  color: var(--mu);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  opacity: 0.55;
+  padding: 0;
+}
+
+.mic:hover,
+.mic:focus-visible {
+  opacity: 1;
+  color: var(--tx);
+}
+
+.mic svg.lucide {
+  width: 0.9375rem;
+  height: 0.9375rem;
+}
+
+.mic.rec {
+  color: #d33a3a;
+  opacity: 1;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Enviar e Urgente: dois ícones na mesma linha. */
+.sendrow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.send {
+  flex: 1;
+  min-height: 3.25rem;
+  border-radius: 0.75rem;
+  border: 0;
+  background: var(--ac);
+  color: #04130b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.send svg.lucide {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+.send:disabled,
+.urg.dis {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.urg {
+  width: 3.5rem;
+  min-height: 3.25rem;
+  flex: none;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(245, 180, 0, 0.5);
+  background: rgba(255, 216, 122, 0.1);
+  color: #e0a400;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  padding: 0;
+}
+
+.urg svg.lucide {
+  width: 1.25rem;
+  height: 1.25rem;
+  grid-area: 1 / 1;
+}
+
+/* Anel de progresso: enche em 1 s enquanto a pessoa segura. */
+.urg .ring {
+  grid-area: 1 / 1;
+  width: 2.5rem;
+  height: 2.5rem;
+  pointer-events: none;
+}
+
+.ring-track,
+.ring-bar {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.ring-track {
+  stroke: rgba(245, 180, 0, 0.18);
+}
+
+.ring-bar {
+  stroke: #f5b400;
+  stroke-linecap: round;
+  stroke-dasharray: 100.53;
+  stroke-dashoffset: 100.53;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.urg.holding .ring-bar {
+  animation: ringfill 1s linear forwards;
+}
+
+.urg.holding {
+  background: rgba(245, 180, 0, 0.25);
+}
+
+@keyframes ringfill {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic.rec {
     animation: none;
   }
 }
