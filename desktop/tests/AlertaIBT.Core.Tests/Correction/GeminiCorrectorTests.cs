@@ -216,7 +216,7 @@ public class GeminiCorrectorTests
     [Fact]
     public void Prompt_IsShortAndSaysWhatItMust()
     {
-        Assert.InRange(GeminiPrompt.System.Length, 300, 1200);
+        Assert.InRange(GeminiPrompt.System.Length, 300, 1300);
         Assert.Contains("kind", GeminiPrompt.System);
         Assert.Contains("free", GeminiPrompt.System);
         Assert.Contains("vehicle", GeminiPrompt.System);
@@ -226,6 +226,13 @@ public class GeminiCorrectorTests
         Assert.Contains("texto", GeminiPrompt.System);
         Assert.Contains("ofensivo", GeminiPrompt.System);
         Assert.Contains("abc1d23", GeminiPrompt.System, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Prompt_SaysThatVideoAbertoMeansVidroAberto()
+    {
+        Assert.Contains("video aberto", GeminiPrompt.System, StringComparison.Ordinal);
+        Assert.Contains("vidro aberto", GeminiPrompt.System, StringComparison.Ordinal);
     }
 
     [Fact]

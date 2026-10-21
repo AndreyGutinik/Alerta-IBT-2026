@@ -28,11 +28,12 @@ public class FixedRulesProviderTests
     }
 
     [Fact]
-    public void Empty_text_means_no_rules()
+    public void Empty_text_means_only_the_built_in_rules()
     {
         var provider = new FixedRulesProvider(() => string.Empty);
 
-        Assert.Same(FixedRules.Empty, provider.Current());
+        Assert.Equal(FixedRules.Inspect(BuiltInFixedRules.Text).ValidCount, provider.Current().Count);
+        Assert.Equal("abc", provider.Current().Apply("abc"));
     }
 
     [Fact]

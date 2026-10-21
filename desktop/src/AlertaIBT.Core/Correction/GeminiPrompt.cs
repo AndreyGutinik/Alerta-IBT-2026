@@ -25,12 +25,16 @@ public static class GeminiPrompt
         + "- Se o texto n\U000000E3o for sobre um ve\U000000EDculo, use kind \"free\" e coloque o texto corrigido em texto.\n"
         + "- Se o texto for ofensivo, de \U000000F3dio, sexual ou trote, use kind \"free\" com texto vazio.\n"
         + "- Sempre preencha texto com o aviso inteiro corrigido.\n"
+        + "- Em aviso de estacionamento, \"video aberto\" quer dizer \"vidro aberto\" (idem fechado, quebrado).\n"
         + "Exemplo 1: corola prata abc1d23 vidro abrto\n"
         + "{\"kind\":\"vehicle\",\"modelo\":\"Corolla\",\"cor\":\"Prata\",\"placa\":\"ABC1D23\",\"motivo\":\"vidro aberto\","
         + "\"texto\":\"Corolla prata ABC1D23 vidro aberto\"}\n"
         + "Exemplo 2: pais do pedro compareser na recepssao\n"
         + "{\"kind\":\"free\",\"modelo\":\"\",\"cor\":\"\",\"placa\":\"\",\"motivo\":\"\","
-        + "\"texto\":\"Pais do Pedro comparecer na recep\U000000E7\U000000E3o\"}";
+        + "\"texto\":\"Pais do Pedro comparecer na recep\U000000E7\U000000E3o\"}\n"
+        + "Exemplo 3: fox prata abc1d54 video aberto\n"
+        + "{\"kind\":\"vehicle\",\"modelo\":\"Fox\",\"cor\":\"Prata\",\"placa\":\"ABC1D54\",\"motivo\":\"vidro aberto\","
+        + "\"texto\":\"Fox prata ABC1D54 vidro aberto\"}";
 
     /// <summary>
     /// The JSON schema of the answer: <c>kind</c> (<c>vehicle</c> or <c>free</c>), <c>modelo</c>, <c>cor</c>,
