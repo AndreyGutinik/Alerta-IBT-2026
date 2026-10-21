@@ -7,8 +7,13 @@ export default defineConfig({
   plugins: [react()],
   server: {
     fs: {
-      // As fontes Marble ficam em ../assets/fonts, fora da pasta web/.
-      allow: [searchForWorkspaceRoot(process.cwd()), resolve(import.meta.dirname, '../assets')],
+      // As fontes Marble (../assets/fonts) e os casos compartilhados com o app do PC
+      // (../shared/parser-cases.json) ficam fora da pasta web/.
+      allow: [
+        searchForWorkspaceRoot(process.cwd()),
+        resolve(import.meta.dirname, '../assets'),
+        resolve(import.meta.dirname, '../shared'),
+      ],
     },
   },
   test: {

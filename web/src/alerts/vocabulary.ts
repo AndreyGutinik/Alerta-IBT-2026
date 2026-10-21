@@ -1,7 +1,7 @@
-import { trimToLettersAndDigits } from './format'
+import { trimEdges } from './format'
 
-// As listas abaixo seguem o Vocabulary.cs do app do PC (desktop/src/AlertaIBT.Core/Alerts): todas em
-// minúsculas e sem acento, e a palavra digitada passa por `fold` antes de ser comparada.
+// As listas seguem o Vocabulary.cs do app do PC (desktop/src/AlertaIBT.Core/Alerts): todas em
+// minúsculas e sem acento; a palavra digitada passa por `fold` antes de ser comparada.
 
 /** Cores que o parser reconhece (spec 5.2), como palavras inteiras. */
 export const COLORS: readonly string[] = [
@@ -30,6 +30,8 @@ export const COLORS: readonly string[] = [
   'champanhe',
 ]
 
+const COLOR_SET: ReadonlySet<string> = new Set(COLORS)
+
 /** Palavras que grudam na cor logo antes delas ("azul marinho", "cinza metalico"). */
 const COLOR_MODIFIERS: ReadonlySet<string> = new Set([
   'escuro',
@@ -44,7 +46,7 @@ const COLOR_MODIFIERS: ReadonlySet<string> = new Set([
 ])
 
 /** Começos de palavra que abrem o motivo ("estacionad" cobre estacionado, estacionada...). */
-const REASON_STARTS = [
+export const REASON_STARTS: readonly string[] = [
   'farol',
   'farois',
   'vidro',
@@ -69,15 +71,20 @@ const REASON_STARTS = [
 const REASON_WORDS: ReadonlySet<string> = new Set(['som', 'sons'])
 
 /**
- * Minúsculas, sem acento e sem pontuação nas pontas: "Metálico", "metalico" e "(metalico)" viram a
- * mesma palavra. (A pontuação nas pontas é um acréscimo do site; o PC só dobra maiúsculas e acentos.)
+ * Minúsculas, sem acento e sem pontuação nas pontas: "Metálico", "metalico", "(metalico" e
+ * "metalico." viram a mesma palavra. Como no .NET: decompõe (NFD), tira as marcas Mn e passa cada
+ * caractere para minúscula.
  */
 export function fold(word: string): string {
-  return trimToLettersAndDigits(word.normalize('NFD').replace(/\p{Mn}/gu, '').toLowerCase())
+  let folded = ''
+  for (const ch of word.normalize('NFD')) {
+    if (!/^\p{Mn}$/u.test(ch)) folded += ch.toLowerCase()
+  }
+  return trimEdges(folded)
 }
 
 export function isColor(word: string): boolean {
-  return COLORS.includes(fold(word))
+  return COLOR_SET.has(fold(word))
 }
 
 export function isColorModifier(word: string): boolean {

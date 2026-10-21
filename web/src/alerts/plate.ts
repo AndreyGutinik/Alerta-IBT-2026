@@ -1,71 +1,169 @@
-import { normalizeSpaces } from './format'
+import { WS, isLetterOrDigitUnit, maskSurrogates, splitWords, trimWhiteSpace } from './format'
 
-const TO_LETTER: Record<string, string> = { '0': 'O', '1': 'I', '5': 'S', '8': 'B' }
-const TO_DIGIT: Record<string, string> = { O: '0', I: '1', S: '5', B: '8' }
+// Porta de PlateParser.cs (app do PC): o comportamento tem de ser o mesmo, caso a caso.
+
+const PLATE_LENGTH = 7
+
+function asLetter(c: string): string | null {
+  if (c >= 'A' && c <= 'Z') return c
+  switch (c) {
+    case '0':
+      return 'O'
+    case '1':
+      return 'I'
+    case '5':
+      return 'S'
+    case '8':
+      return 'B'
+    default:
+      return null
+  }
+}
+
+function asDigit(c: string): string | null {
+  if (c >= '0' && c <= '9') return c
+  switch (c) {
+    case 'O':
+      return '0'
+    case 'I':
+      return '1'
+    case 'S':
+      return '5'
+    case 'B':
+      return '8'
+    default:
+      return null
+  }
+}
+
+function isAsciiLetterOrDigit(c: string): boolean {
+  return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+}
 
 /**
- * Placa no formato `LLL-NXNN`: 7 letras e números depois de tirar espaço, hífen e pontuação.
- * Posições 0 a 2 são letras (0→O, 1→I, 5→S, 8→B), 3, 5 e 6 são números (O→0, I→1, S→5, B→8)
- * e a 4 fica como veio (letra = Mercosul, número = antiga). Devolve null se não for placa.
+ * Placa na forma de exibição (`ABC-1234` ou `ABC-1D23`), ou `null` se o texto não pode ser placa.
+ *
+ * Espaço, hífen e pontuação são ignorados; o que sobra tem de ter exatamente 7 letras e números. As
+ * posições 1 a 3 são letras (0 1 5 8 valem O I S B), a 4, a 6 e a 7 são números (O I S B valem
+ * 0 1 5 8) e a 5 fica como veio (letra na Mercosul, número na antiga). Letra ou dígito fora de A-Z
+ * e 0-9 nunca é descartado: o texto "não é placa".
  */
 export function normalizePlate(candidate: string): string | null {
-  const chars = candidate.replace(/[^a-z0-9]/gi, '').toUpperCase()
-  if (chars.length !== 7) return null
-
-  const letters = [...chars.slice(0, 3)].map((c) => TO_LETTER[c] ?? c).join('')
-  const digit = TO_DIGIT[chars[3]] ?? chars[3]
-  const fifth = chars[4]
-  const lastDigits = [...chars.slice(5)].map((c) => TO_DIGIT[c] ?? c).join('')
-
-  if (!/^[A-Z]{3}$/.test(letters) || !/^\d$/.test(digit) || !/^\d{2}$/.test(lastDigits)) return null
-  return `${letters}-${digit}${fifth}${lastDigits}`
-}
-
-const LEADING_HASH = /^\s*#+\s*/
-const PLATE_WORD = /\bplaca\b\s*:?\s*/gi
-// 3 letras e 4 caracteres (o 1º e os 2 últimos podem ser letra parecida com número), com espaço
-// ou hífen opcional no meio, entre separadores ou nas pontas do texto.
-const CANDIDATE = /(^|[\s|/;,.:])([a-z]{3}\s*-?\s*[0-9oisb][0-9a-z][0-9oisb]{2})(?=$|[\s|/;,.:!?])/gi
-
-/** Tira o `#` do começo do texto (e o espaço que vem depois dele). */
-export function stripHash(raw: string): string {
-  return raw.replace(LEADING_HASH, '')
-}
-
-/**
- * Passos 1 e 2 do parser (spec 5.2): sem o `#` do começo, quebras de linha como ` | `
- * e sem a palavra `placa` (com `:` opcional).
- */
-export function prepareText(raw: string): string {
-  return stripHash(raw).replace(/\r?\n/g, ' | ').replace(PLATE_WORD, ' ')
-}
-
-export interface PlateHit {
-  plate: string
-  /** O texto antes da placa. */
-  before: string
-  /** O texto depois da placa. */
-  after: string
-}
-
-/** Passo 3 do parser: a primeira placa válida de um texto já preparado por `prepareText`. */
-export function findPlate(text: string): PlateHit | null {
-  for (const match of text.matchAll(CANDIDATE)) {
-    const plate = normalizePlate(match[2])
-    if (plate) {
-      const start = match.index + match[1].length
-      return { plate, before: text.slice(0, start), after: text.slice(start + match[2].length) }
+  const typed: string[] = []
+  // Por unidade UTF-16, como o foreach de char do app do PC.
+  for (let i = 0; i < candidate.length; i++) {
+    const c = candidate[i]
+    if (isAsciiLetterOrDigit(c)) {
+      if (typed.length === PLATE_LENGTH) return null
+      typed.push(c.toUpperCase())
+    } else if (isLetterOrDigitUnit(c)) {
+      return null
     }
   }
-  return null
+  if (typed.length !== PLATE_LENGTH) return null
+
+  const slots: string[] = []
+  for (let i = 0; i < PLATE_LENGTH; i++) {
+    const slot = i < 3 ? asLetter(typed[i]) : i === 4 ? typed[i] : asDigit(typed[i])
+    if (slot === null) return null
+    slots.push(slot)
+  }
+  return `${slots.slice(0, 3).join('')}-${slots.slice(3).join('')}`
+}
+
+// Três letras, separador opcional e [0-9OISB][0-9A-Za-z][0-9OISB]{2}, sem letra ou dígito colado, com
+// a palavra "placa" (e ":" ou "-" opcional) engolida quando vem logo antes. O separador é
+// (\s*-\s*|\s+)? e não \s*-?\s*: casa o mesmo texto sem recuar de forma quadrática numa fila de
+// espaços. O fim da palavra "placa" é o \b do .NET (\w = L, Mn, Nd, Pc).
+const CANDIDATE = new RegExp(
+  '(?<![\\p{L}\\p{N}])' +
+    '(?<label>[Pp][Ll][Aa][Cc][Aa](?![\\p{L}\\p{Mn}\\p{Nd}\\p{Pc}])' +
+    WS +
+    '*(?:[:\\-]' +
+    WS +
+    '*)?)?' +
+    '(?<plate>[A-Za-z]{3}(?<separator>' +
+    WS +
+    '*-' +
+    WS +
+    '*|' +
+    WS +
+    '+)?[0-9OoIiSsBb][0-9A-Za-z][0-9OoIiSsBb]{2})' +
+    '(?![\\p{L}\\p{N}])',
+  'gu',
+)
+
+interface Candidate {
+  index: number
+  length: number
+  plate: string
+  isSpaced: boolean
+}
+
+// "Gol 2015" é uma palavra e um número, não uma placa: separada só por espaço, só vale se for Mercosul
+// (letra na 5ª posição) ou se vier logo depois da palavra "placa".
+function evaluate(match: RegExpExecArray): Candidate | null {
+  const groups = match.groups as { label?: string; plate: string; separator?: string }
+  const typed = groups.plate
+  if (!/[0-9]/.test(typed)) return null
+  const plate = normalizePlate(typed)
+  if (plate === null) return null
+
+  const separator = groups.separator ?? ''
+  const isSpaced = separator.length > 0 && !separator.includes('-')
+  if (isSpaced && groups.label === undefined && !/^[A-Za-z]$/.test(plate[5])) return null
+
+  return { index: match.index, length: match[0].length, plate, isSpaced }
+}
+
+// A placa em que extractPlate e locatePlate concordam: a junta (abc1234, abc-1234, gbr- 9003) ganha da
+// separada só por espaço, onde quer que cada uma esteja; entre iguais, a primeira.
+function find(text: string): Candidate | null {
+  let firstSpaced: Candidate | null = null
+  // Casa na cópia mascarada (ver maskSurrogates); índices e tamanhos valem no texto original.
+  for (const match of maskSurrogates(text).matchAll(CANDIDATE)) {
+    const candidate = evaluate(match)
+    if (candidate === null) continue
+    if (!candidate.isSpaced) return candidate
+    firstSpaced ??= candidate
+  }
+  return firstSpaced
+}
+
+const LINE_ENDINGS = /\r\n|[\n\r\f\u{85}\u{2028}\u{2029}]/gu
+
+// Mantém as quebras de linha (como \n); em cada linha junta os espaços e apara; linhas vazias somem.
+function tidyLines(text: string): string {
+  return text
+    .replace(LINE_ENDINGS, '\n')
+    .split('\n')
+    .map((line) => splitWords(trimWhiteSpace(line)).join(' '))
+    .filter((line) => line.length > 0)
+    .join('\n')
 }
 
 /**
- * Acha a primeira placa do texto, do mesmo jeito que `parseAlert`. `rest` é o texto sem a placa e
- * sem a palavra `placa`, com os espaços juntados (as quebras de linha aparecem como ` | `).
+ * Procura uma placa em texto livre, por exemplo `gol branco placa ffo4745 farol aceso`.
+ *
+ * `rest` é o texto sem a placa e sem a palavra "placa" que a rotula, com uma quebra de linha (`\n`) no
+ * lugar dela: a placa é a fronteira mais confiável entre o veículo e o motivo. As quebras que já
+ * estavam no texto ficam; em cada linha os espaços são juntados e a linha é aparada; linha vazia
+ * some. Sem placa, devolve `null`.
  */
 export function extractPlate(text: string): { plate: string; rest: string } | null {
-  const hit = findPlate(prepareText(text))
-  if (!hit) return null
-  return { plate: hit.plate, rest: normalizeSpaces(`${hit.before} ${hit.after}`) }
+  const found = find(text)
+  if (found === null) return null
+  const end = found.index + found.length
+  return { plate: found.plate, rest: tidyLines(`${text.slice(0, found.index)}\n${text.slice(end)}`) }
+}
+
+/** Texto sem placa: o mesmo texto arrumado (como `rest` de `extractPlate`). */
+export function tidyText(text: string): string {
+  return tidyLines(text)
+}
+
+/** Onde fica a mesma placa de `extractPlate` (rótulo `placa:` incluído); `null` se não há. */
+export function locatePlate(text: string): { index: number; length: number } | null {
+  const found = find(text)
+  return found === null ? null : { index: found.index, length: found.length }
 }
