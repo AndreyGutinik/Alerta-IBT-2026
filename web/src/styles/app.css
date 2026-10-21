@@ -725,3 +725,125 @@ textarea:focus {
     animation: none;
   }
 }
+
+/* Seus avisos. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list + .toast {
+  min-height: 1.1rem;
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--mu);
+}
+
+h2.lb {
+  margin: 0.25rem 0 0.4375rem;
+  font-weight: 400;
+}
+
+.it {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  padding: 0.5rem 0.5625rem;
+  border-radius: 0.625rem;
+  background: var(--pn);
+  border: 1px solid var(--ln);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.it .t {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.it.cx .t {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.st {
+  font-size: 0.625rem;
+  padding: 0.1875rem 0.4375rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.st svg.lucide {
+  width: 0.6875rem;
+  height: 0.6875rem;
+}
+
+.st.q {
+  background: rgba(255, 216, 122, 0.14);
+  color: var(--wn);
+}
+
+.st.ok {
+  background: rgba(134, 228, 173, 0.14);
+  color: var(--ok);
+}
+
+.st.no,
+.st.cx {
+  background: rgba(255, 92, 92, 0.12);
+  color: var(--dg);
+}
+
+.st.now {
+  background: var(--acs);
+  color: var(--gl);
+}
+
+/* O X de cancelar: desenho pequeno, área de toque grande (o ::after estende a área sem mexer no layout). */
+.xb {
+  position: relative;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  border-radius: 0.4375rem;
+  border: 1px solid var(--ln);
+  background: none;
+  color: var(--mu);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.xb::after {
+  content: '';
+  position: absolute;
+  inset: -0.5rem;
+}
+
+.xb:disabled {
+  opacity: 0.4;
+  cursor: wait;
+}
+
+.xb svg.lucide {
+  width: 0.75rem;
+  height: 0.75rem;
+}

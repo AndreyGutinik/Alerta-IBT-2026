@@ -9,6 +9,7 @@ import { Toast } from '../ui/Toast'
 import { useToast } from '../ui/useToast'
 import { InfoPopover } from './InfoPopover'
 import { MicButton } from './MicButton'
+import { MyAlerts } from './MyAlerts'
 import { PreviewBox } from './PreviewBox'
 import { sendAlert } from './sendFlow'
 import { SendRow } from './SendRow'
@@ -152,6 +153,7 @@ export function SendTab() {
         onUrgentShortTap={() => show(MSG_URGENT_HINT)}
       />
       <Toast message={toastMessage || blocked || pcNote} live={toastMessage !== ''} />
+      <MyAlerts uid={user.uid} />
     </>
   )
 }
