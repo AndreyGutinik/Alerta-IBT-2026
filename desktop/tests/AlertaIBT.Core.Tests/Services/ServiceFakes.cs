@@ -195,12 +195,12 @@ internal sealed class ServiceHarness : IDisposable
 {
     private int _ids;
 
-    public ServiceHarness(Func<string, CancellationToken, Task<ParsedAlert?>>? gemini = null, bool start = true, AlertQueue? queue = null)
+    public ServiceHarness(Func<string, CancellationToken, Task<ParsedAlert?>>? gemini = null, bool start = true, AlertQueue? queue = null, ProfanityFilter? filter = null, FixedRules? rules = null)
     {
         SettingsProvider = () => Settings;
         Gemini = new FakeCorrector(gemini ?? ((_, _) => Task.FromResult<ParsedAlert?>(null)));
         Offline = new FakeCorrector((raw, _) => Task.FromResult<ParsedAlert?>(AlertParser.Parse(raw)));
-        Pipeline = new CorrectionPipeline(Gemini, Offline, () => FixedRules.Empty, TimeSpan.FromSeconds(3), Clock);
+        Pipeline = new CorrectionPipeline(Gemini, Offline, () => rules ?? FixedRules.Empty, TimeSpan.FromSeconds(3), Clock);
         Queue = queue ?? new AlertQueue(Clock);
         Service = new AlertService(
             Queue,
@@ -211,7 +211,8 @@ internal sealed class ServiceHarness : IDisposable
             Hub,
             Logger,
             Clock,
-            () => "id" + Interlocked.Increment(ref _ids));
+            () => "id" + Interlocked.Increment(ref _ids),
+            filter);
         if (start)
         {
             Service.Start();

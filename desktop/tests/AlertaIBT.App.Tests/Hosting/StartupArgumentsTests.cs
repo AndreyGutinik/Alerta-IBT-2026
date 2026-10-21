@@ -37,6 +37,7 @@ public sealed class AppPathsTests
         Assert.Equal(Path.Combine("x", "AlertaIBT", "settings.json"), paths.SettingsFile);
         Assert.Equal(Path.Combine("x", "AlertaIBT", "queue.json"), paths.QueueFile);
         Assert.Equal(Path.Combine("x", "AlertaIBT", "logs"), paths.LogsFolder);
+        Assert.Equal(Path.Combine("x", "AlertaIBT", "palavras-bloqueadas.txt"), paths.BlockedWordsFile);
     }
 
     [Fact]

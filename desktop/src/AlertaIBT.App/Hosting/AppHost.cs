@@ -313,7 +313,8 @@ public static class AppHost
             provider.GetRequiredService<IGroupNotifier>(),
             () => provider.GetRequiredService<SettingsService>().Current,
             provider.GetRequiredService<StatusHub>(),
-            provider.GetRequiredService<ILogger<AlertService>>()));
+            provider.GetRequiredService<ILogger<AlertService>>(),
+            filter: new ProfanityFilter(paths.BlockedWordsFile, provider.GetRequiredService<ILogger<ProfanityFilter>>())));
         services.AddSingleton<IOverlayControl>(provider => provider.GetRequiredService<AlertService>());
         services.AddSingleton(provider => new TelegramEngine(
             provider.GetRequiredService<TelegramPoller>(),

@@ -54,6 +54,7 @@ public sealed class AlertService : IOverlayControl, IDisposable
     private readonly TimeProvider _clock;
     private readonly ILogger _logger;
     private readonly Func<string> _newId;
+    private readonly ProfanityFilter _filter;
 
     private readonly Channel<bool> _wake = Channel.CreateBounded<bool>(
         new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
@@ -80,6 +81,9 @@ public sealed class AlertService : IOverlayControl, IDisposable
     /// <param name="logger">Receives errors and the main events.</param>
     /// <param name="clock">The source of time (the expiry timer, retry delays and the age of alerts).</param>
     /// <param name="newId">Makes the id of a new alert; a random GUID by default.</param>
+    /// <param name="filter">
+    /// Refuses vulgar text for every sender, before and after the correction; the built-in word list alone by default.
+    /// </param>
     public AlertService(
         AlertQueue queue,
         CorrectionPipeline pipeline,
@@ -89,7 +93,8 @@ public sealed class AlertService : IOverlayControl, IDisposable
         StatusHub hub,
         ILogger logger,
         TimeProvider? clock = null,
-        Func<string>? newId = null)
+        Func<string>? newId = null,
+        ProfanityFilter? filter = null)
     {
         ArgumentNullException.ThrowIfNull(queue);
         ArgumentNullException.ThrowIfNull(pipeline);
@@ -108,6 +113,7 @@ public sealed class AlertService : IOverlayControl, IDisposable
         _logger = logger;
         _clock = clock ?? TimeProvider.System;
         _newId = newId ?? (() => Guid.NewGuid().ToString("N"));
+        _filter = filter ?? new ProfanityFilter();
     }
 
     private enum StopReason
@@ -247,7 +253,16 @@ public sealed class AlertService : IOverlayControl, IDisposable
         {
             _queue.AddRejected(NewItem(Display(raw), null, source, urgent, senderId, raw), HistoryReasons.ImproperContent);
             Reply(source, TelegramReplies.Refused);
-            _logger.LogInformation("Aviso recusado como improprio ({Source})", source);
+            if (evaluation.Blocked)
+            {
+                // Never the text itself: only that the filter acted, and for whom.
+                _logger.LogInformation("Filtro de palavroes bloqueou um aviso ({Source}, remetente {SenderId})", source, senderId ?? "-");
+            }
+            else
+            {
+                _logger.LogInformation("Aviso recusado como improprio ({Source})", source);
+            }
+
             return new SubmitOutcome(SubmitKind.Refused, string.Empty, [], By: by);
         }
 
@@ -405,6 +420,12 @@ public sealed class AlertService : IOverlayControl, IDisposable
 
     private async Task<Evaluation> EvaluateAsync(string raw, SenderRole role, CancellationToken ct)
     {
+        // Vulgar text is turned down first of all, for every sender: it never reaches Gemini, whether Gemini is up or not.
+        if (_filter.IsBlocked(raw))
+        {
+            return BlockedEvaluation(CorrectorKind.Offline);
+        }
+
         // A member's text that is already too long once cleaned is turned down at once: it never reaches Gemini or the
         // offline dictionary (a 4,000 character Telegram message would otherwise keep the only consumer busy for seconds).
         var cleaned = Display(raw);
@@ -423,7 +444,21 @@ public sealed class AlertService : IOverlayControl, IDisposable
         var decision = AlertRules.Decide(alert, role);
         var text = decision.Kind == RuleKind.Vehicle ? AlertFormatter.Format(alert) : AlertFormatter.FormatFree(alert.FreeText);
         var plate = decision.Kind == RuleKind.Vehicle ? alert.Plate : null;
+
+        // The correction (Gemini, or a fixed rule) can bring a word in that was not typed: the final text is filtered too.
+        if (!result.Refused && _filter.IsBlocked(text))
+        {
+            return BlockedEvaluation(result.By);
+        }
+
         return new Evaluation(result, decision, text, plate, AlertRules.IsTooLong(text, role));
+    }
+
+    // The same shape as a refusal by Gemini, so every caller handles it with the code it already has.
+    private static Evaluation BlockedEvaluation(CorrectorKind by)
+    {
+        var refused = new CorrectionResult(new ParsedAlert(string.Empty, string.Empty, null, string.Empty, string.Empty), by, Changed: false, Refused: true);
+        return new Evaluation(refused, new RuleDecision(RuleKind.Reject, []), string.Empty, null, TooLong: false, Blocked: true);
     }
 
     // The one place the text is corrected, for the preview and for the submit alike.
@@ -762,5 +797,5 @@ public sealed class AlertService : IOverlayControl, IDisposable
         }
     }
 
-    private sealed record Evaluation(CorrectionResult Result, RuleDecision Decision, string Text, string? Plate, bool TooLong);
+    private sealed record Evaluation(CorrectionResult Result, RuleDecision Decision, string Text, string? Plate, bool TooLong, bool Blocked = false);
 }

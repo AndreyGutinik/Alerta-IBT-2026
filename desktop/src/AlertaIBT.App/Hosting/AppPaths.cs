@@ -20,6 +20,9 @@ public sealed record AppPaths(string DataFolder)
     /// <summary><c>queue.json</c>, the alert queue saved between runs.</summary>
     public string QueueFile => Path.Combine(DataFolder, "queue.json");
 
+    /// <summary><c>palavras-bloqueadas.txt</c>, the optional list of extra words the profanity filter blocks (one per line).</summary>
+    public string BlockedWordsFile => Path.Combine(DataFolder, Core.Correction.ProfanityFilter.ExtraWordsFileName);
+
     /// <summary>The folder of the daily log files, kept 7 days.</summary>
     public string LogsFolder => Path.Combine(DataFolder, "logs");
 
