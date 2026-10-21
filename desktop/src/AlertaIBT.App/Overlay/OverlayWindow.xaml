@@ -1,0 +1,38 @@
+<Window
+    x:Class="AlertaIBT.App.Overlay.OverlayWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:AlertaIBT.App.Overlay"
+    Title="Alerta-IBT barra"
+    AllowsTransparency="True"
+    Background="Transparent"
+    Focusable="False"
+    IsHitTestVisible="False"
+    IsTabStop="False"
+    ResizeMode="NoResize"
+    ShowActivated="False"
+    ShowInTaskbar="False"
+    SnapsToDevicePixels="False"
+    Topmost="True"
+    UseLayoutRounding="False"
+    WindowStartupLocation="Manual"
+    WindowStyle="None"
+    Left="0"
+    Top="0"
+    Width="100"
+    Height="56">
+    <!-- The window is exactly as tall as the bar. The bar slides inside it (a transform plus opacity), so the part that has
+         slid out is simply cut off by the window edge. Nothing here takes the mouse or the keyboard. -->
+    <Border x:Name="Bar" Background="Black" ClipToBounds="True" Opacity="0" SnapsToDevicePixels="False">
+        <Border.RenderTransform>
+            <TranslateTransform x:Name="BarSlide" />
+        </Border.RenderTransform>
+        <Canvas x:Name="Stage" ClipToBounds="True">
+            <local:MarqueeText x:Name="Marquee" Canvas.Left="0" Canvas.Top="0" IsHitTestVisible="False">
+                <local:MarqueeText.RenderTransform>
+                    <TranslateTransform x:Name="TextShift" />
+                </local:MarqueeText.RenderTransform>
+            </local:MarqueeText>
+        </Canvas>
+    </Border>
+</Window>

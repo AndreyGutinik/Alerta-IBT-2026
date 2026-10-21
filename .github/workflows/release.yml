@@ -1,0 +1,80 @@
+name: release-windows
+
+# Builds, tests and packs the Alerta-IBT 8 installer with Velopack and publishes it as a GitHub Release.
+# Runs when a stable tag vX.Y.Z is pushed (or by hand). Nothing here runs on a normal push.
+# Pre-releases (tags like vX.Y.Z-pre.N) do not match and are published by hand (see docs/PROXIMOS-PASSOS.md).
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $csproj = [xml](Get-Content desktop/src/AlertaIBT.App/AlertaIBT.App.csproj -Raw)
+          $fromProject = ($csproj.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1).Trim()
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = $fromProject
+          } else {
+            $version = "${{ github.ref_name }}".Trim().TrimStart("v")
+          }
+
+          if (-not ($version -match '^\d+\.\d+\.\d+$')) {
+            throw "Versao invalida: $version"
+          }
+          if ($version -ne $fromProject) {
+            throw "A tag diz $version mas o AlertaIBT.App.csproj diz $fromProject. Ajuste a versao no csproj e crie a tag de novo."
+          }
+
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Build
+        run: dotnet build desktop/AlertaIBT.slnx -c Release
+
+      - name: Tests (Core)
+        run: dotnet test --project desktop/tests/AlertaIBT.Core.Tests -c Release
+
+      - name: Tests (App)
+        run: dotnet test --project desktop/tests/AlertaIBT.App.Tests -c Release
+
+      - name: Pack (publish self-contained ReadyToRun + vpk pack, with delta from the previous release)
+        shell: pwsh
+        run: ./desktop/build/pack.ps1 -Version ${{ steps.version.outputs.version }} -DownloadPrevious
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: alerta-ibt-${{ steps.version.outputs.version }}
+          path: artifacts/Releases/*
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        run: >
+          dotnet vpk upload github
+          --repoUrl https://github.com/${{ github.repository }}
+          --outputDir artifacts/Releases
+          --tag v${{ steps.version.outputs.version }}
+          --releaseName "Alerta-IBT ${{ steps.version.outputs.version }}"
+          --token ${{ secrets.GITHUB_TOKEN }}
+          --publish

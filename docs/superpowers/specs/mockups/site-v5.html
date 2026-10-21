@@ -1,0 +1,319 @@
+<style>
+  @font-face { font-family: 'MarbleM'; src: url('/files/Marble-Regular.ttf') format('truetype'); font-weight: 400; }
+  @font-face { font-family: 'MarbleM'; src: url('/files/Marble-Medium.ttf') format('truetype'); font-weight: 500; }
+  @font-face { font-family: 'MarbleM'; src: url('/files/Marble-SemiBold.ttf') format('truetype'); font-weight: 600; }
+  @font-face { font-family: 'MarbleM'; src: url('/files/Marble-Bold.ttf') format('truetype'); font-weight: 700; }
+
+  .sp { --bg: #0a0a0c; --pn: rgba(255,255,255,.035); --pn2: rgba(255,255,255,.06); --ln: rgba(255,255,255,.09); --tx: #edeae2; --mu: #8c867b; --field: #0d0d10;
+        --ac: #1da35f; --acs: rgba(29,163,95,.14); --gl: #22e07e; --cr: #fff3dc; --dg: #ff9d9d; --ok: #86e4ad; --wn: #ffd87a; --bad: #ff5c5c; --blue: #8fc7ff; }
+  .sp .scr.light { --bg: #f5f4ef; --pn: #ffffff; --pn2: rgba(0,0,0,.05); --ln: rgba(0,0,0,.1); --tx: #1d1b18; --mu: #77716a; --field: #ffffff;
+                   --acs: rgba(29,163,95,.12); --gl: #138a4e; --cr: #1d1b18; --dg: #c0392b; --ok: #1e8a4f; --wn: #a86b00; --blue: #2f6db3; }
+  .sp .phones { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+  .sp .ph { display: flex; flex-direction: column; gap: 8px; }
+  .sp .cap { font-size: .72rem; letter-spacing: .07em; text-transform: uppercase; color: var(--text-secondary); margin: 0; }
+  .sp .phone { width: 300px; height: 620px; border-radius: 38px; background: #050507; border: 1px solid rgba(255,255,255,.14); padding: 9px; box-shadow: 0 18px 40px rgba(0,0,0,.45); }
+  .sp .scr { width: 100%; height: 100%; border-radius: 30px; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; font-family: 'MarbleM', 'Segoe UI', sans-serif; color: var(--tx); font-size: 13px; position: relative; }
+  .sp .sb { height: 28px; display: flex; justify-content: space-between; align-items: center; padding: 4px 22px 0; font: 600 11px system-ui, sans-serif; color: var(--tx); flex: none; opacity: .85; }
+  .sp .sb .r { display: flex; gap: 5px; align-items: center; }
+  .sp .sb svg.lucide { width: 12px; height: 12px; }
+  .sp .ab { display: flex; align-items: center; gap: 8px; padding: 8px 16px 10px; flex: none; }
+  .sp .ab h4 { margin: 0; font-size: 17px; font-weight: 700; }
+  .sp .ab .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .sp .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--acs); color: var(--gl); display: grid; place-items: center; font-weight: 700; font-size: 12px; position: relative; }
+  .sp .avatar.adm::after { content: ''; position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; background: #f5b400; border: 2px solid var(--bg); }
+  .sp .ct { flex: 1; overflow: auto; padding: 2px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .sp .tb { height: 60px; border-top: 1px solid var(--ln); display: flex; justify-content: space-around; align-items: center; flex: none; background: var(--bg); }
+  .sp .tb .t { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: var(--mu); }
+  .sp .tb .t.on { color: var(--gl); }
+  .sp svg.lucide { width: 16px; height: 16px; flex: none; }
+  .sp .tb svg.lucide { width: 19px; height: 19px; }
+  .sp .pill { font-size: 11px; padding: 4px 9px; border-radius: 999px; background: var(--pn2); border: 1px solid var(--ln); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .sp .dot { width: 7px; height: 7px; border-radius: 50%; background: #22e07e; box-shadow: 0 0 6px #22e07e; display: inline-block; flex: none; }
+  .sp .cd { background: var(--pn); border: 1px solid var(--ln); border-radius: 14px; padding: 12px; }
+  .sp .lb { font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--mu); margin-bottom: 7px; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+  .sp textarea { width: 100%; box-sizing: border-box; background: var(--field); border: 1px solid var(--ln); border-radius: 10px; color: var(--tx); font: 500 14px 'MarbleM', 'Segoe UI', sans-serif; padding: 11px 12px; outline: none; resize: none; }
+  .sp textarea:focus { border-color: rgba(29,163,95,.6); }
+  /* interface 10% menor dentro do celular */
+  .sp .scr > .ab, .sp .scr > .ct, .sp .scr > .tb, .sp .scr > .tut { zoom: .9; }
+  /* microfone discreto: pequeno, sem cor, dentro do campo (canto de baixo) */
+  .sp .inrow { position: relative; }
+  .sp .inrow textarea { padding-right: 36px; }
+  .sp .mic { position: absolute; right: 5px; bottom: 7px; width: 28px; height: 28px; border-radius: 8px; border: 0; background: none; color: var(--mu); display: grid; place-items: center; cursor: pointer; opacity: .55; }
+  .sp .mic:hover { opacity: 1; color: var(--tx); }
+  .sp .mic svg.lucide { width: 15px; height: 15px; }
+  .sp .mic.rec { color: #d33a3a; opacity: 1; animation: sppulse 1s infinite; }
+  @keyframes sppulse { 50% { opacity: .35; } }
+  .sp .pre { display: flex; gap: 7px; align-items: flex-start; font-size: 12px; font-weight: 700; letter-spacing: .03em; color: var(--cr); line-height: 1.4; min-height: 34px; }
+  .sp .pre .k { display: block; font-size: 10px; font-weight: 500; letter-spacing: 0; color: var(--mu); }
+  .sp .pre svg.lucide { width: 14px; height: 14px; color: var(--ac); margin-top: 1px; }
+  .sp .pre.err { color: var(--dg); } .sp .pre.err svg.lucide { color: #ff5c5c; }
+  .sp .pre.dup { color: var(--wn); } .sp .pre.dup svg.lucide { color: #f5b400; }
+  .sp .pre.free svg.lucide { color: var(--blue); }
+  .sp .pre.busy { color: var(--mu); font-weight: 500; }
+  .sp .pre.busy svg.lucide { color: var(--mu); animation: spspin 1s linear infinite; }
+  @keyframes spspin { to { transform: rotate(360deg); } }
+  .sp .tag { display: inline-block; margin-left: 4px; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 999px; background: rgba(143,199,255,.16); color: var(--blue); }
+  .sp .sendrow { display: flex; gap: 8px; }
+  .sp .send { flex: 1; padding: 13px; border-radius: 12px; border: 0; background: var(--ac); color: #04130b; font: 700 15px 'MarbleM', 'Segoe UI', sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+  .sp .send svg.lucide { width: 18px; height: 18px; }
+  .sp .urg { width: 52px; flex: none; border-radius: 12px; border: 1px solid rgba(245,180,0,.5); background: rgba(255,216,122,.1); color: #e0a400; display: grid; place-items: center; cursor: pointer; position: relative; overflow: hidden; touch-action: none; user-select: none; }
+  .sp .urg svg.lucide { width: 20px; height: 20px; position: relative; z-index: 1; }
+  .sp .urg::before { content: ''; position: absolute; inset: 0; background: rgba(245,180,0,.35); transform: translateY(100%); }
+  .sp .urg.holding::before { animation: spfill 1s linear forwards; }
+  @keyframes spfill { to { transform: translateY(0); } }
+  .sp .send:disabled, .sp .urg.dis { opacity: .35; cursor: not-allowed; }
+  .sp .toast { font-size: 11px; color: var(--mu); text-align: center; min-height: 14px; }
+  .sp .msg { font-weight: 700; letter-spacing: .04em; font-size: 12.5px; color: var(--cr); line-height: 1.35; }
+  .sp .src { font-size: 9px; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--ln); color: var(--mu); letter-spacing: .05em; text-transform: uppercase; }
+  .sp .it { display: flex; align-items: center; gap: 7px; padding: 8px 9px; border-radius: 10px; background: var(--pn); border: 1px solid var(--ln); font-size: 11px; font-weight: 600; letter-spacing: .02em; }
+  .sp .it .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sp .it.cx .t { text-decoration: line-through; opacity: .5; }
+  .sp .st { font-size: 10px; padding: 3px 7px; border-radius: 999px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+  .sp .st svg.lucide { width: 11px; height: 11px; }
+  .sp .st.q { background: rgba(255,216,122,.14); color: var(--wn); }
+  .sp .st.ok { background: rgba(134,228,173,.14); color: var(--ok); }
+  .sp .st.no, .sp .st.cx { background: rgba(255,92,92,.12); color: var(--dg); }
+  .sp .st.now { background: var(--acs); color: var(--gl); }
+  .sp .xb { width: 24px; height: 24px; flex: none; border-radius: 7px; border: 1px solid var(--ln); background: none; color: var(--mu); display: grid; place-items: center; cursor: pointer; padding: 0; }
+  .sp .xb svg.lucide { width: 12px; height: 12px; }
+  .sp .list { display: flex; flex-direction: column; gap: 6px; }
+  .sp .info { display: inline-grid; place-items: center; width: 18px; height: 18px; color: var(--mu); cursor: help; position: relative; }
+  .sp .info svg.lucide { width: 14px; height: 14px; }
+  .sp [data-tip]:hover::after { content: attr(data-tip); position: absolute; z-index: 60; top: calc(100% + 6px); right: -6px; width: max-content; max-width: 230px; white-space: pre-line;
+    background: #1c1c21; color: #edeae2; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 8px 10px; font: 500 11px/1.5 'MarbleM', 'Segoe UI', sans-serif; letter-spacing: 0; text-transform: none; box-shadow: 0 12px 28px rgba(0,0,0,.55); }
+  .sp .led { position: relative; width: 100%; aspect-ratio: 2560 / 768; overflow: hidden; border-radius: 6px; container-type: inline-size; background: #05060c; box-shadow: 0 0 0 1px rgba(255,255,255,.1); }
+  .sp .slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; text-transform: uppercase; font-size: calc(64 * 1cqw / 25.6);
+               background: radial-gradient(ellipse 55% 95% at 28% 15%, #26346a 0%, transparent 70%), radial-gradient(ellipse 50% 85% at 82% 95%, #432257 0%, transparent 70%), linear-gradient(180deg, #0e1226, #070912); }
+  .sp .bar { position: absolute; left: 0; right: 0; top: 0; height: calc(56 * 1cqw / 25.6); background: #000; overflow: hidden; }
+  .sp .tick { position: absolute; left: 0; top: 50%; white-space: nowrap; font-weight: 700; letter-spacing: .08em; color: #fff7e8; font-size: calc(36 * 1cqw / 25.6); transform: translate(0, -50%); }
+  .sp .tut { flex: 1; display: flex; flex-direction: column; padding: 18px 20px 20px; gap: 14px; }
+  .sp .tut .ill { height: 190px; border-radius: 18px; background: var(--pn); border: 1px solid var(--ln); display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 16px; }
+  .sp .tut h3 { margin: 6px 0 0; font-size: 20px; font-weight: 700; }
+  .sp .tut p { margin: 0; color: var(--mu); font-size: 13px; line-height: 1.5; }
+  .sp .tut .dots { display: flex; gap: 6px; justify-content: center; margin-top: auto; }
+  .sp .tut .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--ln); display: block; }
+  .sp .tut .dots i.on { background: #22e07e; width: 20px; border-radius: 4px; }
+  .sp .tut .btns { display: flex; justify-content: space-between; align-items: center; }
+  .sp .tut .skip { background: none; border: 0; color: var(--mu); font: 600 13px 'MarbleM', sans-serif; cursor: pointer; }
+  .sp .tut .next { padding: 11px 20px; border-radius: 12px; border: 0; background: var(--ac); color: #04130b; font: 700 14px 'MarbleM', sans-serif; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  .sp .ex1 { font: 500 12px/1.4 Consolas, monospace; color: var(--mu); }
+  .sp .ex2 { font-weight: 700; font-size: 12px; letter-spacing: .03em; color: var(--cr); }
+  .sp .note { font-size: .85rem; color: var(--text-secondary); margin: 1.25rem 0 0; line-height: 1.5; }
+</style>
+
+<div class="sp">
+  <h2>Site alertaibt.web.app · versão 5</h2>
+  <p class="subtitle">Tudo 10% menor (textos, ícones e botões) para caber em celulares de tela pequena. Microfone pequeno, sem cor, dentro do campo. Com as suas 12 respostas: tutorial no primeiro acesso, ditado discreto, prévia com IA (com "corrigindo…"), bloqueio de carro repetido, cancelar o próprio aviso, urgente só segurando 1 s, mini-telão ao vivo e tema que segue o celular (um celular no modo claro para comparar). Teste: segure o ícone amarelo, toque no microfone, digite a placa FFO-4745.</p>
+
+  <div class="phones">
+    <div class="ph">
+      <p class="cap">1 · Tutorial (só no 1º acesso)</p>
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>19:30</span><span class="r"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+        <div class="tut" id="tut"></div>
+      </div></div>
+    </div>
+
+    <div class="ph">
+      <p class="cap">2 · Enviar · equipe · tema escuro</p>
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>19:30</span><span class="r"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+        <div class="ab"><h4>Enviar</h4><span class="right"><span class="pill"><span class="dot"></span>Telão ligado</span><span class="avatar">J</span></span></div>
+        <div class="ct">
+          <div>
+            <div class="lb"><span>Novo aviso</span><span class="info" data-tip="Precisa de modelo, cor e placa.&#10;Ex.: corolla prata abc1d23 vidro aberto&#10;Segure o ícone amarelo 1 s para urgente."><i data-lucide="info"></i></span></div>
+            <div class="inrow"><textarea id="m-in" rows="3" placeholder="Ex.: corolla prata abc1d23 vidro aberto"></textarea><button class="mic" id="m-mic" aria-label="Ditar" onclick="spMic('m')"><i data-lucide="mic"></i></button></div>
+          </div>
+          <div class="cd"><div class="pre" id="m-pre"></div></div>
+          <div class="sendrow"><button class="send" id="m-send" onclick="spSend('m', false)"><i data-lucide="send"></i>Enviar</button><button class="urg" id="m-urg" aria-label="Segure 1 s para urgente"><i data-lucide="siren"></i></button></div>
+          <div class="toast" id="m-toast"></div>
+          <div class="lb" style="margin:0">Seus avisos</div>
+          <div class="list" id="m-mine"></div>
+        </div>
+        <div class="tb"><span class="t on"><i data-lucide="send"></i>Enviar</span><span class="t"><i data-lucide="activity"></i>Status</span></div>
+      </div></div>
+    </div>
+
+    <div class="ph">
+      <p class="cap">3 · Enviar · admin · celular no modo claro</p>
+      <div class="phone"><div class="scr light">
+        <div class="sb"><span>10:15</span><span class="r"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+        <div class="ab"><h4>Enviar</h4><span class="right"><span class="pill"><span class="dot"></span>Telão ligado</span><span class="avatar adm">A</span></span></div>
+        <div class="ct">
+          <div>
+            <div class="lb"><span>Novo aviso</span><span class="info" data-tip="Admin pode mandar qualquer texto.&#10;Sem placa: vai como aviso livre, corrigido."><i data-lucide="info"></i></span></div>
+            <div class="inrow"><textarea id="a-in" rows="3" placeholder="Qualquer aviso…">pais do pedro henrique da sala kids favor comparecer na recepssao</textarea><button class="mic" id="a-mic" aria-label="Ditar" onclick="spMic('a')"><i data-lucide="mic"></i></button></div>
+          </div>
+          <div class="cd"><div class="pre" id="a-pre"></div></div>
+          <div class="sendrow"><button class="send" id="a-send" onclick="spSend('a', false)"><i data-lucide="send"></i>Enviar</button><button class="urg" id="a-urg" aria-label="Segure 1 s para urgente"><i data-lucide="siren"></i></button></div>
+          <div class="toast" id="a-toast"></div>
+          <div class="lb" style="margin:0">Seus avisos</div>
+          <div class="list" id="a-mine"></div>
+        </div>
+        <div class="tb"><span class="t on"><i data-lucide="send"></i>Enviar</span><span class="t"><i data-lucide="activity"></i>Status</span><span class="t"><i data-lucide="users"></i>Equipe</span></div>
+      </div></div>
+    </div>
+
+    <div class="ph">
+      <p class="cap">4 · Status com mini-telão ao vivo</p>
+      <div class="phone"><div class="scr">
+        <div class="sb"><span>19:30</span><span class="r"><i data-lucide="signal"></i><i data-lucide="wifi"></i><i data-lucide="battery-full"></i></span></div>
+        <div class="ab"><h4>Agora</h4><span class="right"><span class="pill"><span class="dot"></span>PC online</span></span></div>
+        <div class="ct">
+          <div class="cd">
+            <div class="lb"><span>No telão agora</span><span class="src">Telegram</span></div>
+            <div class="led" id="mled"><div class="slide">Quão grande é o meu Deus</div><div class="bar"><div class="tick" id="mtick">CRETA PRETO | PLACA: GBR-9003 | FAROL ACESO</div></div></div>
+            <div class="msg" style="margin-top:9px">CRETA PRETO | PLACA: GBR-9003 | FAROL ACESO</div>
+          </div>
+          <div style="display:flex; gap:6px"><span class="pill"><span class="dot"></span>LED ligado</span><span class="pill"><span class="dot"></span>Barra ativa</span></div>
+          <div><div class="lb">Fila (2)</div><div class="list">
+            <div class="it"><span class="src">Site</span><span class="t">GOL BRANCO | PLACA: FFO-4745 | ESTACIONADO NA CONTRAMÃO</span><span class="st q">1º</span></div>
+            <div class="it"><span class="src">PC</span><span class="t">COROLLA PRATA | PLACA: BRA-2E19 | VIDRO ABERTO</span><span class="st q">2º</span></div>
+          </div></div>
+          <div><div class="lb">Recentes</div><div class="list">
+            <div class="it"><span class="t">FOX PRATA | PLACA: ETC-6785 | ESTACIONADO EM LOCAL PROIBIDO</span><span class="st ok"><i data-lucide="check"></i>19:24</span></div>
+          </div></div>
+        </div>
+        <div class="tb"><span class="t"><i data-lucide="send"></i>Enviar</span><span class="t on"><i data-lucide="activity"></i>Status</span></div>
+      </div></div>
+    </div>
+  </div>
+  <p class="note">A tela Equipe continua igual à versão 2. Sem sinal, o envio mostra erro e a pessoa tenta de novo (sem fila offline). O status de cada aviso aparece só dentro do app, sem notificação.</p>
+</div>
+
+<script src="/files/lucide.min.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const icons = () => { if (window.lucide) window.lucide.createIcons(); };
+
+  /* correção/formatação de mentira (no app real: Gemini no celular, com regra e formato iguais ao PC) */
+  const FIX = [[/\bfarol\s+acess[oa]\b/gi, 'farol aceso'], [/\bestacionado\s+local\b/gi, 'estacionado em local'], [/\babrto\b/gi, 'aberto'], [/\bcontra\s*m[aã]o\b/gi, 'contramão'], [/\bproibid\b/gi, 'proibido'],
+               [/\brecepss?[aã]o\b/gi, 'recepção'], [/\bcomparecer\s+na\s+recep/gi, 'comparecer à recep'], [/\bsala kids favor\b/gi, 'sala kids, favor'], [/\bhenrique da sala\b/gi, 'henrique, da sala']];
+  const fix = (t) => FIX.reduce((s, [re, to]) => s.replace(re, to), t);
+  const COLORS = ['preto', 'preta', 'branco', 'branca', 'prata', 'cinza', 'grafite', 'vermelho', 'vermelha', 'azul', 'verde', 'amarelo', 'amarela', 'bege', 'marrom', 'dourado', 'dourada', 'vinho', 'laranja', 'rosa', 'roxo', 'roxa', 'champanhe'];
+  const REASON = /\b(farol|far[oó]is|vidro|vidros|estacionad[oa]|parad[oa]|porta|portas|pisca|luz|luzes|alarme|som|pneu|dono|dona|compare[cs]er|bloqueando)\b/i;
+  const TO_L = { '0': 'O', '1': 'I', '5': 'S', '8': 'B' }, TO_D = { O: '0', I: '1', S: '5', B: '8' };
+  function plateOf(s) {
+    const c = String(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (c.length !== 7) return null;
+    const L = c.slice(0, 3).split('').map((ch) => TO_L[ch] || ch).join('');
+    const d3 = TO_D[c[3]] || c[3], p4 = c[4], d56 = c.slice(5).split('').map((ch) => TO_D[ch] || ch).join('');
+    if (!/^[A-Z]{3}$/.test(L) || !/^\d$/.test(d3) || !/^[A-Z0-9]$/.test(p4) || !/^\d{2}$/.test(d56)) return null;
+    return L + '-' + d3 + p4 + d56;
+  }
+  function parseLine(raw) {
+    let t = ' ' + fix(raw).replace(/^\s*#+\s*/, '') + ' ';
+    let plate = null;
+    t = t.replace(/\bplaca\b\s*:?\s*/gi, ' ');
+    t = t.replace(/(^|[\s|/;,])([a-z]{3}\s*-?\s*[0-9oisb][0-9a-z][0-9oisb]{2})(?=$|[\s|/;,])/gi, (m, pre, cand) => { const p = !plate && plateOf(cand); if (p) { plate = p; return pre + '|'; } return m; });
+    const segs = t.split(/[|/;]+/).map((s) => s.trim()).filter(Boolean);
+    let vehicle = ''; const reason = [];
+    segs.forEach((s) => { const m = REASON.exec(s); if (!vehicle && (!m || m.index > 0)) { vehicle = m ? s.slice(0, m.index).trim() : s; if (m) reason.push(s.slice(m.index)); } else reason.push(s); });
+    const words = vehicle.split(/\s+/).filter(Boolean);
+    const model = words.filter((w) => !COLORS.includes(w.toLowerCase())).join(' ');
+    const color = words.filter((w) => COLORS.includes(w.toLowerCase())).join(' ');
+    const missing = [];
+    if (!model) missing.push('modelo');
+    if (!color) missing.push('cor');
+    if (!plate) missing.push('placa');
+    const parts = [];
+    if (model || color) parts.push([model, color].filter(Boolean).join(' '));
+    if (plate) parts.push('Placa: ' + plate);
+    if (reason.length) parts.push(reason.join(' '));
+    return { text: parts.join(' | ').toUpperCase(), missing, plate, free: fix(raw).replace(/^\s*#+\s*/, '').toUpperCase() };
+  }
+  const QUEUED = { 'FFO-4745': 'GOL BRANCO', 'BRA-2E19': 'COROLLA PRATA', 'GBR-9003': 'CRETA PRETO' };
+  function evaluate(raw, admin) {
+    const r = parseLine(raw);
+    if (!raw) return { cls: 'pre', html: '<i data-lucide="wand-sparkles"></i><span><span class="k">Vai aparecer assim:</span>…</span>', ok: false };
+    if (r.plate && QUEUED[r.plate]) return { cls: 'pre dup', html: '<i data-lucide="copy-x"></i><span><span class="k">Não precisa mandar:</span>ESSE CARRO JÁ ESTÁ NA FILA (' + QUEUED[r.plate] + ')</span>', ok: false };
+    if (admin && !r.plate) return { cls: 'pre free', html: '<i data-lucide="megaphone"></i><span><span class="k">Vai aparecer assim <span class="tag">aviso livre</span></span>' + esc(r.free) + '</span>', ok: true, text: r.free };
+    if (r.missing.length && !admin) return { cls: 'pre err', html: '<i data-lucide="circle-alert"></i><span><span class="k">Não vai para o telão:</span>FALTA ' + r.missing.join(', ').toUpperCase() + '</span>', ok: false };
+    return { cls: 'pre', html: '<i data-lucide="wand-sparkles"></i><span><span class="k">Vai aparecer assim:</span>' + esc(r.text) + '</span>', ok: true, text: r.text };
+  }
+
+  const state = { m: { ok: false, text: '' }, a: { ok: false, text: '' } };
+  const timers = {};
+  function setUrgEnabled(k, on) { $(k + '-urg').classList.toggle('dis', !on); }
+  function upd(k, instant) {
+    const raw = $(k + '-in').value.trim();
+    const box = $(k + '-pre');
+    clearTimeout(timers[k]);
+    state[k].ok = false; $(k + '-send').disabled = true; setUrgEnabled(k, false);
+    if (!raw) { const e = evaluate('', k === 'a'); box.className = e.cls; box.innerHTML = e.html; icons(); return; }
+    if (!instant) { box.className = 'pre busy'; box.innerHTML = '<i data-lucide="loader-circle"></i><span>Corrigindo com IA…</span>'; icons(); }
+    timers[k] = setTimeout(() => {
+      const e = evaluate(raw, k === 'a');
+      box.className = e.cls; box.innerHTML = e.html;
+      state[k] = { ok: e.ok, text: e.text };
+      $(k + '-send').disabled = !e.ok; setUrgEnabled(k, e.ok);
+      icons();
+    }, instant ? 0 : 700);
+  }
+
+  const mine = {
+    m: [{ t: 'COROLLA PRATA | PLACA: BRA-2E19 | VIDRO ABERTO', s: 'q', l: '2º na fila' }, { t: 'ONIX PRETO | PLACA: QWE-1B23 | FAROL ACESO', s: 'ok', l: '19:10' }],
+    a: [{ t: 'GOL BRANCO | PLACA: FFO-4745 | ESTACIONADO NA CONTRAMÃO', s: 'q', l: '1º na fila' }]
+  };
+  const ICON = { q: 'clock', ok: 'check', no: 'x', now: 'monitor-play', cx: 'ban' };
+  function renderMine(k) {
+    $(k + '-mine').innerHTML = mine[k].map((m, i) => '<div class="it' + (m.s === 'cx' ? ' cx' : '') + '"><span class="t">' + esc(m.t) + '</span><span class="st ' + m.s + '"><i data-lucide="' + ICON[m.s] + '"></i>' + m.l + '</span>' +
+      (m.s === 'q' ? '<button class="xb" title="Cancelar (o carro já saiu)" onclick="spCancel(\'' + k + '\',' + i + ')"><i data-lucide="x"></i></button>' : '') + '</div>').join('');
+    icons();
+  }
+  window.spCancel = (k, i) => { mine[k][i].s = 'cx'; mine[k][i].l = 'cancelado'; renderMine(k); };
+  function toast(k, msg) { $(k + '-toast').textContent = msg; clearTimeout(timers[k + 't']); timers[k + 't'] = setTimeout(() => { $(k + '-toast').textContent = ''; }, 1800); }
+  window.spSend = (k, urgent) => {
+    if (!state[k].ok) return;
+    const item = { t: state[k].text, s: 'q', l: urgent ? '1º · urgente' : (mine[k].filter((m) => m.s === 'q').length + 2) + 'º na fila' };
+    mine[k].unshift(item); $(k + '-in').value = ''; upd(k, true); renderMine(k);
+    if (urgent) toast(k, 'Enviado como URGENTE');
+    setTimeout(() => { if (item.s === 'q') { item.s = 'now'; item.l = 'passando'; renderMine(k); } }, 3000);
+    setTimeout(() => { if (item.s === 'now') { item.s = 'ok'; item.l = new Date().toLocaleTimeString('pt-BR').slice(0, 5); renderMine(k); } }, 7000);
+  };
+  ['m', 'a'].forEach((k) => {
+    const b = $(k + '-urg');
+    let hold = null;
+    const start = (e) => { e.preventDefault(); if (!state[k].ok) return; b.classList.add('holding'); hold = setTimeout(() => { hold = null; b.classList.remove('holding'); if (navigator.vibrate) navigator.vibrate(60); spSend(k, true); }, 1000); };
+    const stop = () => { if (hold) { clearTimeout(hold); hold = null; toast(k, 'Segure o ícone 1 s para urgente'); } b.classList.remove('holding'); };
+    b.addEventListener('pointerdown', start); b.addEventListener('pointerup', stop); b.addEventListener('pointerleave', stop);
+  });
+  window.spMic = (k) => {
+    const mic = $(k + '-mic');
+    if (mic.classList.contains('rec')) return;
+    mic.classList.add('rec'); toast(k, 'Ouvindo…');
+    setTimeout(() => { mic.classList.remove('rec'); $(k + '-in').value = k === 'm' ? 'corolla preto qwe2f45 farol acesso' : 'atenção pais do joão da sala kids favor ir na recepção'; upd(k); toast(k, ''); }, 1600);
+  };
+  ['m', 'a'].forEach((k) => { $(k + '-in').addEventListener('input', () => upd(k)); renderMine(k); upd(k, true); });
+
+  const STEPS = [
+    { h: 'Como mandar um aviso', p: 'Escreva do seu jeito, numa linha só. O app arruma e mostra como vai ficar no telão.', ill: '<div class="ex1">corolla prata abc1d23 vidro abrto</div><i data-lucide="arrow-down"></i><div class="ex2">COROLLA PRATA | PLACA: ABC-1D23 | VIDRO ABERTO</div>' },
+    { h: 'O que não pode faltar', p: 'Modelo, cor e placa (antiga ou Mercosul). O motivo é opcional. Se faltar algo, o app avisa antes de enviar.', ill: '<div class="ex2">MODELO · COR · PLACA</div><div class="ex1">+ motivo (opcional)</div>' },
+    { h: 'Acompanhe e urgente', p: 'Em "Seus avisos" você vê: na fila, passando, exibido ou recusado. Para urgente, segure o ícone amarelo por 1 segundo.', ill: '<div class="ex2">⏱ NA FILA → ▶ PASSANDO → ✅ EXIBIDO</div><div class="ex1">segure 🚨 1 s = urgente</div>' }
+  ];
+  let step = 0;
+  function renderTut() {
+    const s = STEPS[step];
+    $('tut').innerHTML = '<div class="ill">' + s.ill + '</div><h3>' + s.h + '</h3><p>' + s.p + '</p><div class="dots">' + STEPS.map((_, i) => '<i class="' + (i === step ? 'on' : '') + '"></i>').join('') + '</div>' +
+      '<div class="btns"><button class="skip" onclick="spTut(-1)">Pular</button><button class="next" onclick="spTut(1)">' + (step === STEPS.length - 1 ? 'Começar' : 'Próximo') + '<i data-lucide="arrow-right"></i></button></div>';
+    icons();
+  }
+  window.spTut = (d) => { step = d < 0 || step === STEPS.length - 1 ? 0 : step + 1; renderTut(); };
+  renderTut();
+
+  const led = $('mled'), tick = $('mtick');
+  let x = 2560, last = performance.now();
+  function frame(t) {
+    const dt = Math.min(0.1, (t - last) / 1000); last = t;
+    const s = led.clientWidth / 2560;
+    x -= 90 * dt;
+    if (s && x + tick.offsetWidth / s < 0) x = 2560;
+    if (s) tick.style.transform = 'translate(' + x * s + 'px, -50%)';
+    requestAnimationFrame(frame);
+  }
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => requestAnimationFrame(frame));
+  icons();
+})();
+</script>

@@ -1,0 +1,657 @@
+<style>
+  @font-face { font-family: 'MarbleM'; src: url('/files/Marble-Light.ttf') format('truetype'); font-weight: 300; }
+  @font-face { font-family: 'MarbleM'; src: url('/files/Marble-Regular.ttf') format('truetype'); font-weight: 400; }
+  @font-face { font-family: 'MarbleM'; src: url('/files/Marble-Medium.ttf') format('truetype'); font-weight: 500; }
+  @font-face { font-family: 'MarbleM'; src: url('/files/Marble-SemiBold.ttf') format('truetype'); font-weight: 600; }
+  @font-face { font-family: 'MarbleM'; src: url('/files/Marble-Bold.ttf') format('truetype'); font-weight: 700; }
+
+  .ap { --bg: #0a0a0c; --pn: rgba(255,255,255,.028); --pn2: rgba(255,255,255,.05); --ln: rgba(255,255,255,.08); --tx: #edeae2; --mu: #8c867b;
+        --ac: #1da35f; --acs: rgba(29,163,95,.13); --gl: #22e07e; --cr: #fff3dc; --dg: #ff9d9d; --ok: #86e4ad; --wn: #ffd87a; --bad: #ff5c5c; --blue: #5aa9ff; }
+  .ap .cols { display: grid; grid-template-columns: 330px 1fr; gap: 1.5rem; align-items: start; }
+  @media (max-width: 1150px) { .ap .cols { grid-template-columns: 1fr; } }
+  .ap .cap { font-size: .72rem; letter-spacing: .07em; text-transform: uppercase; color: var(--text-secondary); margin: 0 0 .45rem; }
+  .ap .ui, .ap .ui button, .ap .ui textarea, .ap .ui input { font-family: 'MarbleM', 'Segoe UI', sans-serif; }
+  .ap .ui { color: var(--tx); font-size: 13px; }
+  .ap svg.lucide { width: 16px; height: 16px; flex: none; }
+
+  /* dica (i) e balões */
+  .ap [data-tip] { position: relative; }
+  .ap [data-tip]:hover::after { content: attr(data-tip); position: absolute; z-index: 60; top: calc(100% + 8px); right: -6px; width: max-content; max-width: 280px; white-space: pre-line;
+    background: #1c1c21; color: var(--tx); border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 8px 10px; font: 500 11.5px/1.5 'MarbleM', 'Segoe UI', sans-serif;
+    letter-spacing: 0; text-transform: none; text-align: left; box-shadow: 0 12px 28px rgba(0,0,0,.55); pointer-events: none; }
+  .ap .tip-r[data-tip]:hover::after { top: 50%; left: calc(100% + 10px); right: auto; transform: translateY(-50%); }
+  .ap .info { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; color: var(--mu); cursor: help; }
+  .ap .info svg.lucide { width: 15px; height: 15px; }
+  .ap .info:hover { color: var(--tx); background: var(--pn2); }
+
+  /* bolinhas de status */
+  .ap .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gl); box-shadow: 0 0 7px var(--gl); flex: none; display: inline-block; }
+  .ap .dot.warn { background: var(--wn); box-shadow: 0 0 7px var(--wn); }
+  .ap .dot.bad { background: var(--bad); box-shadow: 0 0 7px var(--bad); }
+  .ap .dot.blue { background: var(--blue); box-shadow: 0 0 7px var(--blue); }
+
+  /* área de trabalho + painel rápido */
+  .ap .desk { background: linear-gradient(135deg, #1b2a4a, #0e1a2e 55%, #2a1838); border-radius: 10px; padding: 16px 16px 0; }
+  .ap .fly { background: #141417; border: 1px solid var(--ln); border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,.5); padding: 12px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .25s; }
+  .ap .fly.flash { box-shadow: 0 0 0 2px var(--ac), 0 20px 40px rgba(0,0,0,.5); }
+  .ap .fstat { display: flex; align-items: center; gap: 8px; }
+  .ap .fstat .pill { margin-left: auto; }
+  .ap .sico { position: relative; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--pn2); border: 1px solid var(--ln); color: #d9d4ca; cursor: default; }
+  .ap .sico svg.lucide { width: 15px; height: 15px; }
+  .ap .sico .dot { position: absolute; right: -3px; bottom: -3px; width: 7px; height: 7px; border: 2px solid #141417; }
+  .ap .sico[data-tip]:hover::after { left: -6px; right: auto; }
+  .ap .taskbar { margin: 14px -16px 0; height: 40px; background: rgba(18,18,22,.94); border-top: 1px solid var(--ln); border-radius: 0 0 10px 10px;
+                 display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 0 14px; color: #ddd; }
+  .ap .taskbar svg.lucide { width: 15px; height: 15px; }
+  .ap .taskbar .clock { font: 12px system-ui, sans-serif; }
+  .ap .trayicon { width: 26px; height: 26px; border-radius: 6px; background: var(--acs); outline: 1px solid var(--ac); display: grid; place-items: center; }
+  .ap .trayicon img { width: 15px; height: 15px; }
+
+  /* janela */
+  .ap .win { background: var(--bg); border: 1px solid var(--ln); border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.45); }
+  .ap .tbar { height: 34px; display: flex; align-items: center; gap: 8px; padding-left: 12px; background: #0d0d10; border-bottom: 1px solid var(--ln); color: var(--mu); font-size: 12.5px; }
+  .ap .tbar img { width: 14px; height: 14px; }
+  .ap .tbar .wb { margin-left: auto; display: flex; }
+  .ap .tbar .wb span { width: 44px; height: 34px; display: grid; place-items: center; }
+  .ap .tbar .wb svg.lucide { width: 14px; height: 14px; }
+  .ap .shell { display: grid; grid-template-columns: 172px 1fr; min-height: 540px; }
+  .ap .side { border-right: 1px solid var(--ln); padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; background: linear-gradient(180deg, #0a0a0c, #0e0e12); }
+  .ap .side .logo { display: flex; align-items: center; gap: 8px; padding: 4px 6px 12px; font-weight: 700; font-size: 14.5px; }
+  .ap .side .logo img { width: 24px; height: 24px; }
+  .ap .tab { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: var(--mu); cursor: pointer; font-size: 13.5px; border: 1px solid transparent; background: none; text-align: left; }
+  .ap .tab:hover { color: var(--tx); }
+  .ap .tab.on { color: var(--tx); background: var(--acs); border-color: rgba(29,163,95,.35); }
+  .ap .side .stlist { margin-top: auto; border-top: 1px solid var(--ln); padding-top: 8px; display: flex; flex-direction: column; }
+  .ap .st { display: flex; align-items: center; gap: 8px; padding: 2px 10px; border-radius: 6px; font-size: 10.5px; font-weight: 300; letter-spacing: .02em; color: #6f6a63; cursor: default; line-height: 1.7; }
+  .ap .st:hover { color: var(--mu); }
+  .ap .st .dot { width: 6px; height: 6px; box-shadow: none; }
+  .ap .pane { padding: 16px; display: none; min-width: 0; }
+  .ap .pane.on { display: block; }
+  .ap .hdr { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .ap .hdr h4 { margin: 0; font-size: 18px; font-weight: 700; }
+  .ap .saved { font-size: 12px; color: var(--ok); padding: 4px 9px; border-radius: 999px; border: 1px solid rgba(134,228,173,.3); background: rgba(134,228,173,.06); white-space: nowrap; }
+  .ap .saved.busy { color: var(--mu); border-color: var(--ln); background: none; }
+
+  .ap .g2 { display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; align-items: start; }
+  .ap .stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .ap .cd { background: var(--pn); border: 1px solid var(--ln); border-radius: 12px; padding: 12px; min-width: 0; }
+  .ap .lbl { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--mu); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 20px; }
+  .ap .msg { font-weight: 700; letter-spacing: .04em; font-size: 13.5px; color: var(--cr); line-height: 1.35; min-height: 2.7em; }
+  .ap .msg.empty { color: var(--mu); font-weight: 500; letter-spacing: 0; }
+  .ap .sub { font-size: 11.5px; color: var(--mu); margin-top: 7px; }
+  .ap .corr { display: flex; gap: 6px; align-items: flex-start; margin-top: 7px; font-size: 11px; color: var(--mu); line-height: 1.4; }
+  .ap .corr:empty { display: none; }
+  .ap .corr svg.lucide { width: 13px; height: 13px; color: var(--ac); margin-top: 1px; }
+  .ap .corr em { font-style: normal; color: #b9b2a5; }
+  /* prévia corrigida ao digitar */
+  .ap .pre { display: flex; gap: 6px; align-items: flex-start; margin-top: 7px; font-size: 11.5px; color: var(--cr); font-weight: 700; letter-spacing: .03em; line-height: 1.4; }
+  .ap .pre:empty { display: none; }
+  .ap .pre svg.lucide { width: 13px; height: 13px; color: var(--ac); margin-top: 1px; }
+  .ap .pre.offline svg.lucide { color: var(--blue); }
+  .ap .pre.err { color: var(--dg); }
+  .ap .pre.err svg.lucide { color: var(--bad); }
+  .ap .pre.shake { animation: apshake .4s; }
+  @keyframes apshake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  .ap .item.rej { border-color: rgba(255,92,92,.3); }
+  .ap .item .rejc { color: var(--bad); display: inline-grid; place-items: center; flex: none; }
+  .ap .item .rejc svg.lucide { width: 13px; height: 13px; }
+  .ap .item .miss { font-size: 10px; color: var(--dg); flex: none; letter-spacing: 0; text-transform: uppercase; }
+  .ap .pre .k { display: block; color: var(--mu); font-weight: 500; letter-spacing: 0; font-size: 10.5px; }
+  .ap .src { font-size: 9.5px; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--ln); color: var(--mu); letter-spacing: .05em; text-transform: uppercase; flex: none; }
+  .ap .prog { height: 4px; background: rgba(255,255,255,.07); border-radius: 4px; overflow: hidden; margin-top: 10px; }
+  .ap .prog i { display: block; height: 100%; width: 0; background: var(--gl); }
+  .ap textarea, .ap input[type=text] { width: 100%; box-sizing: border-box; background: #0d0d10; border: 1px solid var(--ln); border-radius: 8px; color: var(--tx); font-size: 13px; padding: 9px 10px; resize: vertical; outline: none; }
+  .ap textarea:focus, .ap input[type=text]:focus { border-color: rgba(29,163,95,.6); }
+  .ap .up { text-transform: uppercase; }
+  .ap .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--ln); background: var(--pn2); color: var(--tx); cursor: pointer; }
+  .ap .btn svg.lucide { width: 15px; height: 15px; }
+  .ap .btn.icon { padding: 7px 10px; }
+  .ap .btn.grow { flex: 1; }
+  .ap .btn.pri { background: var(--ac); border-color: var(--ac); color: #04130b; }
+  .ap .btn.urg { background: rgba(255,216,122,.1); border-color: rgba(255,216,122,.45); color: var(--wn); }
+  .ap .btn.dng { background: rgba(255,157,157,.07); border-color: rgba(255,157,157,.35); color: var(--dg); }
+  .ap .btn.on { background: rgba(255,216,122,.14); border-color: rgba(255,216,122,.5); color: var(--wn); }
+  .ap .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .ap .row.nowrap { flex-wrap: nowrap; }
+  .ap .pill { font-size: 11.5px; padding: 4px 9px; border-radius: 999px; background: var(--pn2); border: 1px solid var(--ln); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: default; }
+  .ap .list { display: flex; flex-direction: column; gap: 6px; max-height: 225px; overflow: auto; }
+  .ap .item { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,.02); border: 1px solid var(--ln); font-size: 11.5px; letter-spacing: .03em; }
+  .ap .item .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .ap .item.u { border-color: rgba(255,216,122,.35); }
+  .ap .item .wand, .ap .item .okc { display: inline-grid; place-items: center; flex: none; }
+  .ap .item .wand { color: var(--ac); cursor: help; } .ap .item .okc { color: var(--ok); }
+  .ap .item .wand svg.lucide, .ap .item .okc svg.lucide { width: 13px; height: 13px; }
+  .ap .ib { width: 24px; height: 24px; flex: none; display: inline-grid; place-items: center; border-radius: 6px; border: 1px solid var(--ln); background: none; color: var(--mu); cursor: pointer; padding: 0; }
+  .ap .ib svg.lucide { width: 13px; height: 13px; }
+  .ap .ib:hover { color: var(--tx); border-color: rgba(29,163,95,.5); }
+
+  /* correção */
+  .ap .narrow { max-width: 620px; }
+  .ap .aiopts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ap .aiopt { border: 1px solid var(--ln); border-radius: 10px; padding: 11px 12px; cursor: pointer; background: rgba(255,255,255,.02); }
+  .ap .aiopt:hover { border-color: rgba(29,163,95,.45); }
+  .ap .aiopt.sel { border-color: var(--ac); background: var(--acs); }
+  .ap .aiopt h6 { margin: 0; font-size: 13px; display: flex; align-items: center; gap: 7px; }
+  .ap .aiopt h6 svg.lucide { color: var(--gl); width: 15px; height: 15px; }
+  .ap .keyrow { margin-top: 12px; }
+
+  /* configurações */
+  .ap .sec h5 { margin: 0 0 10px; font-size: 13.5px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; }
+  .ap .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin-bottom: 10px; }
+  .ap .field:last-child { margin-bottom: 0; }
+  .ap .field label { font-size: 11.5px; color: var(--mu); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .ap .field label output { color: var(--tx); font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .ap .lock { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--ln); background: none; color: var(--mu); cursor: pointer; }
+  .ap .lock svg.lucide { width: 12px; height: 12px; }
+  .ap input:disabled { opacity: .55; }
+  .ap .seg { display: inline-flex; border: 1px solid var(--ln); border-radius: 8px; overflow: hidden; width: max-content; }
+  .ap .seg button { padding: 6px 14px; background: none; border: 0; color: var(--mu); cursor: pointer; font-size: 12.5px; }
+  .ap .seg button.on { background: var(--acs); color: var(--tx); }
+  .ap input[type=range] { accent-color: var(--ac); width: 100%; }
+  .ap .tog { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--ln); font-size: 12.5px; }
+  .ap .tog:first-of-type { border-top: 0; }
+  .ap .tog > span:first-child { display: inline-flex; align-items: center; gap: 4px; }
+  .ap .fixed { font-size: 11.5px; color: var(--ok); display: inline-flex; align-items: center; gap: 5px; }
+  .ap .fixed svg.lucide { width: 13px; height: 13px; }
+  .ap .hotkey { width: 160px !important; text-align: center; cursor: pointer; font-weight: 600; letter-spacing: .02em; }
+  .ap details summary { cursor: pointer; font-size: 12px; color: var(--mu); margin-top: 6px; }
+  .ap details.diag { margin-top: 12px; }
+  .ap details.diag > summary { list-style: none; display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13.5px; font-weight: 700; color: var(--tx); }
+  .ap details.diag > summary::-webkit-details-marker { display: none; }
+  .ap details.diag > summary .meta { margin-left: auto; font-size: 11.5px; font-weight: 400; color: var(--mu); }
+  .ap details.diag > summary svg.lucide.chev { transition: transform .15s; color: var(--mu); }
+  .ap details.diag[open] > summary svg.lucide.chev { transform: rotate(90deg); }
+  .ap .diagbody { margin-top: 10px; }
+
+  /* LED pequeno da prévia (1 px real = 1cqw / 25.6) */
+  .ap .led { position: relative; width: 100%; aspect-ratio: 2560 / 768; overflow: hidden; border-radius: 6px; container-type: inline-size; background: #05060c; box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
+  .ap .slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; text-transform: uppercase;
+               font-size: calc(64 * 1cqw / 25.6); background: radial-gradient(ellipse 55% 95% at 28% 15%, #26346a 0%, transparent 70%), radial-gradient(ellipse 50% 85% at 82% 95%, #432257 0%, transparent 70%), linear-gradient(180deg, #0e1226, #070912); }
+  .ap .bar { position: absolute; left: 0; right: 0; top: 0; height: calc(var(--h) * 1cqw / 25.6); background: #000; overflow: hidden; }
+  .ap .bar.bottom { top: auto; bottom: 0; }
+  .ap .tick { position: absolute; left: 0; top: 50%; white-space: nowrap; font-weight: 700; letter-spacing: .08em; color: #fff7e8; font-size: calc(var(--f) * 1cqw / 25.6); padding: 0 calc(24 * 1cqw / 25.6); transform: translate(0, -50%); }
+
+  /* logs */
+  .ap .term { background: #060607; border: 1px solid var(--ln); border-radius: 10px; padding: 10px; font: 11.5px/1.6 Consolas, monospace; color: #cfcac0; max-height: 260px; overflow: auto; white-space: pre-wrap; margin-top: 10px; }
+  .ap .term b { font-weight: 400; } .ap .L-i { color: #86e4ad; } .ap .L-a { color: #8fc7ff; } .ap .L-w { color: #ffd87a; } .ap .L-e { color: #ff9d9d; }
+
+  /* controles do protótipo (fora do app) */
+  .ap .sim { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; font-size: .8rem; color: var(--text-secondary); }
+  .ap .simb { font: inherit; padding: .3rem .7rem; border-radius: 999px; border: 1px dashed var(--border); background: none; color: var(--text-primary); cursor: pointer; }
+  .ap .simb.on { border-style: solid; border-color: var(--bad); color: var(--bad); }
+</style>
+
+<div class="ap">
+  <h2>Painel no PC · versão 7</h2>
+  <p class="subtitle">Tudo em MAIÚSCULAS: <b>MODELO COR | PLACA: ABC-1234 | MOTIVO</b>. Sem modelo, cor ou placa: não vai para o telão e volta uma mensagem de erro para quem mandou. Sem motivo: passa normal. Teste digitando "gol branco farol aceso" ou pelo botão embaixo.</p>
+
+  <div class="cols ui">
+    <div>
+      <p class="cap">1 clique no ícone da bandeja (ou Ctrl+Alt+Espaço) → painel rápido</p>
+      <div class="desk">
+        <div class="fly" id="fly">
+          <div class="fstat"><span id="f-icons" class="row" style="gap:8px"></span><span class="pill" id="f-state"></span></div>
+          <div class="cd">
+            <div class="lbl"><span>No telão agora</span><span class="src" id="f-src"></span></div>
+            <div class="msg" id="f-cur"></div>
+            <div class="prog"><i id="f-prog"></i></div>
+            <div class="sub" id="f-next"></div>
+          </div>
+          <div>
+            <div class="lbl"><span>Novo aviso</span><span class="info" role="img" aria-label="Dicas" data-tip="Enter: envia&#10;Ctrl+Enter: urgente (fura a fila)&#10;Esc: limpa&#10;Ctrl+Alt+Espaço: abre este painel de qualquer programa"><i data-lucide="info"></i></span></div>
+            <textarea id="f-in" rows="2" placeholder="Digite o aviso…"></textarea>
+            <div class="pre" id="f-pre"></div>
+          </div>
+          <div class="row nowrap">
+            <button class="btn pri grow" onclick="apSend('f-in', false)"><i data-lucide="send"></i>Enviar</button>
+            <button class="btn urg icon" aria-label="Urgente" data-tip="Urgente (fura a fila)" onclick="apSend('f-in', true)"><i data-lucide="siren"></i></button>
+            <button class="btn icon" id="f-pause" onclick="apPause()"></button>
+            <button class="btn icon" aria-label="Abrir janela" data-tip="Abrir janela completa" onclick="apTab('inicio')"><i data-lucide="app-window"></i></button>
+          </div>
+        </div>
+        <div class="taskbar"><i data-lucide="chevron-up"></i><span class="trayicon" title="Alerta-IBT"><img src="/files/logo.svg" alt=""></span><i data-lucide="volume-2"></i><i data-lucide="wifi"></i><span class="clock">19:30</span></div>
+      </div>
+    </div>
+
+    <div>
+      <p class="cap">2 cliques no ícone → janela completa</p>
+      <div class="win">
+        <div class="tbar"><img src="/files/logo.svg" alt="">Alerta-IBT<div class="wb"><span><i data-lucide="minus"></i></span><span><i data-lucide="square"></i></span><span><i data-lucide="x"></i></span></div></div>
+        <div class="shell">
+          <nav class="side">
+            <div class="logo"><img src="/files/logo.svg" alt="">Alerta-IBT</div>
+            <button class="tab on" data-t="inicio" onclick="apTab('inicio')"><i data-lucide="house"></i>Início</button>
+            <button class="tab" data-t="correcao" onclick="apTab('correcao')"><i data-lucide="spell-check"></i>Correção</button>
+            <button class="tab" data-t="config" onclick="apTab('config')"><i data-lucide="settings"></i>Configurações</button>
+            <div class="stlist" id="w-status"></div>
+          </nav>
+
+          <section class="pane on" id="t-inicio">
+            <div class="hdr"><h4>Início</h4><button class="btn" id="w-pause" onclick="apPause()"></button></div>
+            <div class="g2">
+              <div class="stack">
+                <div class="cd">
+                  <div class="lbl"><span>Mensagem atual</span><span class="src" id="w-src"></span></div>
+                  <div class="msg" id="w-cur"></div>
+                  <div class="corr" id="w-orig"></div>
+                  <div class="prog"><i id="w-prog"></i></div>
+                  <div class="row" style="margin-top:10px"><button class="btn" onclick="apSkip()"><i data-lucide="skip-forward"></i>Próxima</button><button class="btn dng" onclick="apSkip()"><i data-lucide="circle-stop"></i>Encerrar atual</button></div>
+                </div>
+                <div class="cd">
+                  <div class="lbl"><span>Mensagem</span><span class="info" role="img" aria-label="Dicas" data-tip="Enter: envia&#10;Ctrl+Enter: urgente (fura a fila)&#10;Shift+Enter: nova linha&#10;Esc: limpa o campo"><i data-lucide="info"></i></span></div>
+                  <textarea id="w-in" rows="3" placeholder="Digite a mensagem para o telão"></textarea>
+                  <div class="pre" id="w-pre"></div>
+                  <div class="row" style="margin-top:8px"><button class="btn pri" onclick="apSend('w-in', false)"><i data-lucide="send"></i>Enviar</button><button class="btn urg" onclick="apSend('w-in', true)"><i data-lucide="siren"></i>Enviar urgente</button><button class="btn dng" onclick="apClearField('w-in')"><i data-lucide="eraser"></i>Limpar</button></div>
+                </div>
+              </div>
+              <div class="stack">
+                <div class="cd"><div class="lbl"><span>Fila <b id="w-qn"></b></span><button class="ib" title="Limpar fila" onclick="apClearQ()"><i data-lucide="trash-2"></i></button></div><div class="list" id="w-queue"></div></div>
+                <div class="cd"><div class="lbl"><span>Histórico</span></div><div class="list" id="w-hist"></div></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="pane" id="t-correcao">
+            <div class="hdr"><h4>Correção</h4><span class="saved" data-saved>✓ Salvo</span></div>
+            <div class="stack narrow">
+              <div class="cd">
+                <div class="lbl"><span>Correção automática</span><span class="row"><span class="info" role="img" aria-label="Dicas" data-tip="Corrige o português e organiza no padrão:&#10;MODELO COR | PLACA: ABC-1234 | MOTIVO&#10;Aceita placa antiga e Mercosul.&#10;Sem modelo, cor ou placa: não vai para o telão&#10;e volta uma mensagem de erro. Sem motivo: passa.&#10;Gemini: grátis, precisa de internet.&#10;Só offline: nada sai do PC.&#10;Sem internet, cai sozinho no offline."><i data-lucide="info"></i></span><button class="sw" onclick="this.classList.toggle('off'); apAutosave()"></button></span></div>
+                <div class="aiopts">
+                  <div class="aiopt sel" data-choice="ia-gemini" onclick="apAi(this)"><h6><i data-lucide="sparkles"></i>Gemini</h6></div>
+                  <div class="aiopt" data-choice="ia-offline" onclick="apAi(this)"><h6><i data-lucide="wifi-off"></i>Só offline</h6></div>
+                </div>
+                <div class="field keyrow"><label><span>Chave do Gemini (grátis) <span class="info" role="img" aria-label="Dicas" data-tip="Crie grátis em aistudio.google.com.&#10;Sem cartão de crédito.&#10;Fica guardada criptografada neste PC."><i data-lucide="info"></i></span></span><button class="lock" data-for="s-ai" onclick="apLock(this)"></button></label><input type="text" id="s-ai" value="AIza••••••••••••••••••••" disabled oninput="apAutosave()"></div>
+              </div>
+              <div class="cd">
+                <div class="lbl"><span>Regras fixas</span><span class="info" role="img" aria-label="Dicas" data-tip="Opcional. Uma por linha:&#10;texto errado => texto certo"><i data-lucide="info"></i></span></div>
+                <textarea id="c-corr" rows="6" oninput="apAutosave()">farol acesso => farol aceso</textarea>
+              </div>
+            </div>
+          </section>
+
+          <section class="pane" id="t-config">
+            <div class="hdr"><h4>Configurações</h4><span class="saved" data-saved>✓ Salvo</span></div>
+            <div class="g2">
+              <div class="stack">
+                <div class="cd sec">
+                  <h5>Barra no LED</h5>
+                  <div class="field"><label>Posição</label>
+                    <div class="seg" id="s-pos"><button class="on" onclick="apPos('top', this)">Topo</button><button onclick="apPos('bottom', this)">Rodapé</button></div>
+                  </div>
+                  <div class="field"><label>Tamanho <output id="o-size"></output></label><input type="range" id="s-size" min="28" max="120" step="2" value="56" oninput="apSize(this)"></div>
+                  <div class="field"><label>Velocidade <output id="o-speed"></output></label><input type="range" id="s-speed" min="30" max="300" step="10" value="90" oninput="apSpeed(this)"></div>
+                  <details><summary>Avançado: letra separada, margem, cores, animação</summary><p class="sub">Os mesmos ajustes finos de hoje, também salvando sozinhos.</p></details>
+                </div>
+                <div class="cd sec">
+                  <h5>Telegram <span class="info" role="img" aria-label="Dicas" data-tip="Só mensagens que começam com # vão para o telão.&#10;Precisa de modelo, cor e placa.&#10;Exemplo: #corolla prata abc1d23 vidro aberto"><i data-lucide="info"></i></span></h5>
+                  <div class="field"><label>Token do bot <button class="lock" data-for="s-token s-chat" onclick="apLock(this)"></button></label><input type="text" id="s-token" value="7••••••••:AAH••••••••••••••••" disabled oninput="apAutosave()"></div>
+                  <div class="field"><label>Chat ID do grupo</label><input type="text" id="s-chat" value="-100••••••••" disabled oninput="apAutosave()"></div>
+                </div>
+              </div>
+              <div class="stack">
+                <div class="cd sec">
+                  <h5>Prévia no LED 2560x768</h5>
+                  <div class="led" id="pv"><div class="slide">Quão grande é o meu Deus</div><div class="bar" id="pv-bar"><div class="tick" id="pv-tick">FOX PRATA | PLACA: ETC-6785 | ESTACIONADO EM LOCAL PROIBIDO</div></div></div>
+                  <div class="row" style="margin-top:10px"><button class="btn"><i data-lucide="monitor"></i>Mostrar barra 3 s no LED</button></div>
+                </div>
+                <div class="cd sec">
+                  <h5>Sistema</h5>
+                  <div class="tog"><span>Atalho do painel rápido <span class="info" role="img" aria-label="Dicas" data-tip="Clique no campo e aperte a nova combinação.&#10;Precisa ter Ctrl, Alt ou Win."><i data-lucide="info"></i></span></span><input type="text" class="hotkey" id="s-hotkey" value="Ctrl + Alt + Espaço" readonly onkeydown="apHotkey(event)"></div>
+                  <div class="tog"><span>Esconder da live (OBS e NDI)</span><span class="fixed"><i data-lucide="lock"></i>sempre ligado</span></div>
+                  <div class="tog"><span>Site alertaibt.web.app</span><span class="fixed"><i data-lucide="globe"></i>conectado</span></div>
+                </div>
+              </div>
+            </div>
+            <details class="cd diag">
+              <summary><i data-lucide="chevron-right" class="chev"></i><i data-lucide="scroll-text"></i>Diagnóstico<span class="meta" id="d-meta"></span></summary>
+              <div class="diagbody">
+                <div class="row"><button class="btn"><i data-lucide="copy"></i>Copiar logs</button><button class="btn"><i data-lucide="download"></i>Exportar</button><button class="btn dng" onclick="apLogs.length = 0; apRender()"><i data-lucide="trash-2"></i>Limpar</button></div>
+                <div class="term" id="w-logs"></div>
+              </div>
+            </details>
+          </section>
+        </div>
+      </div>
+      <div class="sim">Simular no protótipo:
+        <button class="simb" onclick="apSim('led', this)">LED desligado</button>
+        <button class="simb" onclick="apSim('telegram', this)">Telegram caiu</button>
+        <button class="simb" onclick="apSim('site', this)">Internet lenta</button>
+        <button class="simb" onclick="apSim('gemini', this)">Gemini caiu</button>
+        <button class="simb" onclick="apSim('incompleto', this)">Chega aviso sem placa (Telegram)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/files/lucide.min.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const now = () => new Date().toLocaleTimeString('pt-BR');
+  const icons = () => { if (window.lucide) window.lucide.createIcons(); };
+
+  const S = {
+    cur: { text: 'CRETA PRETO | PLACA: GBR-9003 | FAROL ACESO', orig: '#creta preto | placa:gbr- 9003 / farol acesso', src: 'Telegram' },
+    queue: [
+      { text: 'GOL BRANCO | PLACA: FFO-4745 | ESTACIONADO NA CONTRAMÃO', orig: 'gol branco placa ffo4745 estacionado na contra mao', src: 'Site' },
+      { text: 'COROLLA PRATA | PLACA: BRA-2E19 | VIDRO ABERTO', orig: 'prata corolla bra2e19 vidro abrto', src: 'PC' }
+    ],
+    hist: [
+      { raw: '#gol branco farol aceso', src: 'Telegram', rejected: true, missing: ['placa'] },
+      { text: 'FOX PRATA | PLACA: ETC-6785 | ESTACIONADO EM LOCAL PROIBIDO', orig: 'fox prata placa etc6785 estacionado local proibido', src: 'Telegram' },
+      { text: 'ONIX PRETO | PLACA: QWE-1B23 | FAROL ACESO', src: 'Site' }
+    ],
+    paused: false, t0: performance.now(), dur: 10000
+  };
+  const st = { telegram: 'ok', site: 'ok', led: 'ok', geminiDown: false };
+  let aiChoice = 'gemini';
+  const geminiState = () => (aiChoice === 'offline' || st.geminiDown ? 'off' : 'ok');
+  const TIPS = {
+    telegram: { ok: 'Telegram online.', warn: 'Telegram reconectando…', bad: 'Telegram offline.\nTentando de novo a cada 3 s.' },
+    site: { ok: 'Site conectado.', warn: 'Internet lenta.\nSite reconectando…', bad: 'Sem conexão com o site.' },
+    led: { ok: 'LED 2560x768 ligado.', bad: 'LED desligado.\nA fila espera ele voltar.' },
+    bar: { ok: 'Barra ativa.', warn: 'Barra pausada.\nA fila espera.' },
+    gemini: { ok: 'Correção com Gemini.', off: 'Correção offline.\nNada sai do PC.' }
+  };
+  const ICON = { telegram: 'send', site: 'globe', led: 'monitor' };
+  const canShow = () => !S.paused && st.led === 'ok';
+
+  const logs = window.apLogs = [];
+  const log = (lv, msg) => { logs.unshift('[' + now() + '] <b class="L-' + lv + '">' + { i: 'INFO ', a: 'AÇÃO ', w: 'AVISO', e: 'ERRO ' }[lv] + '</b> ' + esc(msg)); };
+  log('i', 'Aplicativo iniciado na bandeja (inicia sempre com o Windows)');
+  log('i', 'LED 2560x768 encontrado · barra escondida da captura');
+  log('i', 'Telegram online · site conectado · correção com Gemini');
+  log('i', 'Gemini corrigiu: "#creta preto | placa:gbr- 9003 / farol acesso"');
+  log('i', 'Exibindo: ' + S.cur.text);
+
+  /* correção e formatação de mentira, só para o protótipo (no app: Gemini ou corretor offline) */
+  const CONTEXT_FIX = [[/\bfarol\s+acess[oa]\b/gi, 'farol aceso'], [/\bestacionado\s+local\b/gi, 'estacionado em local'], [/\bparado\s+frente\b/gi, 'parado em frente à']];
+  const TYPO_FIX = [[/\babrto\b/gi, 'aberto'], [/\bcontra\s*m[aã]o\b/gi, 'contramão'], [/\bproibid\b/gi, 'proibido'], [/\bcompareser\b/gi, 'comparecer'], [/\brecepss?[aã]o\b/gi, 'recepção']];
+  const fakeFix = (t) => (geminiState() === 'ok' ? CONTEXT_FIX.concat(TYPO_FIX) : TYPO_FIX).reduce((s, [re, to]) => s.replace(re, to), t);
+  /* padrão fixo: Modelo Cor | Placa: ABC-1234 | Motivo (placa antiga ABC-1234 ou Mercosul ABC1D23 → ABC-1D23) */
+  const COLORS = ['preto', 'preta', 'branco', 'branca', 'prata', 'cinza', 'grafite', 'vermelho', 'vermelha', 'azul', 'verde', 'amarelo', 'amarela', 'bege', 'marrom', 'dourado', 'dourada', 'vinho', 'laranja', 'rosa', 'roxo', 'roxa', 'champanhe'];
+  const MODEL_CASE = { crv: 'CR-V', 'cr-v': 'CR-V', hrv: 'HR-V', 'hr-v': 'HR-V', bmw: 'BMW', tcross: 'T-Cross', 't-cross': 'T-Cross' };
+  const REASON = /\b(farol|far[oó]is|vidro|vidros|estacionad[oa]|parad[oa]|porta|portas|pisca|luz|luzes|alarme|som|pneu|dono|dona|compare[cs]er|bloqueando)\b/i;
+  const TO_L = { '0': 'O', '1': 'I', '5': 'S', '8': 'B' }, TO_D = { O: '0', I: '1', S: '5', B: '8' };
+  function plateOf(s) {
+    const c = s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (c.length !== 7) return null;
+    const L = c.slice(0, 3).split('').map((ch) => TO_L[ch] || ch).join('');
+    const d3 = TO_D[c[3]] || c[3], p4 = c[4], d56 = c.slice(5).split('').map((ch) => TO_D[ch] || ch).join('');
+    if (!/^[A-Z]{3}$/.test(L) || !/^\d$/.test(d3) || !/^[A-Z0-9]$/.test(p4) || !/^\d{2}$/.test(d56)) return null;
+    return L + '-' + d3 + p4 + d56;
+  }
+  const cap = (w) => (/\d/.test(w) ? w.toUpperCase() : MODEL_CASE[w.toLowerCase()] || w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  const sentence = (s) => { s = s.trim().toLowerCase(); return s.charAt(0).toUpperCase() + s.slice(1); };
+  function parseAlert(raw) {
+    let t = ' ' + fakeFix(raw).replace(/^\s*#+\s*/, '') + ' ';
+    let plate = null;
+    t = t.replace(/\bplaca\b\s*:?\s*/gi, ' ');
+    t = t.replace(/(^|[\s|/;,])([a-z]{3}\s*-?\s*[0-9oisb][0-9a-z][0-9oisb]{2})(?=$|[\s|/;,])/gi, (m, pre, cand) => {
+      const p = !plate && plateOf(cand);
+      if (p) { plate = p; return pre + '|'; }
+      return m;
+    });
+    const segs = t.split(/[|/;,]+/).map((s) => s.trim()).filter(Boolean);
+    let vehicle = '';
+    const reason = [];
+    segs.forEach((s) => {
+      const m = REASON.exec(s);
+      if (!vehicle && (!m || m.index > 0)) {
+        vehicle = m ? s.slice(0, m.index).trim() : s;
+        if (m) reason.push(s.slice(m.index));
+      } else reason.push(s);
+    });
+    const words = vehicle.split(/\s+/).filter(Boolean);
+    const color = words.filter((w) => COLORS.includes(w.toLowerCase()));
+    const model = words.filter((w) => !COLORS.includes(w.toLowerCase()));
+    const head = model.concat(color).map(cap).join(' ');
+    const parts = [];
+    if (head) parts.push(head);
+    if (plate) parts.push('Placa: ' + plate);
+    if (reason.length) parts.push(sentence(reason.join(' ')));
+    const missing = [];
+    if (!model.length) missing.push('modelo');
+    if (!color.length) missing.push('cor');
+    if (!plate) missing.push('placa');
+    return { text: parts.join(' | ').toUpperCase(), missing };
+  }
+
+  const dot = (s) => '<span class="dot' + ({ ok: '', warn: ' warn', bad: ' bad', off: ' blue' }[s]) + '"></span>';
+  const ib = (icon, tip, fn) => '<button class="ib" title="' + tip + '" onclick="' + fn + '"><i data-lucide="' + icon + '"></i></button>';
+  function item(o, i, kind) {
+    if (o.rejected) {
+      const falta = o.missing.join(', ');
+      return '<div class="item rej"><span class="src">' + o.src + '</span><span class="rejc" title="Recusado: faltou ' + falta + '"><i data-lucide="circle-x"></i></span><span class="t">' + esc(o.raw) + '</span><span class="miss">faltou ' + falta + '</span></div>';
+    }
+    const btns = kind === 'q' ? ib('arrow-up', 'Subir', 'apMove(' + i + ',-1)') + ib('arrow-down', 'Descer', 'apMove(' + i + ',1)') + ib('x', 'Remover', 'apDel(' + i + ')')
+                              : ib('rotate-ccw', 'Exibir de novo', 'apAgain(' + i + ')');
+    const wand = o.orig ? '<span class="wand" title="Corrigido&#10;Original: ' + esc(o.orig) + '"><i data-lucide="wand-sparkles"></i></span>' : '';
+    const ok = kind === 'h' ? '<span class="okc" title="Exibido no telão"><i data-lucide="circle-check"></i></span>' : '';
+    return '<div class="item' + (o.urgent ? ' u' : '') + '"><span class="src">' + o.src + '</span>' + ok + '<span class="t">' + esc(o.text) + '</span>' + wand + btns + '</div>';
+  }
+
+  window.apRender = function () {
+    const states = { telegram: st.telegram, site: st.site, led: st.led, bar: S.paused ? 'warn' : 'ok', gemini: geminiState() };
+    const label = { telegram: 'Telegram', site: 'Site', led: 'LED', bar: 'Barra', gemini: states.gemini === 'off' ? 'Offline' : 'Gemini' };
+    $('w-status').innerHTML = Object.keys(states).map((k) => '<div class="st tip-r" data-tip="' + TIPS[k][states[k]] + '">' + dot(states[k]) + label[k] + '</div>').join('');
+    $('f-icons').innerHTML = ['telegram', 'site', 'led'].map((k) => '<span class="sico" aria-label="' + label[k] + '" data-tip="' + TIPS[k][states[k]] + '"><i data-lucide="' + ICON[k] + '"></i>' + dot(states[k]) + '</span>').join('');
+    const empty = st.led !== 'ok' ? 'LED desligado. A fila espera ele voltar.' : S.paused ? 'Barra pausada. A fila espera.' : '';
+    ['f', 'w'].forEach((p) => {
+      $(p + '-cur').innerHTML = S.cur ? esc(S.cur.text) : empty;
+      $(p + '-cur').className = 'msg' + (S.cur ? '' : ' empty');
+      $(p + '-src').textContent = S.cur ? S.cur.src : '';
+      $(p + '-src').style.display = S.cur ? '' : 'none';
+      $(p + '-pause').classList.toggle('on', S.paused);
+    });
+    $('f-pause').innerHTML = S.paused ? '<i data-lucide="play"></i>' : '<i data-lucide="pause"></i>';
+    $('f-pause').setAttribute('data-tip', S.paused ? 'Retomar barra' : 'Pausar barra');
+    $('f-pause').setAttribute('aria-label', S.paused ? 'Retomar barra' : 'Pausar barra');
+    $('w-pause').innerHTML = S.paused ? '<i data-lucide="play"></i>Retomar barra' : '<i data-lucide="pause"></i>Pausar barra';
+    $('w-orig').innerHTML = S.cur && S.cur.orig ? '<i data-lucide="wand-sparkles"></i><span>Corrigido. Original: <em>' + esc(S.cur.orig) + '</em></span>' : '';
+    $('f-next').textContent = S.queue.length ? 'Fila: ' + S.queue.length + ' · próxima: ' + S.queue[0].text : 'Fila vazia';
+    const fs = st.led !== 'ok' ? ['bad', 'LED desligado'] : S.paused ? ['warn', 'Pausada'] : S.cur ? ['ok', 'Exibindo'] : ['ok', 'Pronta'];
+    $('f-state').innerHTML = dot(fs[0]) + fs[1];
+    $('w-qn').textContent = '(' + S.queue.length + ')';
+    $('w-queue').innerHTML = S.queue.map((o, i) => item(o, i, 'q')).join('') || '<div class="sub">Fila vazia.</div>';
+    $('w-hist').innerHTML = S.hist.slice(0, 20).map((o, i) => item(o, i, 'h')).join('');
+    document.querySelectorAll('.ap .lock').forEach((b) => {
+      const locked = $(b.dataset.for.split(' ')[0]).disabled;
+      b.innerHTML = locked ? '<i data-lucide="lock"></i>Bloqueado' : '<i data-lucide="lock-open"></i>Liberado';
+    });
+    $('w-logs').innerHTML = logs.join('\n');
+    const errs = logs.filter((l) => l.includes('L-e')).length;
+    $('d-meta').textContent = logs.length + ' registros · ' + (errs ? errs + ' erro(s)' : 'sem erros');
+    ['f-in', 'w-in'].forEach(updPreview);
+    icons();
+  };
+
+  /* prévia ao vivo enquanto digita */
+  const preTimers = {};
+  function updPreview(id) {
+    const raw = $(id).value.trim();
+    const box = $(id === 'f-in' ? 'f-pre' : 'w-pre');
+    if (!raw) { box.innerHTML = ''; return; }
+    const r = parseAlert(raw);
+    if (r.missing.length) {
+      box.className = 'pre err';
+      box.innerHTML = '<i data-lucide="circle-alert"></i><span><span class="k">Não vai para o telão:</span>FALTA ' + r.missing.join(', ').toUpperCase() + '</span>';
+      return;
+    }
+    const off = geminiState() === 'off';
+    box.className = 'pre' + (off ? ' offline' : '');
+    box.innerHTML = '<i data-lucide="' + (off ? 'wifi-off' : 'wand-sparkles') + '"></i><span><span class="k">Vai aparecer assim' + (off ? ' (offline)' : '') + ':</span>' + esc(r.text) + '</span>';
+  }
+  ['f-in', 'w-in'].forEach((id) => $(id).addEventListener('input', () => {
+    clearTimeout(preTimers[id]);
+    preTimers[id] = setTimeout(() => { updPreview(id); icons(); }, 250);
+  }));
+
+  function enqueue(text, urgent, src) {
+    const raw = String(text || '').trim().replace(/\s+/g, ' ');
+    if (!raw) return false;
+    const r = parseAlert(raw);
+    if (r.missing.length) {
+      const falta = r.missing.join(', ');
+      log('e', 'Recusado (' + (src || 'PC') + '): faltou ' + falta + ' · "' + raw + '"');
+      if (src === 'Telegram') log('i', 'Telegram: ❌ Aviso não foi para o telão. Faltou ' + falta + '. Mande assim: #corolla prata abc1d23 vidro aberto');
+      if (src === 'Site') log('i', 'Site: ❌ recusado, faltou ' + falta + '.');
+      S.hist.unshift({ raw: raw.toLowerCase(), src: src || 'PC', rejected: true, missing: r.missing });
+      apRender();
+      return false;
+    }
+    const o = { text: r.text, src: src || 'PC', urgent: !!urgent };
+    if (fakeFix(raw).toLowerCase() !== raw.toLowerCase()) { o.orig = raw.toLowerCase(); log('i', (geminiState() === 'ok' ? 'Gemini' : 'Corretor offline') + ' corrigiu: "' + o.orig + '"'); }
+    if (urgent) S.queue.unshift(o); else S.queue.push(o);
+    log('a', 'Na fila' + (urgent ? ' (urgente)' : '') + ': ' + o.text);
+    next();
+    apRender();
+    return true;
+  }
+  function next() {
+    if (!canShow() || S.cur) return;
+    S.cur = S.queue.shift() || null;
+    S.t0 = performance.now();
+    if (S.cur) log('i', 'Exibindo: ' + S.cur.text);
+  }
+  function finish() {
+    const done = S.cur;
+    S.hist.unshift(done);
+    log('i', 'Concluída: ' + done.text);
+    if (done.src === 'Telegram') log('i', 'Telegram: ✅ Mensagem exibida no telão.');
+    if (done.src === 'Site') log('i', 'Site: marcado como exibido · Telegram: ✅ Mensagem exibida no telão.');
+    S.cur = null;
+    next();
+    apRender();
+  }
+
+  window.apSend = (id, urgent) => {
+    const el = $(id);
+    const ok = enqueue(el.value, urgent, 'PC');
+    if (ok) el.value = '';
+    updPreview(id); icons();
+    if (!ok && el.value.trim()) { const box = $(id === 'f-in' ? 'f-pre' : 'w-pre'); box.classList.add('shake'); setTimeout(() => box.classList.remove('shake'), 450); }
+  };
+  window.apClearField = (id) => { $(id).value = ''; updPreview(id); };
+  window.apSkip = () => { if (S.cur) { log('a', 'Encerrada pelo operador'); finish(); } };
+  window.apMove = (i, d) => { const j = i + d; if (j < 0 || j >= S.queue.length) return; const [o] = S.queue.splice(i, 1); S.queue.splice(j, 0, o); apRender(); };
+  window.apDel = (i) => { S.queue.splice(i, 1); apRender(); };
+  window.apAgain = (i) => { const h = S.hist[i]; S.queue.push({ text: h.text, src: h.src }); log('a', 'De novo na fila: ' + h.text); next(); apRender(); };
+  window.apClearQ = () => { S.queue = []; log('a', 'Fila limpa'); apRender(); };
+  window.apPause = () => {
+    S.paused = !S.paused;
+    if (S.paused) {
+      log('a', 'Barra pausada');
+      log('i', 'Telegram: ⚠️ O pastor iniciou a pregação. A barra foi pausada.');
+      if (S.cur) { S.queue.unshift(S.cur); S.cur = null; }
+    } else { log('a', 'Barra retomada'); next(); }
+    apRender();
+  };
+  window.apSim = (k, b) => {
+    if (k === 'incompleto') { enqueue('#gol branco farol acesso', false, 'Telegram'); return; }
+    const on = b.classList.toggle('on');
+    if (k === 'led') {
+      st.led = on ? 'bad' : 'ok';
+      if (on) {
+        log('w', 'LED 2560x768 desligado. Barra escondida, a fila espera.');
+        log('i', 'Quem mandar pelo Telegram ou pelo site recebe: ⏳ Telão desligado, aviso na fila.');
+        if (S.cur) { S.queue.unshift(S.cur); S.cur = null; }
+      } else { log('i', 'LED 2560x768 voltou. Retomando a fila.'); next(); }
+    }
+    if (k === 'telegram') { st.telegram = on ? 'bad' : 'ok'; log(on ? 'e' : 'i', on ? 'Telegram offline. Tentando de novo a cada 3 s.' : 'Telegram online de novo.'); }
+    if (k === 'site') { st.site = on ? 'warn' : 'ok'; log(on ? 'w' : 'i', on ? 'Internet lenta. Site reconectando…' : 'Site conectado de novo.'); }
+    if (k === 'gemini') { st.geminiDown = on; log(on ? 'w' : 'i', on ? 'Gemini sem resposta. Usando o corretor offline.' : 'Gemini de volta.'); }
+    apRender();
+  };
+  window.apAi = (el) => {
+    document.querySelectorAll('.ap .aiopt').forEach((o) => o.classList.toggle('sel', o === el));
+    aiChoice = el.dataset.choice === 'ia-offline' ? 'offline' : 'gemini';
+    apAutosave();
+  };
+  window.apLock = (b) => { b.dataset.for.split(' ').forEach((id) => { $(id).disabled = !$(id).disabled; }); apRender(); };
+
+  /* atalho global (no app vale de qualquer programa; aqui vale dentro da página) */
+  let hotkey = { ctrl: true, alt: true, shift: false, code: 'Space', label: 'Ctrl + Alt + Espaço' };
+  window.apHotkey = (e) => {
+    e.preventDefault();
+    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+    if (!e.ctrlKey && !e.altKey && !e.metaKey) { e.target.value = 'Precisa Ctrl, Alt ou Win'; setTimeout(() => { e.target.value = hotkey.label; }, 1200); return; }
+    const keyName = e.code === 'Space' ? 'Espaço' : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+    hotkey = { ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, code: e.code, label: [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Win', keyName].filter(Boolean).join(' + ') };
+    e.target.value = hotkey.label;
+    e.target.blur();
+    apAutosave();
+  };
+  document.addEventListener('keydown', (e) => {
+    if (e.target && e.target.id === 's-hotkey') return;
+    if (e.ctrlKey === hotkey.ctrl && e.altKey === hotkey.alt && e.shiftKey === hotkey.shift && e.code === hotkey.code) {
+      e.preventDefault();
+      const fly = $('fly');
+      $('f-in').focus();
+      fly.classList.add('flash');
+      setTimeout(() => fly.classList.remove('flash'), 900);
+      log('a', 'Painel rápido aberto pelo atalho ' + hotkey.label);
+      apRender();
+    }
+  });
+
+  let saveTimer = null;
+  window.apAutosave = () => {
+    document.querySelectorAll('.ap [data-saved]').forEach((s) => { s.textContent = 'Salvando…'; s.classList.add('busy'); });
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      document.querySelectorAll('.ap [data-saved]').forEach((s) => { s.textContent = '✓ Salvo às ' + now(); s.classList.remove('busy'); });
+      log('a', 'Configuração salva sozinha');
+      apRender();
+    }, 600);
+  };
+
+  /* prévia da barra no LED */
+  const W = 2560, pv = $('pv'), bar = $('pv-bar'), tk = $('pv-tick');
+  let pos = 'top', speed = 90, phase = 'in', t0 = performance.now(), x = W, last = performance.now();
+  const sizeLabel = (h) => (h <= 44 ? 'Pequena' : h <= 64 ? 'Média' : h <= 88 ? 'Grande' : 'Enorme');
+  const textW = () => tk.offsetWidth / (pv.clientWidth / W);
+  const updSpeed = () => { $('o-speed').textContent = speed + ' px/s' + (pv.clientWidth ? ' · passa em ' + Math.round((W + textW()) / speed) + ' s' : ''); };
+  const restart = () => { phase = 'in'; t0 = performance.now(); x = W; };
+  const ease = (t) => 1 - Math.pow(1 - t, 3);
+  window.apTab = (t) => {
+    document.querySelectorAll('.ap .tab').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
+    document.querySelectorAll('.ap .pane').forEach((m) => m.classList.toggle('on', m.id === 't-' + t));
+    if (t === 'config') requestAnimationFrame(() => { restart(); updSpeed(); });
+  };
+  window.apPos = (p, el) => { pos = p; document.querySelectorAll('#s-pos button').forEach((b) => b.classList.toggle('on', b === el)); bar.classList.toggle('bottom', p === 'bottom'); restart(); apAutosave(); };
+  window.apSize = (el, silent) => {
+    const h = +el.value, f = Math.round(h * 0.64);
+    pv.style.setProperty('--h', h); pv.style.setProperty('--f', f);
+    $('o-size').textContent = sizeLabel(h) + ' · ' + h + ' px';
+    restart();
+    if (!silent) { updSpeed(); apAutosave(); }
+  };
+  window.apSpeed = (el) => { speed = +el.value; updSpeed(); restart(); apAutosave(); };
+
+  function frame(t) {
+    const dt = Math.min(0.1, (t - last) / 1000); last = t;
+    const s = pv.clientWidth / W, sign = pos === 'top' ? -1 : 1;
+    if (phase === 'in') { const p = Math.min(1, (t - t0) / 320); bar.style.opacity = ease(p); bar.style.transform = 'translateY(' + sign * (1 - ease(p)) * 100 + '%)'; if (p >= 1) phase = 'run'; }
+    else if (phase === 'run') { x -= speed * dt; if (pv.clientWidth && x + textW() < 0) { phase = 'out'; t0 = t; } }
+    else if (phase === 'out') { const p = Math.min(1, (t - t0) / 320); bar.style.opacity = 1 - ease(p); bar.style.transform = 'translateY(' + sign * ease(p) * 100 + '%)'; if (p >= 1) { phase = 'gap'; t0 = t; } }
+    else if (t - t0 > 1200) { restart(); }
+    if (pv.clientWidth) tk.style.transform = 'translate(' + x * s + 'px, -50%)';
+    if (S.cur && canShow()) {
+      const p = Math.min(1, (t - S.t0) / S.dur);
+      $('f-prog').style.width = $('w-prog').style.width = p * 100 + '%';
+      if (p >= 1) finish();
+    } else { $('f-prog').style.width = $('w-prog').style.width = '0%'; }
+    requestAnimationFrame(frame);
+  }
+
+  ['f-in', 'w-in'].forEach((id) => $(id).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey) { e.preventDefault(); apSend(id, e.ctrlKey); }
+    if (e.key === 'Escape') apClearField(id);
+  }));
+  apSize($('s-size'), true);
+  apRender();
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { updSpeed(); requestAnimationFrame(frame); });
+})();
+</script>

@@ -1,0 +1,611 @@
+[
+  {
+    "raw": "#creta preto | placa:gbr- 9003 / farol aceso",
+    "role": "member",
+    "expectedText": "CRETA PRETO | PLACA: GBR-9003 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "prata corolla bra2e19 vidro aberto",
+    "role": "member",
+    "expectedText": "COROLLA PRATA | PLACA: BRA-2E19 | VIDRO ABERTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "onix preto qwe1b23",
+    "role": "member",
+    "expectedText": "ONIX PRETO | PLACA: QWE-1B23",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "hb20 vermelho abc1234 parado em frente à garagem",
+    "role": "member",
+    "expectedText": "HB20 VERMELHO | PLACA: ABC-1234 | PARADO EM FRENTE À GARAGEM",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco farol aceso",
+    "role": "member",
+    "expectedText": "",
+    "missing": ["placa"],
+    "kind": "reject"
+  },
+  {
+    "raw": "corolla abc1234 vidro aberto",
+    "role": "member",
+    "expectedText": "",
+    "missing": ["cor"],
+    "kind": "reject"
+  },
+  {
+    "raw": "prata abc1d23",
+    "role": "member",
+    "expectedText": "",
+    "missing": ["modelo"],
+    "kind": "reject"
+  },
+  {
+    "raw": "gol branco farol aceso",
+    "role": "operator",
+    "expectedText": "GOL BRANCO FAROL ACESO",
+    "missing": ["placa"],
+    "kind": "free"
+  },
+  {
+    "raw": "gol branco farol aceso",
+    "role": "admin",
+    "expectedText": "GOL BRANCO FAROL ACESO",
+    "missing": ["placa"],
+    "kind": "free"
+  },
+  {
+    "raw": "corolla abc1234 vidro aberto",
+    "role": "admin",
+    "expectedText": "COROLLA | PLACA: ABC-1234 | VIDRO ABERTO",
+    "missing": ["cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "prata abc1d23",
+    "role": "operator",
+    "expectedText": "PRATA | PLACA: ABC-1D23",
+    "missing": ["modelo"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc1234 farol aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc1234 farol aceso",
+    "role": "admin",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc1234 farol aceso",
+    "role": "operator",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco\nffo4745\n\nfarol aceso 🚗",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: FFO-4745 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "Atenção, irmãos: a escola bíblica de hoje foi transferida para o salão principal.  Pedimos que os pais da sala kids compareçam à recepção ao final do culto para retirar as crianças.\n\nLembramos que o estacionamento lateral estará liberado depois da bênção. Que Deus abençoe a todos e tenha uma ótima semana na paz do Senhor, com muito amor e alegria! Qualquer dúvida, procure um dos líderes da igreja.",
+    "role": "operator",
+    "expectedText": "ATENÇÃO, IRMÃOS: A ESCOLA BÍBLICA DE HOJE FOI TRANSFERIDA PARA O SALÃO PRINCIPAL. PEDIMOS QUE OS PAIS DA SALA KIDS COMPAREÇAM À RECEPÇÃO AO FINAL DO CULTO PARA RETIRAR AS CRIANÇAS. LEMBRAMOS QUE O ESTACIONAMENTO LATERAL ESTARÁ LIBERADO DEPOIS DA BÊNÇÃO. QUE DEUS ABENÇOE A TODOS E TENHA UMA ÓTIMA SEMANA NA PAZ DO SENHOR, COM MUITO AMOR E ALEGRIA! QUALQUER DÚVIDA, PROCURE UM DOS LÍDERES DA IGREJA.",
+    "missing": ["cor", "placa"],
+    "kind": "free"
+  },
+  {
+    "raw": "placa-abc1234",
+    "role": "operator",
+    "expectedText": "PLACA: ABC-1234",
+    "missing": ["modelo", "cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco placa - abc1234 farol aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "PLACA -ABC-1234",
+    "role": "operator",
+    "expectedText": "PLACA: ABC-1234",
+    "missing": ["modelo", "cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "placa abc 1234 gol xyz5678",
+    "role": "operator",
+    "expectedText": "ABC 1234 GOL | PLACA: XYZ-5678",
+    "missing": ["cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "onix preto abc-1d23 vidro aberto",
+    "role": "member",
+    "expectedText": "ONIX PRETO | PLACA: ABC-1D23 | VIDRO ABERTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "civic preto placa abc1234 chave dentro do carro",
+    "role": "member",
+    "expectedText": "CIVIC PRETO | PLACA: ABC-1234 | CHAVE DENTRO DO CARRO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "👨\u200d👩\u200d👧 gol branco abc1234 ❤\ufe0f farol aceso 👍🏽",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "###gol branco abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "# gol branco abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "#",
+    "role": "admin",
+    "expectedText": "",
+    "missing": ["modelo", "cor", "placa"],
+    "kind": "reject"
+  },
+  {
+    "raw": "",
+    "role": "operator",
+    "expectedText": "",
+    "missing": ["modelo", "cor", "placa"],
+    "kind": "reject"
+  },
+  {
+    "raw": "🚗",
+    "role": "member",
+    "expectedText": "",
+    "missing": ["modelo", "cor", "placa"],
+    "kind": "reject"
+  },
+  {
+    "raw": "  #  🚗  \n",
+    "role": "operator",
+    "expectedText": "",
+    "missing": ["modelo", "cor", "placa"],
+    "kind": "reject"
+  },
+  {
+    "raw": "gol azul marinho abc1234",
+    "role": "member",
+    "expectedText": "GOL AZUL MARINHO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol abc1234 branco farol aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc1234, farol aceso, vidro aberto",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO, VIDRO ABERTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco - abc1234 - farol aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "civic preto abc1234 chave dentro do carro",
+    "role": "member",
+    "expectedText": "CIVIC PRETO | PLACA: ABC-1234 | CHAVE DENTRO DO CARRO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "abc1234 vidro aberto",
+    "role": "operator",
+    "expectedText": "PLACA: ABC-1234 | VIDRO ABERTO",
+    "missing": ["modelo", "cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "abc1234 vidro aberto",
+    "role": "admin",
+    "expectedText": "PLACA: ABC-1234 | VIDRO ABERTO",
+    "missing": ["modelo", "cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "abc1234 vidro aberto",
+    "role": "member",
+    "expectedText": "",
+    "missing": ["modelo", "cor"],
+    "kind": "reject"
+  },
+  {
+    "raw": "abc1234",
+    "role": "member",
+    "expectedText": "",
+    "missing": ["modelo", "cor"],
+    "kind": "reject"
+  },
+  {
+    "raw": "pais do pedro henrique, sala kids, favor comparecer à recepção",
+    "role": "operator",
+    "expectedText": "PAIS DO PEDRO HENRIQUE, SALA KIDS, FAVOR COMPARECER À RECEPÇÃO",
+    "missing": ["cor", "placa"],
+    "kind": "free"
+  },
+  {
+    "raw": "pais do pedro henrique, sala kids, favor comparecer à recepção",
+    "role": "member",
+    "expectedText": "",
+    "missing": ["cor", "placa"],
+    "kind": "reject"
+  },
+  {
+    "raw": "culto dia 2025",
+    "role": "operator",
+    "expectedText": "CULTO DIA 2025",
+    "missing": ["cor", "placa"],
+    "kind": "free"
+  },
+  {
+    "raw": "farol aceso, gol branco abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol abc1234 azul escuro vidro aberto",
+    "role": "member",
+    "expectedText": "GOL AZUL ESCURO | PLACA: ABC-1234 | VIDRO ABERTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "onix cinza metálico abc1234 faróis acesos",
+    "role": "member",
+    "expectedText": "ONIX CINZA METÁLICO | PLACA: ABC-1234 | FARÓIS ACESOS",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol preto som alto abc1234",
+    "role": "member",
+    "expectedText": "GOL PRETO | PLACA: ABC-1234 | SOM ALTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol preto somente hoje abc1234",
+    "role": "member",
+    "expectedText": "GOL SOMENTE HOJE PRETO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco farol aceso e vidro aberto abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO E VIDRO ABERTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol - branco abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco / abc1234 ; vidro aberto",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | VIDRO ABERTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "GOL BRANCO ABC1234 FAROL ACESO",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol\tbranco \r\n abc1234\r\n\r\nfarol  aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "prata corolla QWE 1B23 vidro aberto",
+    "role": "member",
+    "expectedText": "COROLLA PRATA | PLACA: QWE-1B23 | VIDRO ABERTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abcI234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol 2015 branco abc1234",
+    "role": "member",
+    "expectedText": "GOL 2015 BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "placa gol branco abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc1234 placa solta",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | PLACA SOLTA",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco (abc1234) farol aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc1234 estacionado na contramão",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | ESTACIONADO NA CONTRAMÃO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco | chave dentro abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | CHAVE DENTRO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco / chave dentro abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | CHAVE DENTRO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco; chave dentro abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | CHAVE DENTRO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco, chave dentro abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | CHAVE DENTRO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc 1234",
+    "role": "operator",
+    "expectedText": "GOL BRANCO ABC 1234",
+    "missing": ["placa"],
+    "kind": "free"
+  },
+  {
+    "raw": "gol branco placa abc 1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc - 1234 farol aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc12345",
+    "role": "operator",
+    "expectedText": "GOL BRANCO ABC12345",
+    "missing": ["placa"],
+    "kind": "free"
+  },
+  {
+    "raw": "gol branco abc12s4",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1254",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc1234 xyz5678",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | XYZ5678",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "Culto de oração hoje às 19h, na sala 2!",
+    "role": "operator",
+    "expectedText": "CULTO DE ORAÇÃO HOJE ÀS 19H, NA SALA 2!",
+    "missing": ["cor", "placa"],
+    "kind": "free"
+  },
+  {
+    "raw": "gol branco. farol aceso abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco (farol aceso) abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol, branco: abc1234 farol aceso!",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol (branco) farol aceso abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol azul marinho. farol aceso abc1234",
+    "role": "member",
+    "expectedText": "GOL AZUL MARINHO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "hb20. vermelho farol aceso abc1234",
+    "role": "member",
+    "expectedText": "HB20 VERMELHO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol (flex) branco abc1234",
+    "role": "member",
+    "expectedText": "GOL FLEX BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "placa: gol branco abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol abc1234 branco. farol aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol abc1234 branco (farol aceso)",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco (som alto) abc1234",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | SOM ALTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc1234 farol aceso. vidro aberto",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO. VIDRO ABERTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol 1,0 branco abc1234",
+    "role": "member",
+    "expectedText": "GOL 1,0 BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol 1,0, branco abc1234",
+    "role": "member",
+    "expectedText": "GOL 1,0 BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol 2015, branco abc1234",
+    "role": "member",
+    "expectedText": "GOL 2015 BRANCO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco 2015, chave dentro abc1234",
+    "role": "member",
+    "expectedText": "GOL 2015 BRANCO | PLACA: ABC-1234 | CHAVE DENTRO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol,2015 branco abc1234",
+    "role": "operator",
+    "expectedText": "GOL | PLACA: ABC-1234 | 2015 BRANCO",
+    "missing": ["cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco abc1234 1\ufe0f\u20e3 farol aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: ABC-1234 | 1 FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  }
+]

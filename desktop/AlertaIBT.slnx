@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AlertaIBT.App/AlertaIBT.App.csproj" />
+    <Project Path="src/AlertaIBT.Core/AlertaIBT.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AlertaIBT.App.Tests/AlertaIBT.App.Tests.csproj" />
+    <Project Path="tests/AlertaIBT.Core.Tests/AlertaIBT.Core.Tests.csproj" />
+  </Folder>
+</Solution>
