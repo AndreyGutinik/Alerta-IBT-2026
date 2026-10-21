@@ -1,6 +1,6 @@
 import { increment, serverTimestamp } from 'firebase/database'
 import { describe, expect, it } from 'vitest'
-import { buildSendUpdate, buildUserRecord } from './writes'
+import { buildSeenUpdate, buildSendUpdate, buildUserRecord } from './writes'
 
 describe('buildUserRecord', () => {
   it('registro novo: member, não bloqueado, horas do servidor', () => {
@@ -70,5 +70,19 @@ describe('buildSendUpdate', () => {
     const request = buildSendUpdate('r1', { ...input, name: 'n'.repeat(120) })['requests/r1'] as { name: string }
 
     expect(request.name).toBe('n'.repeat(80))
+  })
+})
+
+describe('buildSeenUpdate', () => {
+  it('atualiza só o nome e o último uso (hora do servidor)', () => {
+    const update = buildSeenUpdate({ uid: 'u1', name: '  Maria  ', email: 'maria@example.com' })
+    expect(Object.keys(update).sort()).toEqual(['lastSeenAt', 'name'])
+    expect(update.name).toBe('Maria')
+    expect(update.lastSeenAt).toEqual({ '.sv': 'timestamp' })
+  })
+
+  it('sem nome usa o e-mail e nunca passa de 80 caracteres', () => {
+    expect(buildSeenUpdate({ uid: 'u', name: '', email: 'a@b.com' }).name).toBe('a@b.com')
+    expect((buildSeenUpdate({ uid: 'u', name: 'x'.repeat(200), email: '' }).name as string).length).toBe(80)
   })
 })

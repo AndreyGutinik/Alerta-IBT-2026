@@ -58,6 +58,15 @@ describe('sendAlert', () => {
     expect(out).toEqual({ ok: false, message: 'Espere alguns segundos para mandar outro aviso.' })
   })
 
+  it('OfflineError do adaptador (a conexão caiu antes da escrita) mostra a mensagem de sem conexão', async () => {
+    const backend = new FakeBackend()
+    backend.sendImpl = () => Promise.reject(Object.assign(new Error('offline'), { code: 'offline' }))
+    expect(await sendAlert(backend, input, { connected: true })).toEqual({
+      ok: false,
+      message: 'Sem conexão. Confira a internet e tente de novo.',
+    })
+  })
+
   it('outro erro', async () => {
     const backend = new FakeBackend()
     backend.sendImpl = () => Promise.reject(new Error('boom'))

@@ -1048,3 +1048,14 @@ h2.lb {
   align-self: center;
   margin-top: 0.5rem;
 }
+
+/* Tela "site ainda não configurado". */
+.missing {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+}

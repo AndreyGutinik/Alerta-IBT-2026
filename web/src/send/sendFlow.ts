@@ -10,6 +10,10 @@ export const MSG_TIMEOUT = 'Não deu para enviar. Confira a internet e tente de 
 export const MSG_RATE = 'Espere alguns segundos para mandar outro aviso.'
 export const MSG_FAILED = 'Não deu para enviar. Tente de novo.'
 
+function isOffline(e: unknown): boolean {
+  return typeof e === 'object' && e !== null && (e as { code?: unknown }).code === 'offline'
+}
+
 function isPermissionDenied(e: unknown): boolean {
   if (typeof e !== 'object' || e === null) return false
   const { code, message } = e as { code?: unknown; message?: unknown }
@@ -41,6 +45,7 @@ export async function sendAlert(
     if (winner === 'timeout') return { ok: false, message: MSG_TIMEOUT }
     return { ok: true, id: winner }
   } catch (e) {
+    if (isOffline(e)) return { ok: false, message: MSG_OFFLINE }
     return { ok: false, message: isPermissionDenied(e) ? MSG_RATE : MSG_FAILED }
   } finally {
     clearTimeout(timer)

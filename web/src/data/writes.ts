@@ -16,6 +16,11 @@ function displayName(name: string, email: string): string {
   return clip(chosen, MAX_NAME)
 }
 
+/** O que muda no registro de quem já existe a cada entrada: o nome (do Google) e o último uso (hora do servidor). */
+export function buildSeenUpdate(u: SessionUser): Record<string, unknown> {
+  return { name: displayName(u.name, u.email), lastSeenAt: serverTimestamp() }
+}
+
 /** Registro novo de `/users/{uid}`: sempre `member` e não bloqueado (as regras só aceitam isso). */
 export function buildUserRecord(u: SessionUser): Record<string, unknown> {
   return {
