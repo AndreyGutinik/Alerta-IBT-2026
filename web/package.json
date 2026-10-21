@@ -9,7 +9,10 @@
     "emulators": "firebase emulators:start --only auth,database --project demo-alertaibt",
     "build": "tsc -b && vite build",
     "test": "vitest run --project unit",
-    "test:emu": "firebase emulators:exec --only auth,database --project demo-alertaibt \"vitest run --project emulator\""
+    "test:emu": "firebase emulators:exec --only auth,database --project demo-alertaibt \"vitest run --project emulator\"",
+    "icons": "node scripts/make-icons.mjs",
+    "test:e2e": "firebase emulators:exec --only auth,database --project demo-alertaibt \"playwright test\"",
+    "check:pwa": "node scripts/check-pwa.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",
@@ -19,6 +22,7 @@
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
+    "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
@@ -28,8 +32,10 @@
     "@vitejs/plugin-react": "^6.1.2",
     "firebase-tools": "14.27.0",
     "jsdom": "^30.1.3",
+    "sharp": "^0.35.5",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^5.0.5"
   }
 }

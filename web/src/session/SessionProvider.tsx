@@ -15,6 +15,42 @@ type Session = SessionState & { signIn(): Promise<void>; signOut(): Promise<void
 
 const SessionContext = createContext<Session | null>(null)
 
+const RECORD_KEY_PREFIX = 'alertaibt.record.v1.'
+
+/** O último registro da pessoa visto neste aparelho (só o que a tela usa), para abrir sem rede. */
+export function readCachedRecord(uid: string): UserRecord | null {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(RECORD_KEY_PREFIX + uid) ?? 'null')
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const p = parsed as Record<string, unknown>
+    if (typeof p.name !== 'string' || typeof p.email !== 'string') return null
+    if (p.role !== 'admin' && p.role !== 'member') return null
+    if (typeof p.blocked !== 'boolean') return null
+    return { name: p.name, email: p.email, role: p.role, blocked: p.blocked, createdAt: 0 }
+  } catch {
+    return null
+  }
+}
+
+function cacheRecord(uid: string, r: UserRecord): void {
+  try {
+    localStorage.setItem(
+      RECORD_KEY_PREFIX + uid,
+      JSON.stringify({ name: r.name, email: r.email, role: r.role, blocked: r.blocked }),
+    )
+  } catch {
+    // sem armazenamento: só não abre sem rede
+  }
+}
+
+function clearCachedRecord(uid: string): void {
+  try {
+    localStorage.removeItem(RECORD_KEY_PREFIX + uid)
+  } catch {
+    // nada a fazer
+  }
+}
+
 interface Raw {
   user: SessionUser | null | undefined
   record: UserRecord | null | undefined
@@ -23,10 +59,12 @@ interface Raw {
 function derive(raw: Raw): SessionState {
   if (raw.user === undefined) return { status: 'loading' }
   if (raw.user === null) return { status: 'signedOut' }
-  // Entrou, mas o registro de /users ainda não chegou.
-  if (raw.record == null) return { status: 'loading' }
-  if (raw.record.blocked) return { status: 'blocked', user: raw.user }
-  return { status: 'active', user: raw.user, record: raw.record, role: raw.record.role }
+  // Entrou, mas o registro de /users ainda não chegou: sem rede, vale o último que este aparelho viu (as
+  // escritas exigem conexão e as regras do banco decidem de verdade; chegando o registro, ele vale).
+  const record = raw.record === undefined ? readCachedRecord(raw.user.uid) : raw.record
+  if (record == null) return { status: 'loading' }
+  if (record.blocked) return { status: 'blocked', user: raw.user }
+  return { status: 'active', user: raw.user, record, role: record.role }
 }
 
 /**
@@ -59,11 +97,17 @@ export function SessionProvider({
 
   useEffect(() => {
     if (!uid) return undefined
-    return backend.watchUser(uid, (record) => setRaw((prev) => ({ ...prev, record })))
+    return backend.watchUser(uid, (record) => {
+      if (record) cacheRecord(uid, record)
+      setRaw((prev) => ({ ...prev, record }))
+    })
   }, [backend, uid])
 
   const signIn = useCallback(() => auth.signIn(), [auth])
-  const signOut = useCallback(() => auth.signOut(), [auth])
+  const signOut = useCallback(async () => {
+    if (uid) clearCachedRecord(uid)
+    await auth.signOut()
+  }, [auth, uid])
   const state = useMemo(() => derive(raw), [raw])
   const value = useMemo<Session>(() => ({ ...state, signIn, signOut }), [state, signIn, signOut])
 

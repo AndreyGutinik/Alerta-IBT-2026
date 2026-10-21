@@ -6,8 +6,9 @@ import {
 } from '@firebase/rules-unit-testing'
 import { beforeAll, beforeEach, afterAll } from 'vitest'
 
-// Projeto `demo-*`: o emulador nunca fala com a nuvem.
-export const PROJECT_ID = 'demo-alertaibt'
+import { PROJECT_ID } from './project'
+
+export { PROJECT_ID }
 
 const RULES_PATH = resolve(import.meta.dirname, '../../../database.rules.json')
 

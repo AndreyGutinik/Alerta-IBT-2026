@@ -1,4 +1,4 @@
-import { PROJECT_ID } from './rulesEnv'
+import { PROJECT_ID } from './project'
 
 // Acesso direto ao emulador do Realtime Database (sem passar pelas regras): faz as vezes do PC e da CLI nos
 // testes. `Authorization: Bearer owner` é a conta de dono do emulador.
