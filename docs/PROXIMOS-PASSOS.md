@@ -23,7 +23,7 @@ Capacitor empacotando o `web/dist`, login Google nativo, voz e vibração nativo
 ## Pequenos itens do app do PC que ficaram de fora
 
 - Botão "Reiniciar para atualizar" no Diagnóstico (a atualização hoje se instala sozinha no próximo início do app).
-- Instalador sem assinatura digital: o Windows mostra o aviso "O Windows protegeu o computador" na primeira instalação.
+- Instalador sem assinatura digital: o Windows mostra o aviso "O Windows protegeu o computador" na primeira instalação. O caminho grátis (SignPath Foundation) e o que só o dono pode fazer estão em [ASSINATURA.md](ASSINATURA.md); ele exige uma licença de código aberto, que ainda não foi escolhida.
 - Os ícones Lucide foram escritos à mão a partir da memória; conferir se estão bonitos (item no checklist).
 
 ## Adiado na revisão final do branch (Plano 1)
@@ -33,5 +33,5 @@ Os problemas importantes da revisão final já foram corrigidos (janelas fora do
 - **Texto ofensivo com o Gemini fora do ar** (M1): o corretor offline não recusa palavrão, então ele chega ao LED. Hoje só o grupo do Telegram, de confiança, manda avisos. **Decidir a política (lista de palavras proibidas no caminho offline) antes de abrir o site aos membros no Plano 2.**
 - **API local aceita qualquer página do navegador** (M9, igual à v7): sem checagem de `Origin`/`Host`, qualquer página aberta no PC da igreja pode pausar ou retomar a barra. Recusar origens que não sejam `127.0.0.1`/`localhost`.
 - **A trava de segurança ainda deixa passar** (M3): troca de modelo (gol virar golf), a palavra "não" que some, motivo descartado. A cor já está travada; faltam modelo e negações.
-- **Memória na versão Release** (M14): o dicionário sozinho usa cerca de 50 MB; medir no PC da igreja e, se passar de 150 MB, carregar o dicionário só quando o Gemini falhar.
+- **Memória na versão Release** (M14): o dicionário sozinho usa cerca de 50 MB; a meta agora é **até 350 MB** (decisão do dono), então não há pressa; medir no PC da igreja. Opcional, só se um dia passar disso: carregar o dicionário só quando o Gemini falhar.
 - **Ordem das palavras ao redor da placa sem o Gemini** (M5), **relógio do PC adiantado derruba mensagens do Telegram** (M11), **sair do app pode travar até 3 s e respostas do Telegram na fila se perdem** (M12), **campos de segredo travam um texto digitado pela metade** (M13), **acentos soltos e caracteres invisíveis no texto** (M15), **a barra pode piscar no monitor do operador se o LED for desligado durante uma passada** (M16), **o workflow de Release nunca rodou e os testes do app precisam de uma área de trabalho** (M17).

@@ -33,7 +33,7 @@ Tempo estimado: 1h30 com calma. Levar: o instalador, o celular com o Telegram, o
 - [ ] Abrir `%AppData%\AlertaIBT` no Explorador: existem `settings.json` e `logs\`.
 - [ ] Conferir o registro (Win+R, `regedit`): `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run` tem o valor `AlertaIBT` igual a `"...\AlertaIBT.exe" --tray`.
 - [ ] Menu da bandeja (botão direito): **Abrir, Pausar, Sair**. Clique simples no ícone abre o painel rápido; duplo clique abre a janela. **Sair** pede confirmação (responder Não por enquanto).
-- [ ] Memória do `AlertaIBT.exe` no Gerenciador de Tarefas **abaixo de 150 MB** e CPU **perto de 0%** com o app parado (a meta da spec; no PC de desenvolvimento a versão de teste usou cerca de 180 MB logo após abrir, então anote o número real). Abrir para a bandeja em menos de 2 s depois de ligar o PC (conferir no item de reiniciar, parte 12).
+- [ ] Memória do `AlertaIBT.exe` no Gerenciador de Tarefas **abaixo de 350 MB** e CPU **perto de 0%** com o app parado (a meta definida pelo dono; no PC de desenvolvimento a versão de teste usou cerca de 180 MB logo após abrir, então anote o número real). Abrir para a bandeja em menos de 2 s depois de ligar o PC (conferir no item de reiniciar, parte 12).
 
 ## 3. Configurar: Telegram e Gemini
 

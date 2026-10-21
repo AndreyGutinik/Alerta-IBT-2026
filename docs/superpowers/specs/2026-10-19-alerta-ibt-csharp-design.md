@@ -21,7 +21,7 @@ Reescrever o Alerta-IBT em **C# (.NET 10 + WPF)**, no mesmo padrão do App Flash
 6. Avisos de estacionamento sempre saem no padrão `MODELO COR | PLACA: ABC-1234 | MOTIVO`, em MAIÚSCULAS.
 7. Quem manda pelo site ou pelo Telegram fica sabendo o que aconteceu: na fila, passando, exibido, recusado (e por quê), cancelado ou expirado.
 8. Custo zero de operação: Firebase no plano grátis (Spark), Gemini no plano grátis, sem API paga.
-9. App do PC leve: abre para a bandeja em menos de 2 s, CPU parada perto de 0% e memória abaixo de 150 MB.
+9. App do PC leve: abre para a bandeja em menos de 2 s, CPU parada perto de 0% e memória até 350 MB (meta definida pelo dono; ainda é "leve" para um app de bandeja).
 
 ## 2. Contexto (setup da igreja e estado atual)
 
