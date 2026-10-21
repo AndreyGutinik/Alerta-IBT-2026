@@ -27,6 +27,18 @@ export default defineConfig({
           setupFiles: ['src/test/setup.ts'],
         },
       },
+      {
+        // Testes das regras do banco: precisam do emulador (npm run test:emu).
+        extends: true,
+        test: {
+          name: 'emulator',
+          environment: 'node',
+          include: ['tests/emulator/**/*.test.ts'],
+          fileParallelism: false,
+          testTimeout: 20000,
+          hookTimeout: 30000,
+        },
+      },
     ],
   },
 })

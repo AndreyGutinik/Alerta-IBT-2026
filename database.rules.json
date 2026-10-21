@@ -1,0 +1,134 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('blocked').val() !== true || auth != null && root.child('devices').child(auth.uid).val() === true",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && !data.exists() && auth.token.firebase.sign_in_provider === 'google.com'",
+        ".validate": "newData.hasChildren(['name', 'email', 'role', 'blocked', 'createdAt'])",
+        "name": {
+          ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('blocked').val() !== true && data.parent().exists() && newData.exists()",
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80"
+        },
+        "email": {
+          ".validate": "newData.isString() && newData.val() === auth.token.email"
+        },
+        "createdAt": {
+          ".validate": "newData.val() === now && !data.exists()"
+        },
+        "role": {
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('blocked').val() !== true && auth.uid !== $uid && data.parent().exists() && newData.exists()",
+          ".validate": "newData.isString() && (newData.val() === 'member' || (newData.val() === 'admin' && data.parent().exists()))"
+        },
+        "blocked": {
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('blocked').val() !== true && auth.uid !== $uid && data.parent().exists() && newData.exists()",
+          ".validate": "newData.isBoolean() && (newData.val() === false || data.parent().exists())"
+        },
+        "lastSeenAt": {
+          ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('blocked').val() !== true && data.parent().exists() && newData.exists()",
+          ".validate": "newData.val() === now"
+        },
+        "lastSentAt": {
+          ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('blocked').val() !== true && data.parent().exists() && newData.exists()",
+          ".validate": "data.parent().exists() && newData.val() === now"
+        },
+        "lastRequestId": {
+          ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('blocked').val() !== true && data.parent().exists() && newData.exists()",
+          ".validate": "data.parent().exists() && newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
+        },
+        "sentCount": {
+          ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('blocked').val() !== true && data.parent().exists() && newData.exists()",
+          ".validate": "data.parent().exists() && newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "requests": {
+      ".indexOn": [
+        "uid",
+        "createdAt"
+      ],
+      ".read": "auth != null && root.child('devices').child(auth.uid).val() === true || auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('blocked').val() !== true || (auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('blocked').val() !== true && query.orderByChild === 'uid' && query.equalTo === auth.uid)",
+      "$id": {
+        ".read": "auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('blocked').val() !== true && data.child('uid').val() === auth.uid",
+        ".write": "auth != null && ((auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('blocked').val() !== true && !data.exists() && newData.exists() && newData.child('uid').val() === auth.uid && newData.child('createdAt').val() === now && newData.parent().parent().child('users').child(auth.uid).child('lastSentAt').val() === now && newData.parent().parent().child('users').child(auth.uid).child('lastRequestId').val() === $id && (auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('blocked').val() !== true || !root.child('users').child(auth.uid).child('lastSentAt').exists() || root.child('users').child(auth.uid).child('lastSentAt').val() <= now - 20000)) || (auth != null && root.child('devices').child(auth.uid).val() === true && data.exists() && !newData.exists()))",
+        ".validate": "newData.hasChildren(['uid', 'name', 'raw', 'urgent', 'createdAt', 'cancel'])",
+        "uid": {
+          ".validate": "newData.isString() && newData.val() === auth.uid"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80"
+        },
+        "raw": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 300"
+        },
+        "urgent": {
+          ".validate": "newData.isBoolean()"
+        },
+        "createdAt": {
+          ".validate": "newData.val() === now && !data.exists()"
+        },
+        "preview": {
+          ".validate": "newData.hasChildren(['text', 'kind', 'by'])",
+          "text": {
+            ".validate": "newData.isString() && newData.val().length <= 400"
+          },
+          "kind": {
+            ".validate": "newData.val() === 'vehicle' || newData.val() === 'free'"
+          },
+          "plate": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-Z]{3}-[0-9][A-Z0-9][0-9]{2}$/)"
+          },
+          "by": {
+            ".validate": "newData.val() === 'gemini' || newData.val() === 'local'"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "cancel": {
+          ".write": "auth != null && newData.val() === true && ((auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('blocked').val() !== true && data.parent().child('uid').val() === auth.uid && data.val() === false && (!data.parent().child('status').exists() || data.parent().child('status').child('state').val() === 'pending' || data.parent().child('status').child('state').val() === 'queued')) || (auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('blocked').val() !== true))",
+          ".validate": "newData.isBoolean() && (data.exists() || newData.val() === false)"
+        },
+        "status": {
+          ".write": "auth != null && root.child('devices').child(auth.uid).val() === true",
+          ".validate": "auth != null && root.child('devices').child(auth.uid).val() === true && newData.hasChildren(['state', 'at'])",
+          "state": {
+            ".validate": "newData.isString() && (newData.val() === 'pending' || newData.val() === 'queued' || newData.val() === 'showing' || newData.val() === 'shown' || newData.val() === 'rejected' || newData.val() === 'cancelled' || newData.val() === 'expired')"
+          },
+          "position": {
+            ".validate": "newData.isNumber() && newData.val() >= 1"
+          },
+          "reason": {
+            ".validate": "newData.isString() && newData.val().length <= 200"
+          },
+          "text": {
+            ".validate": "newData.isString() && newData.val().length <= 400"
+          },
+          "at": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "live": {
+      ".read": "(auth != null && root.child('users').child(auth.uid).exists() && root.child('users').child(auth.uid).child('blocked').val() !== true) || (auth != null && root.child('devices').child(auth.uid).val() === true)",
+      ".write": "auth != null && root.child('devices').child(auth.uid).val() === true"
+    },
+    "devices": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}

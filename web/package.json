@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "vitest run --project unit"
+    "test": "vitest run --project unit",
+    "test:emu": "firebase emulators:exec --only auth,database --project demo-alertaibt \"vitest run --project emulator\""
   },
   "dependencies": {
     "firebase": "^12.19.0",
@@ -15,6 +16,7 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
@@ -22,6 +24,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "firebase-tools": "14.27.0",
     "jsdom": "^30.1.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.4",
