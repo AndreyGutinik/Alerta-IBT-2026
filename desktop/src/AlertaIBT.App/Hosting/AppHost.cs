@@ -245,7 +245,7 @@ public static class AppHost
             onError: ex => provider.GetRequiredService<ILogger<QueueStore>>().LogError(ex, "Problema com o arquivo da fila")));
         services.AddSingleton(provider => AlertQueue.FromSnapshot(provider.GetRequiredService<QueueStore>().Load(), TimeProvider.System));
 
-        // The Telegram client keeps its own HttpClient (long polls last 25 s) and the Gemini one has a short timeout of its own.
+        // The Telegram client keeps its own HttpClient (long polls last 25 s); Gemini gets one long-lived client with warm connections.
         services.AddSingleton(provider =>
         {
             var settings = provider.GetRequiredService<SettingsService>();
@@ -286,7 +286,7 @@ public static class AppHost
             var settings = provider.GetRequiredService<SettingsService>();
             var protector = provider.GetRequiredService<ISecretProtector>();
             return new GeminiCorrector(
-                new HttpClient { Timeout = TimeSpan.FromSeconds(10) },
+                GeminiHttp.CreateClient(),
                 () => settings.Current.GetGeminiKey(protector),
                 () => settings.Current.Correction.GeminiModel,
                 provider.GetRequiredService<ILogger<GeminiCorrector>>());
@@ -299,7 +299,7 @@ public static class AppHost
                 provider.GetRequiredService<GeminiCorrector>(),
                 provider.GetRequiredService<LazyCorrector>(),
                 rules.Current,
-                TimeSpan.FromSeconds(3),
+                CorrectionPipeline.DefaultGeminiTimeout,
                 logger: provider.GetRequiredService<ILogger<CorrectionPipeline>>(),
                 model: () => settings.Current.Correction.GeminiModel);
         });

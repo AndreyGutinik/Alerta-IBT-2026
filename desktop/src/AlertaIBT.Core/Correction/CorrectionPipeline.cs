@@ -25,6 +25,12 @@ namespace AlertaIBT.Core.Correction;
 /// </remarks>
 public sealed partial class CorrectionPipeline
 {
+    /// <summary>
+    /// How long Gemini may take in the app before the offline corrector takes over: 5 seconds (3 was too short for the first
+    /// call after a quiet spell). <see cref="GeminiHttp.RequestTimeout"/> stays above it.
+    /// </summary>
+    public static readonly TimeSpan DefaultGeminiTimeout = TimeSpan.FromSeconds(5);
+
     private const int CacheCapacity = 50;
 
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(2);
@@ -60,7 +66,7 @@ public sealed partial class CorrectionPipeline
     /// <param name="gemini">The online corrector.</param>
     /// <param name="offline">The offline corrector, used when Gemini cannot answer or is not trusted.</param>
     /// <param name="rules">Gives the current fixed rules; read once per run.</param>
-    /// <param name="timeout">How long Gemini may take (3 seconds in the app) before the offline corrector takes over.</param>
+    /// <param name="timeout">How long Gemini may take (<see cref="DefaultGeminiTimeout"/> in the app) before the offline corrector takes over.</param>
     /// <param name="clock">Time source of the cache; the system clock when omitted.</param>
     /// <param name="logger">
     /// Receives one line when Gemini times out, throws, or its answer is turned down by the safety lock (the reason class
