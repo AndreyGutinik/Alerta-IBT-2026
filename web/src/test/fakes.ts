@@ -87,6 +87,8 @@ export class FakeBackend implements Backend {
   ensureUserImpl: (u: SessionUser) => Promise<void> = () => Promise.resolve()
   sendImpl: (input: SendInput) => Promise<string> = () => Promise.resolve(`req-${this.sent.length}`)
   cancelImpl: (id: string) => Promise<void> = () => Promise.resolve()
+  setRoleImpl: (uid: string, role: Role) => Promise<void> = () => Promise.resolve()
+  setBlockedImpl: (uid: string, blocked: boolean) => Promise<void> = () => Promise.resolve()
 
   private user = new Channel<UserRecord | null>()
   private live = new Channel<LiveState | null>()
@@ -126,11 +128,11 @@ export class FakeBackend implements Backend {
   }
   setRole(uid: string, role: Role): Promise<void> {
     this.roleChanges.push({ uid, role })
-    return Promise.resolve()
+    return this.setRoleImpl(uid, role)
   }
   setBlocked(uid: string, blocked: boolean): Promise<void> {
     this.blockChanges.push({ uid, blocked })
-    return Promise.resolve()
+    return this.setBlockedImpl(uid, blocked)
   }
 
   emitUser(r: UserRecord | null): void {
