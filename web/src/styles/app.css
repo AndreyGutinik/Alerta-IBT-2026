@@ -409,3 +409,177 @@ svg.lucide {
   text-align: center;
   min-height: 1.1rem;
 }
+
+/* Enviar: campo, balão de ajuda e prévia. */
+.lb label {
+  cursor: text;
+}
+
+.lb-r {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.count {
+  font-size: 0.6875rem;
+  letter-spacing: 0;
+  color: var(--wn);
+  font-variant-numeric: tabular-nums;
+}
+
+.count.over {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.inrow {
+  position: relative;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  background: var(--field);
+  border: 1px solid var(--ln);
+  border-radius: 0.625rem;
+  color: var(--tx);
+  font: 500 0.875rem 'Marble', 'Segoe UI', sans-serif;
+  padding: 0.6875rem 2.5rem 0.6875rem 0.75rem;
+  outline: none;
+  resize: none;
+}
+
+textarea:focus {
+  border-color: rgba(29, 163, 95, 0.6);
+}
+
+.info-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.info {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: -1.1rem -0.75rem;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--mu);
+  cursor: pointer;
+}
+
+.info svg.lucide {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.tip {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% - 0.5rem);
+  right: -0.375rem;
+  width: max-content;
+  max-width: min(14.5rem, calc(100vw - 2rem));
+  background: #1c1c21;
+  color: #edeae2;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  font: 500 0.6875rem/1.5 'Marble', 'Segoe UI', sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+}
+
+.tip p {
+  margin: 0;
+}
+
+.pre {
+  display: flex;
+  gap: 0.4375rem;
+  align-items: flex-start;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--cr);
+  line-height: 1.4;
+  min-height: 2.125rem;
+  overflow-wrap: anywhere;
+}
+
+.pre .k {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--mu);
+}
+
+.pre .pre-icon {
+  display: inline-flex;
+  margin-top: 1px;
+  color: var(--ac);
+}
+
+.pre svg.lucide {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.pre.err {
+  color: var(--dg);
+}
+
+.pre.err .pre-icon {
+  color: var(--bad);
+}
+
+.pre.dup {
+  color: var(--wn);
+}
+
+.pre.dup .pre-icon {
+  color: #f5b400;
+}
+
+.pre.free .pre-icon {
+  color: var(--blue);
+}
+
+.pre.busy {
+  color: var(--mu);
+  font-weight: 500;
+}
+
+.pre.busy .pre-icon {
+  color: var(--mu);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tag {
+  display: inline-block;
+  margin-left: 0.25rem;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  padding: 1px 0.375rem;
+  border-radius: 999px;
+  background: rgba(143, 199, 255, 0.16);
+  color: var(--blue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pre.busy .pre-icon {
+    animation: none;
+  }
+}
