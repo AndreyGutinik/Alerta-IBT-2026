@@ -58,6 +58,30 @@ export function maskSurrogates(text: string): string {
   return text.replace(SURROGATE_UNIT, '\u{e000}')
 }
 
+/**
+ * Corta `text` onde a regex global `separator` casa, como o `Regex.Split` do .NET, mas casando na
+ * cópia mascarada (ver `maskSurrogates`) e cortando o texto original.
+ */
+export function splitOnMasked(text: string, separator: RegExp): string[] {
+  const pieces: string[] = []
+  let from = 0
+  for (const cut of maskSurrogates(text).matchAll(separator)) {
+    pieces.push(text.slice(from, cut.index))
+    from = cut.index + cut[0].length
+  }
+  pieces.push(text.slice(from))
+  return pieces
+}
+
+/** Vazio ou só espaço em branco (como `string.IsNullOrWhiteSpace`)? */
+export function isBlank(text: string | null | undefined): boolean {
+  if (!text) return true
+  for (let i = 0; i < text.length; i++) {
+    if (!isWhiteSpaceCode(text.charCodeAt(i))) return false
+  }
+  return true
+}
+
 /** Tira o espaço em branco das duas pontas (como `string.Trim()`). */
 export function trimWhiteSpace(text: string): string {
   let start = 0

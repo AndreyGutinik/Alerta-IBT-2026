@@ -1,8 +1,8 @@
 import {
   formatFree,
   hasLetterOrDigit,
-  maskSurrogates,
   removePictographs,
+  splitOnMasked,
   splitWords,
   trimEdges,
   trimStartToLetterOrDigit,
@@ -22,16 +22,7 @@ const SEGMENT_SEPARATOR = /[\n|/;]|(?<!\p{Nd}),|,(?!\p{Nd})/gu
 // As palavras de cada segmento, em ordem; segmento sem palavra fica de fora.
 function readSegments(rest: string): string[][] {
   const segments: string[][] = []
-  // Corta o original onde a cópia mascarada (maskSurrogates) tem separador.
-  const pieces: string[] = []
-  let from = 0
-  for (const cut of maskSurrogates(rest).matchAll(SEGMENT_SEPARATOR)) {
-    pieces.push(rest.slice(from, cut.index))
-    from = cut.index + cut[0].length
-  }
-  pieces.push(rest.slice(from))
-
-  for (const segment of pieces) {
+  for (const segment of splitOnMasked(rest, SEGMENT_SEPARATOR)) {
     const words = splitWords(trimEdges(segment)).filter(hasLetterOrDigit)
     if (words.length > 0) segments.push(words)
   }

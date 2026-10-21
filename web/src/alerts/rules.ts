@@ -1,4 +1,4 @@
-import { formatFree, formatVehicle, isWhiteSpaceCode } from './format'
+import { formatFree, formatVehicle, isBlank } from './format'
 import type { Field, ParsedAlert, RuleDecision, RuleKind, SenderRole } from './types'
 
 /**
@@ -13,14 +13,6 @@ export const MEMBER_MAX_LENGTH = 200
  */
 export function isTooLong(formattedText: string, role: SenderRole): boolean {
   return role !== 'admin' && role !== 'operator' && formattedText.length > MEMBER_MAX_LENGTH
-}
-
-function isBlank(text: string | null): boolean {
-  if (!text) return true
-  for (let i = 0; i < text.length; i++) {
-    if (!isWhiteSpaceCode(text.charCodeAt(i))) return false
-  }
-  return true
 }
 
 /** O que falta no aviso, sempre na ordem modelo, cor, placa. */

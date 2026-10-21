@@ -16,6 +16,32 @@ interface ParserCase {
 
 const parserCases = cases as ParserCase[]
 
+// Casos do antigo web/src/alerts/parser-cases.json que o shared/ ainda não tem (shared/ é do app do PC e
+// não se mexe aqui); quem juntar os dois pode acrescentá-los ao arquivo compartilhado.
+const siteOnlyCases: ParserCase[] = [
+  {
+    raw: 'pais do pedro henrique da sala kids favor comparecer na recepção',
+    role: 'admin',
+    expectedText: 'PAIS DO PEDRO HENRIQUE DA SALA KIDS FAVOR COMPARECER NA RECEPÇÃO',
+    missing: ['cor', 'placa'],
+    kind: 'free',
+  },
+  {
+    raw: 'Gol Branco placa FFO 4745 farol aceso',
+    role: 'member',
+    expectedText: 'GOL BRANCO | PLACA: FFO-4745 | FAROL ACESO',
+    missing: [],
+    kind: 'vehicle',
+  },
+  {
+    raw: '#Ônix preta qwe-1b23',
+    role: 'member',
+    expectedText: 'ÔNIX PRETA | PLACA: QWE-1B23',
+    missing: [],
+    kind: 'vehicle',
+  },
+]
+
 describe('casos de shared/parser-cases.json', () => {
   it('o arquivo tem casos e só campos documentados', () => {
     expect(parserCases.length).toBeGreaterThan(80)
@@ -27,7 +53,7 @@ describe('casos de shared/parser-cases.json', () => {
     }
   })
 
-  for (const { raw, role, expectedText, missing, kind } of parserCases) {
+  for (const { raw, role, expectedText, missing, kind } of [...parserCases, ...siteOnlyCases]) {
     it(`${role}: ${JSON.stringify(raw)}`, () => {
       const alert = parseAlert(raw)
       const decision = decide(alert, role)
