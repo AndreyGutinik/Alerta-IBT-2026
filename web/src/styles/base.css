@@ -1,0 +1,12 @@
+/* Escala de 90%: todo tamanho do app é em rem (px do mockup ÷ 16). */
+html {
+  font-size: 90%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--tx);
+  font-family: 'Marble', 'Segoe UI', system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}

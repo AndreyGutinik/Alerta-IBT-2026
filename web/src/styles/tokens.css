@@ -1,0 +1,39 @@
+/* Tokens de cor do mockup site-v5.html: escuro por padrão, claro quando o sistema pede. */
+:root {
+  --bg: #0a0a0c;
+  --pn: rgba(255,255,255,.035);
+  --pn2: rgba(255,255,255,.06);
+  --ln: rgba(255,255,255,.09);
+  --tx: #edeae2;
+  --mu: #8c867b;
+  --field: #0d0d10;
+  --ac: #1da35f;
+  --acs: rgba(29,163,95,.14);
+  --gl: #22e07e;
+  --cr: #fff3dc;
+  --dg: #ff9d9d;
+  --ok: #86e4ad;
+  --wn: #ffd87a;
+  --bad: #ff5c5c;
+  --blue: #8fc7ff;
+}
+
+/* No claro só mudam os tokens abaixo; --ac e --bad valem nos dois temas. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f4ef;
+    --pn: #ffffff;
+    --pn2: rgba(0,0,0,.05);
+    --ln: rgba(0,0,0,.1);
+    --tx: #1d1b18;
+    --mu: #77716a;
+    --field: #ffffff;
+    --acs: rgba(29,163,95,.12);
+    --gl: #138a4e;
+    --cr: #1d1b18;
+    --dg: #c0392b;
+    --ok: #1e8a4f;
+    --wn: #a86b00;
+    --blue: #2f6db3;
+  }
+}

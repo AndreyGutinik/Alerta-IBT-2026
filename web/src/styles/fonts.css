@@ -1,0 +1,29 @@
+/* Marble (pesos 400/500/600/700) vem de assets/fonts, na raiz do repositório.
+   Os nomes dos arquivos têm espaço, por isso cada url() fica entre aspas. */
+@font-face {
+  font-family: 'Marble';
+  src: url("../../../assets/fonts/Marble Regular.ttf") format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Marble';
+  src: url("../../../assets/fonts/Marble Medium.ttf") format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Marble';
+  src: url("../../../assets/fonts/Marble SemiBold.ttf") format('truetype');
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Marble';
+  src: url("../../../assets/fonts/Marble Bold.ttf") format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}

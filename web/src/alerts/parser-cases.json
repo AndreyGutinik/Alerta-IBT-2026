@@ -1,0 +1,93 @@
+[
+  {
+    "raw": "#creta preto | placa:gbr- 9003 / farol aceso",
+    "role": "member",
+    "expectedText": "CRETA PRETO | PLACA: GBR-9003 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "prata corolla bra2e19 vidro aberto",
+    "role": "member",
+    "expectedText": "COROLLA PRATA | PLACA: BRA-2E19 | VIDRO ABERTO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "onix preto qwe1b23",
+    "role": "member",
+    "expectedText": "ONIX PRETO | PLACA: QWE-1B23",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "hb20 vermelho abc1234 parado em frente à garagem",
+    "role": "member",
+    "expectedText": "HB20 VERMELHO | PLACA: ABC-1234 | PARADO EM FRENTE À GARAGEM",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol branco farol aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | FAROL ACESO",
+    "missing": ["placa"],
+    "kind": "reject"
+  },
+  {
+    "raw": "corolla abc1234 vidro aberto",
+    "role": "member",
+    "expectedText": "COROLLA | PLACA: ABC-1234 | VIDRO ABERTO",
+    "missing": ["cor"],
+    "kind": "reject"
+  },
+  {
+    "raw": "prata abc1d23",
+    "role": "member",
+    "expectedText": "PRATA | PLACA: ABC-1D23",
+    "missing": ["modelo"],
+    "kind": "reject"
+  },
+  {
+    "raw": "abc1234",
+    "role": "member",
+    "expectedText": "PLACA: ABC-1234",
+    "missing": ["modelo", "cor"],
+    "kind": "reject"
+  },
+  {
+    "raw": "corolla abc1234 vidro aberto",
+    "role": "admin",
+    "expectedText": "COROLLA | PLACA: ABC-1234 | VIDRO ABERTO",
+    "missing": ["cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "pais do pedro henrique da sala kids favor comparecer na recepção",
+    "role": "admin",
+    "expectedText": "PAIS DO PEDRO HENRIQUE DA SALA KIDS FAVOR COMPARECER NA RECEPÇÃO",
+    "missing": ["cor", "placa"],
+    "kind": "free"
+  },
+  {
+    "raw": "gol branco\nffo4745\n\nfarol aceso 🚗",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: FFO-4745 | FAROL ACESO 🚗",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "Gol Branco placa FFO 4745 farol aceso",
+    "role": "member",
+    "expectedText": "GOL BRANCO | PLACA: FFO-4745 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "#Ônix preta qwe-1b23",
+    "role": "member",
+    "expectedText": "ÔNIX PRETA | PLACA: QWE-1B23",
+    "missing": [],
+    "kind": "vehicle"
+  }
+]
