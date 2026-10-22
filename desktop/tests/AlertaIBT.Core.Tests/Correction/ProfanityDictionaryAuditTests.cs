@@ -12,7 +12,7 @@ public partial class ProfanityDictionaryAuditTests
     // Vulgar or offensive on purpose.
     private static readonly string[] Vulgar =
     [
-        "babaca", "babaquice", "bicha", "bichas", "bichinha", "bichinhas", "bichona", "boiola", "boquete", "bosta", "bostas",
+        "babaca", "babaquice", "boceta", "bocetas", "bostao", "bundao", "bundinha", "bundona", "colhao", "debiloide", "ejaculacao", "ejacular", "jeba", "pepeca", "pica", "picas", "queca", "safadeza", "bicha", "bichas", "bichinha", "bichinhas", "bichona", "boiola", "boquete", "bosta", "bostas",
         "caralheira", "caralhete", "caralho", "corno", "cornos", "cornudo", "cornuda", "cretino", "crioulo", "crioula", "crioulos",
         "crioulas", "cu", "cus", "desencaralhar", "escroto", "estuprar", "estupro", "estupido", "estupidos",
         "foda", "foder", "fodinha", "imbecil", "masturbar", "masturbacao", "merda", "merdoso", "mongoloide", "orgasmo",

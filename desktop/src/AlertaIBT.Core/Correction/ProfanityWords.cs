@@ -6,9 +6,11 @@ namespace AlertaIBT.Core.Correction;
 /// </summary>
 /// <remarks>
 /// Ambiguity rules: a word that is common in vehicle, parking or church messages, or is a common name, is never listed
-/// (pau, pica, pinto, rola, bunda, mala, porta, farol, macaco, gato, vaca, burro, galinha, cachorro, banco, fusca;
-/// "marica" and "sex" are not listed: the city of Marica and the abbreviation of sexta-feira). Whole words only for 4
-/// letters or fewer. Prefixes and fragments are
+/// bare (pau, pinto, rola, piru, bunda, mala, porta, farol, macaco, gato, vaca, burro, galinha, cachorro, banco, fusca;
+/// "marica" and "sex" are not listed: the city of Marica and the abbreviation of sexta-feira). Those body-slang words
+/// (pau, pinto, rola, piru, bunda, tetas, peitos) are blocked only in context, see <see cref="ContextRules"/>. "pica" and
+/// "pika" (the owner asked for them) are blocked bare, except in the compound "pica-pau" (woodpecker), see
+/// <see cref="FollowExemptions"/>. Whole words only for 4 letters or fewer. Prefixes and fragments are
 /// only used when they are long (6 letters or more, "fuck" being the one exception) and no Portuguese word contains them.
 /// "porra" is whole-word only: "porao" (basement) and "corporacao" would be hit by a prefix or a fragment.
 /// </remarks>
@@ -27,11 +29,16 @@ internal static class ProfanityWords
         "piroca", "pirocas", "pirocao", "pirocudo", "pirocuda",
         "merda", "merdas", "merdinha", "merdao", "merdona", "merdoso", "merdosa", "merdada",
         "bosta", "bostas", "bostinha",
-        "cacete", "cacetes", "cacetada", "cacetadas",
+        "cacete", "cacetes", "cacetada", "cacetadas", "caceta",
+        "fudeu", "fude", "fuder", "fudido", "fudida", "fudidos", "fudidas", "fudendo", "fudase", "fodasse",
+        "bostao",
 
         // body parts used as insults
-        "cu", "cus", "cuzao", "cuzona", "cuzinho",
-        "xereca", "xerecas", "xerequinha", "xota", "xotas", "xoxota", "xoxotas", "cona", "conas",
+        "cu", "cus", "cuzao", "cuzona", "cuzinho", "cuzinhos", "cuzoes",
+        "xereca", "xerecas", "xerequinha", "xota", "xotas", "xoxota", "xoxotas", "xoxotinha", "xoxotinhas", "cona", "conas",
+        "boceta", "bocetas", "bocetinha", "chochota", "chochotas", "xochota", "xochotas", "pepeca", "pepecas", "priquito", "priquitos",
+        "pica", "picas", "pika", "pikas", "jeba", "jebas", "bilau", "bilaus", "colhao", "colhoes",
+        "bundao", "bundona", "bundinha", "bundoes",
 
         // slurs and insults
         "viado", "viados", "viadao", "viadagem", "veado", "veados",
@@ -46,7 +53,7 @@ internal static class ProfanityWords
         "desgracado", "desgracada", "desgracados", "desgracadas",
         "vagabundo", "vagabunda", "vagabundos", "vagabundas",
         "vadia", "vadias",
-        "safado", "safada", "safados", "safadas",
+        "safado", "safada", "safados", "safadas", "safadinho", "safadinha", "safadeza",
         "corno", "corna", "cornos", "cornudo", "cornuda",
         "cretino", "cretina", "cretinos", "cretinas",
         "escroto", "escrota", "escrotos", "escrotas",
@@ -59,7 +66,8 @@ internal static class ProfanityWords
         "masturbacao", "masturbar", "masturbando", "orgasmo", "orgasmos",
         "porno", "pornos", "pornografia", "porn", "nude", "nudes",
         "tarado", "tarada", "tarados", "taradas",
-        "tesao", "tesudo", "tesuda", "boquete", "boquetes",
+        "tesao", "tesudo", "tesuda", "boquete", "boquetes", "queca", "quecas", "trepada", "trepadas", "ejacular", "ejaculacao",
+        "xvideos", "xvideo", "pornhub", "xnxx",
         "estupro", "estupros", "estuprar", "estuprador", "estupradora",
         "pedofilo", "pedofila", "pedofilia",
 
@@ -67,6 +75,8 @@ internal static class ProfanityWords
         "fck", "fuk", "shit", "shits", "shitty", "bullshit", "shithead",
         "pussy", "pussies", "cunt", "cunts", "dick", "dicks", "dickhead",
         "wtf", "stfu", "slut", "sluts", "whore", "whores", "bastard", "bastards", "faggot", "faggots",
+        "cock", "cocks", "cocksucker", "tits", "titties", "boobs", "milf", "wanker", "twat", "dildo", "blowjob", "horny",
+        "retard", "retards", "retarded", "debiloide",
     ];
 
     /// <summary>
@@ -98,5 +108,46 @@ internal static class ProfanityWords
                 "vidro", "vidros", "portao", "cadeado", "janela", "cofre", "trinco", "fechadura", "bagageiro", "malas",
             ]),
         (["mongol"], ["grao"]),
+    ];
+
+    /// <summary>
+    /// Slang that is blocked only next to a word that makes it body slang: the word before it (the very next word back,
+    /// never past punctuation) is one of <c>Before</c>, and the word after it is not one of <c>NotNext</c>. Bare, these
+    /// words are ordinary: "Pinto Silva", "Seu Pinto", "pau de selfie", "pomba rola", "Rola Moca" (a street), "Bunda" (an
+    /// ethnic group and a city), "peito" and "tetas" in a nursing or health notice. Articles (a, o, uma) are not used as a
+    /// context: "o pinto" is a chick and "a rola" is a bird or a verb. "seu" is not a context for pinto (Seu Pinto is a
+    /// title and a surname), and esse/essa are not either ("esse Pinto").
+    /// </summary>
+    public static readonly (string[] Words, string[] Before, string[] NotNext)[] ContextRules =
+    [
+        (
+            ["pau", "paus", "rola", "rolas", "piru", "pirus", "bunda", "bundas"],
+            [
+                "meu", "minha", "teu", "tua", "seu", "sua", "meus", "minhas", "teus", "tuas", "seus", "suas",
+                "esse", "essa", "esses", "essas", "este", "esta", "chupa", "chupar", "chupando", "chupou", "mama", "mamar", "mamando",
+                "lambe", "lamber", "lambendo", "lambeu",
+            ],
+            ["de", "brasil", "a"]),
+        (
+            ["pinto", "pintos"],
+            ["meu", "minha", "teu", "tua", "meus", "minhas", "teus", "tuas", "chupa", "chupar", "chupando", "chupou", "mama", "mamar", "mamando", "lambe", "lamber", "lambendo", "lambeu"],
+            []),
+        (
+            ["teta", "tetas", "tetinha", "tetinhas", "peitos", "peitinhos"],
+            [
+                "meu", "minha", "teu", "tua", "seu", "sua", "meus", "minhas", "teus", "tuas", "seus", "suas",
+                "esse", "essa", "esses", "essas", "chupa", "chupar", "chupando", "chupou", "mama", "mamar", "mamando",
+                "lambe", "lamber", "lambendo", "lambeu",
+            ],
+            []),
+    ];
+
+    /// <summary>
+    /// A listed word that is let through when one of the words on the right comes right after it: "pica-pau" is a
+    /// woodpecker (the filter reads the hyphen as a space).
+    /// </summary>
+    public static readonly (string[] Words, string[] Next)[] FollowExemptions =
+    [
+        (["pica", "picas", "pika", "pikas"], ["pau", "paus"]),
     ];
 }

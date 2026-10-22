@@ -36,7 +36,7 @@ public class ProfanityFilterTests
         "o computador do culto",
         "cuidado com a curva",
         "bucha de banho na cantina",
-        "pica-pau",
+        "pica-pau", "picape branca", "Rola Moca", "Costa e Silva", "Bunda", "Pinto",
         "pauta da reuniao",
         "pau de selfie",
         "a pomba rola no telhado",
@@ -229,7 +229,7 @@ public class ProfanityFilterTests
         "estupro",
         "seu arrombado, saia daqui",
         "carro arrombado, seu arrombado",
-        "seu mongol",
+        "seu mongol", "minha pika", "minha pica", "pica", "PIKA", "p1ka", "p.i.c.a", "minha pica grande", "chupa minha pica", "chupa meu pau", "meu pinto",
     ];
 
     public static TheoryData<string> CleanData() => new(Clean);

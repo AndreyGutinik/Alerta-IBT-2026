@@ -54,6 +54,16 @@ public sealed partial class ProfanityFilter
 
     private static readonly FrozenDictionary<string, Exemption> Exemptions = BuildExemptions();
 
+    private static readonly FrozenDictionary<string, FrozenSet<string>> FollowExemptions = ProfanityWords.FollowExemptions
+        .SelectMany(rule => rule.Words.Select(word => (Word: Collapse(word), Next: rule.Next.Select(Collapse).ToFrozenSet(StringComparer.Ordinal))))
+        .ToFrozenDictionary(pair => pair.Word, pair => pair.Next, StringComparer.Ordinal);
+
+    private static readonly FrozenDictionary<string, ContextRule> ContextRules = ProfanityWords.ContextRules
+        .SelectMany(rule => rule.Words.Select(word => (Word: Collapse(word), Rule: new ContextRule(
+            rule.Before.Select(Collapse).ToFrozenSet(StringComparer.Ordinal),
+            rule.NotNext.Select(Collapse).ToFrozenSet(StringComparer.Ordinal)))))
+        .ToFrozenDictionary(pair => pair.Word, pair => pair.Rule, StringComparer.Ordinal);
+
     private readonly string? _extraFile;
     private readonly ILogger? _logger;
     private readonly Lock _gate = new();
@@ -262,7 +272,17 @@ public sealed partial class ProfanityFilter
                 var folded = Collapse(variant);
                 if (!IsBuiltInWord(variant, folded))
                 {
+                    if (IsBodySlangInContext(tokens, i, folded))
+                    {
+                        return true;
+                    }
+
                     continue;
+                }
+
+                if (IsFollowExempt(tokens, i, folded))
+                {
+                    continue; // "pica-pau": the woodpecker
                 }
 
                 if (Exemptions.TryGetValue(folded, out var exemption) && IsExempt(tokens, i, exemption))
@@ -341,6 +361,33 @@ public sealed partial class ProfanityFilter
         }
 
         return true;
+    }
+
+    private sealed record ContextRule(FrozenSet<string> Before, FrozenSet<string> NotNext);
+
+    // "meu pinto", "chupa pau": slang that is ordinary alone is blocked next to a possessive or a verb of the list.
+    private static bool IsBodySlangInContext(List<Tok> tokens, int index, string folded)
+    {
+        if (!ContextRules.TryGetValue(folded, out var rule) || index == 0 || tokens[index - 1].IsBoundary)
+        {
+            return false;
+        }
+
+        if (!rule.Before.Contains(Collapse(tokens[index - 1].Variants[0])))
+        {
+            return false;
+        }
+
+        return !(index + 1 < tokens.Count && !tokens[index + 1].IsBoundary && rule.NotNext.Contains(Collapse(tokens[index + 1].Variants[0])));
+    }
+
+    // The next word makes the listed word part of an ordinary compound.
+    private static bool IsFollowExempt(List<Tok> tokens, int index, string folded)
+    {
+        return FollowExemptions.TryGetValue(folded, out var next)
+            && index + 1 < tokens.Count
+            && !tokens[index + 1].IsBoundary
+            && next.Contains(Collapse(tokens[index + 1].Variants[0]));
     }
 
     private sealed record Exemption(FrozenSet<string> Words, FrozenSet<string> After);
