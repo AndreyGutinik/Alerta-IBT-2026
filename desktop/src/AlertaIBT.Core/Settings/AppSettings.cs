@@ -18,6 +18,9 @@ public sealed record AppSettings
     /// <summary>The spelling correction.</summary>
     public CorrectionSettings Correction { get; init; } = new();
 
+    /// <summary>The Firebase site: how notices sent from the phones reach this PC.</summary>
+    public SiteSettings Site { get; init; } = new();
+
     /// <summary>The panel shortcut and the remembered LED.</summary>
     public SystemSettings System { get; init; } = new();
 }
@@ -88,6 +91,58 @@ public sealed record TelegramSettings
 
     /// <summary>The <c>getUpdates</c> offset the poller reached, so a restart does not repeat messages.</summary>
     public long Offset { get; init; }
+}
+
+/// <summary>The connection to the Firebase project of the site (the PC signs in with its own e-mail and password account).</summary>
+public sealed record SiteSettings
+{
+    /// <summary>Whether the PC connects to the site.</summary>
+    public bool Enabled { get; init; }
+
+    /// <summary>The Realtime Database address (<c>https://...firebaseio.com</c> or <c>...firebasedatabase.app</c>); blank when none.</summary>
+    public string DatabaseUrl { get; init; } = string.Empty;
+
+    /// <summary>The web API key of the project (it is public by design: it only names the project); blank when none.</summary>
+    public string ApiKey { get; init; } = string.Empty;
+
+    /// <summary>The Firebase project id (optional); blank when none.</summary>
+    public string ProjectId { get; init; } = string.Empty;
+
+    /// <summary>The e-mail of the PC own account.</summary>
+    public string DeviceEmail { get; init; } = string.Empty;
+
+    /// <summary>The password of the PC account, protected with DPAPI (base64); <c>null</c> when none.</summary>
+    public string? PasswordProtected { get; init; }
+
+    /// <summary>
+    /// Whether <paramref name="url"/> may be the database address: <c>https</c> and a host that ends with <c>firebaseio.com</c> or
+    /// <c>firebasedatabase.app</c>, or an <c>http(s)</c> address on this computer (the emulator, for tests).
+    /// </summary>
+    /// <param name="url">The address as typed.</param>
+    public static bool IsValidDatabaseUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) || uri.UserInfo.Length > 0)
+        {
+            return false;
+        }
+
+        if (uri.IsLoopback)
+        {
+            return uri.Scheme is "http" or "https";
+        }
+
+        if (uri.Scheme != "https")
+        {
+            return false;
+        }
+
+        var host = uri.Host.ToLowerInvariant();
+        return host.EndsWith(".firebaseio.com", StringComparison.Ordinal) || host.EndsWith(".firebasedatabase.app", StringComparison.Ordinal);
+    }
+
+    /// <summary>Whether everything the connection needs is filled in.</summary>
+    public bool IsConfigured =>
+        IsValidDatabaseUrl(DatabaseUrl) && ApiKey.Length > 0 && DeviceEmail.Length > 0 && PasswordProtected is not null;
 }
 
 /// <summary>The correction's settings.</summary>

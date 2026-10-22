@@ -229,7 +229,8 @@ public sealed class AlertService : IOverlayControl, IDisposable
         SenderRole role,
         bool urgent,
         string? senderId,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? itemId = null)
     {
         ArgumentNullException.ThrowIfNull(raw);
         ct.ThrowIfCancellationRequested();
@@ -239,7 +240,7 @@ public sealed class AlertService : IOverlayControl, IDisposable
         // The sermon: refuse at once, without spending the Gemini quota or making the sender wait for the correction.
         if (_queue.IsPaused)
         {
-            var refused = NewItem(Display(raw), null, source, urgent, senderId, raw);
+            var refused = NewItem(Display(raw), null, source, urgent, senderId, raw, itemId);
             _queue.AddRejected(refused, HistoryReasons.Sermon);
             Reply(source, TelegramReplies.PausedRefused);
             return new SubmitOutcome(SubmitKind.PausedRefused, refused.Text, []);
@@ -251,7 +252,7 @@ public sealed class AlertService : IOverlayControl, IDisposable
 
         if (evaluation.Result.Refused)
         {
-            _queue.AddRejected(NewItem(Display(raw), null, source, urgent, senderId, raw), HistoryReasons.ImproperContent);
+            _queue.AddRejected(NewItem(Display(raw), null, source, urgent, senderId, raw, itemId), HistoryReasons.ImproperContent);
             Reply(source, TelegramReplies.Refused);
             if (evaluation.Blocked)
             {
@@ -268,7 +269,7 @@ public sealed class AlertService : IOverlayControl, IDisposable
 
         if (evaluation.TooLong)
         {
-            _queue.AddRejected(NewItem(evaluation.Text, evaluation.Plate, source, urgent, senderId, raw), HistoryReasons.TooLong);
+            _queue.AddRejected(NewItem(evaluation.Text, evaluation.Plate, source, urgent, senderId, raw, itemId), HistoryReasons.TooLong);
             Reply(source, TelegramReplies.TooLong(AlertRules.MemberMaxLength));
             _logger.LogInformation("Aviso grande demais recusado ({Source}, {Length} letras)", source, evaluation.Text.Length);
             return new SubmitOutcome(SubmitKind.TooLong, evaluation.Text, [], By: by, Changed: changed);
@@ -278,12 +279,12 @@ public sealed class AlertService : IOverlayControl, IDisposable
         {
             var missing = evaluation.Decision.Missing.Count > 0 ? evaluation.Decision.Missing : AllRequired;
             var text = evaluation.Text.Length > 0 ? evaluation.Text : raw.Trim();
-            _queue.AddRejected(NewItem(text, evaluation.Result.Alert.Plate, source, urgent, senderId, raw), HistoryReasons.MissingFields(missing));
+            _queue.AddRejected(NewItem(text, evaluation.Result.Alert.Plate, source, urgent, senderId, raw, itemId), HistoryReasons.MissingFields(missing));
             Reply(source, TelegramReplies.Missing(missing));
             return new SubmitOutcome(SubmitKind.Rejected, evaluation.Text, missing, By: by, Changed: changed);
         }
 
-        var item = NewItem(evaluation.Text, evaluation.Plate, source, urgent, senderId, raw) with { Corrected = changed };
+        var item = NewItem(evaluation.Text, evaluation.Plate, source, urgent, senderId, raw, itemId) with { Corrected = changed };
         var enqueued = _queue.Enqueue(item, policy);
         switch (enqueued.Kind)
         {
@@ -775,8 +776,8 @@ public sealed class AlertService : IOverlayControl, IDisposable
         }
     }
 
-    private QueueItem NewItem(string text, string? plate, AlertSource source, bool urgent, string? senderId, string original) =>
-        new(_newId(), text, plate, source, urgent, _clock.GetUtcNow(), senderId, original);
+    private QueueItem NewItem(string text, string? plate, AlertSource source, bool urgent, string? senderId, string original, string? id = null) =>
+        new(id ?? _newId(), text, plate, source, urgent, _clock.GetUtcNow(), senderId, original);
 
     private static string Display(string raw)
     {

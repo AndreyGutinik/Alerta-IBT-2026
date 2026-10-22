@@ -24,6 +24,27 @@ public static class SettingsSecrets
         return protector.Unprotect(settings.Correction.GeminiKeyProtected);
     }
 
+    /// <summary>The password of the PC Firebase account in clear, or <c>null</c> when there is none or it cannot be read.</summary>
+    public static string? GetSitePassword(this AppSettings settings, ISecretProtector protector)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(protector);
+
+        return protector.Unprotect(settings.Site.PasswordProtected);
+    }
+
+    /// <summary>
+    /// A copy with the password of the PC Firebase account set (not trimmed: a password may start or end with a space) or, when
+    /// <paramref name="password"/> is empty, cleared.
+    /// </summary>
+    public static AppSettings WithSitePassword(this AppSettings settings, string? password, ISecretProtector protector)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(protector);
+
+        return settings with { Site = settings.Site with { PasswordProtected = protector.Protect(string.IsNullOrEmpty(password) ? null : password) } };
+    }
+
     /// <summary>
     /// A copy with the Telegram token set (trimmed) or, when <paramref name="token"/> is blank, cleared. A different token is a
     /// different bot, whose updates are numbered on their own: the saved <c>getUpdates</c> offset goes back to 0 in the same change

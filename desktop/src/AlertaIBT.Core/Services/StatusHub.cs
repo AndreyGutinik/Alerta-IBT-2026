@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using AlertaIBT.Core.Firebase;
 using AlertaIBT.Core.Telegram;
 
 namespace AlertaIBT.Core.Services;
@@ -105,7 +106,7 @@ public sealed class StatusHub : INotifyPropertyChanged
     /// <summary>The Telegram dot.</summary>
     public StatusIndicator Telegram => Snapshot(TelegramDot);
 
-    /// <summary>The site dot (gray "not configured" until the Firebase part exists).</summary>
+    /// <summary>The site dot (gray "not configured" until the site is set up; see <see cref="SetSite"/>).</summary>
     public StatusIndicator Site => Snapshot(SiteDot);
 
     /// <summary>The LED dot.</summary>
@@ -122,6 +123,9 @@ public sealed class StatusHub : INotifyPropertyChanged
 
     /// <summary>Where the Telegram connection stands.</summary>
     public TelegramState TelegramState => Snapshot(i => i.Telegram);
+
+    /// <summary>Where the connection to the site stands.</summary>
+    public SiteState SiteState => Snapshot(i => i.Site);
 
     /// <summary>Whether Gemini answered the last time it was asked.</summary>
     public GeminiState GeminiState => Snapshot(i => i.Gemini);
@@ -165,6 +169,10 @@ public sealed class StatusHub : INotifyPropertyChanged
     /// <summary>Sets the Telegram state and, when it is a problem, what went wrong.</summary>
     public void SetTelegram(TelegramState state, string? detail = null) =>
         Change(i => i with { Telegram = state, TelegramDetail = detail });
+
+    /// <summary>Sets the site state and, when it is a problem, what went wrong (short, pt-BR, never a secret).</summary>
+    public void SetSite(SiteState state, string? detail = null) =>
+        Change(i => i with { Site = state, SiteDetail = detail });
 
     /// <summary>Sets whether the LED screen is there.</summary>
     public void SetLedPresent(bool present) => Change(i => i with { LedPresent = present });
@@ -222,8 +230,15 @@ public sealed class StatusHub : INotifyPropertyChanged
         _ => new(StatusLight.Gray, "?", string.Empty),
     };
 
-    private static StatusIndicator SiteDot(Inputs i) =>
-        new(StatusLight.Gray, "N\U000000E3o configurado", "O site ainda n\U000000E3o est\U000000E1 ligado a este PC.");
+    private static StatusIndicator SiteDot(Inputs i) => i.Site switch
+    {
+        SiteState.Connecting => new(StatusLight.Yellow, "Conectando", "Conectando ao site."),
+        SiteState.Online => new(StatusLight.Green, "Conectado", "Recebendo os avisos enviados pelo site."),
+        SiteState.Reconnecting => new(StatusLight.Yellow, "Reconectando", i.SiteDetail ?? "Sem resposta do site; tentando de novo."),
+        SiteState.Offline => new(StatusLight.Red, "Sem conex\U000000E3o", i.SiteDetail ?? "O site n\U000000E3o responde h\U000000E1 mais de um minuto; tentando de novo."),
+        SiteState.AuthError => new(StatusLight.Red, "Erro de login", i.SiteDetail ?? "O Firebase recusou o login do PC. Confira o e-mail, a senha e a chave da API em Configura\U000000E7\U000000F5es."),
+        _ => new(StatusLight.Gray, "N\U000000E3o configurado", "O site ainda n\U000000E3o est\U000000E1 ligado a este PC."),
+    };
 
     private static StatusIndicator LedDot(Inputs i) => i.LedPresent
         ? new(StatusLight.Green, "Ligado", i.LedDescription ?? "Tel\U000000E3o encontrado.")
@@ -313,6 +328,8 @@ public sealed class StatusHub : INotifyPropertyChanged
 
             _in = after;
             AddIfChanged(names, nameof(Telegram), TelegramDot(before), TelegramDot(after));
+            AddIfChanged(names, nameof(Site), SiteDot(before), SiteDot(after));
+            AddIfChanged(names, nameof(SiteState), before.Site, after.Site);
             AddIfChanged(names, nameof(Led), LedDot(before), LedDot(after));
             AddIfChanged(names, nameof(Bar), BarDot(before), BarDot(after));
             AddIfChanged(names, nameof(Gemini), GeminiDot(before), GeminiDot(after));
@@ -365,6 +382,10 @@ public sealed class StatusHub : INotifyPropertyChanged
         public TelegramState Telegram { get; init; } = TelegramState.NotConfigured;
 
         public string? TelegramDetail { get; init; }
+
+        public SiteState Site { get; init; } = SiteState.NotConfigured;
+
+        public string? SiteDetail { get; init; }
 
         public bool LedPresent { get; init; }
 

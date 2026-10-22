@@ -69,6 +69,7 @@ public static partial class SettingsJson
             var telegram = Section(root, "telegram");
             var correction = Section(root, "correction");
             var system = Section(root, "system");
+            var site = Section(root, "site");
 
             var settings = new AppSettings
             {
@@ -101,6 +102,15 @@ public static partial class SettingsJson
                 {
                     Hotkey = ReadString(system, "hotkey") ?? defaults.System.Hotkey,
                     LastLedDevicePath = ReadString(system, "lastLedDevicePath"),
+                },
+                Site = new SiteSettings
+                {
+                    Enabled = ReadBool(site, "enabled") ?? defaults.Site.Enabled,
+                    DatabaseUrl = ReadString(site, "databaseUrl") ?? defaults.Site.DatabaseUrl,
+                    ApiKey = ReadString(site, "apiKey") ?? defaults.Site.ApiKey,
+                    ProjectId = ReadString(site, "projectId") ?? defaults.Site.ProjectId,
+                    DeviceEmail = ReadString(site, "deviceEmail") ?? defaults.Site.DeviceEmail,
+                    PasswordProtected = ReadString(site, "passwordProtected"),
                 },
             };
             return (Normalize(settings), false);
@@ -146,6 +156,15 @@ public static partial class SettingsJson
                 ["hotkey"] = n.System.Hotkey,
                 ["lastLedDevicePath"] = n.System.LastLedDevicePath,
             },
+            ["site"] = new JsonObject
+            {
+                ["enabled"] = n.Site.Enabled,
+                ["databaseUrl"] = n.Site.DatabaseUrl,
+                ["apiKey"] = n.Site.ApiKey,
+                ["projectId"] = n.Site.ProjectId,
+                ["deviceEmail"] = n.Site.DeviceEmail,
+                ["passwordProtected"] = n.Site.PasswordProtected,
+            },
         };
         return root.ToJsonString(WriteOptions);
     }
@@ -153,7 +172,8 @@ public static partial class SettingsJson
     /// <summary>
     /// A copy with every value held where the app can use it: height 28 to 120, speed 30 to 300, margin 0 to 200,
     /// slide 100 to 1500 ms, font size 8 to 200 (or automatic), position <c>top</c> or <c>bottom</c>, colors
-    /// <c>#RRGGBB</c>, mode <c>gemini</c> or <c>offline</c>, no negative offset, and blank text back to its default.
+    /// <c>#RRGGBB</c>, mode <c>gemini</c> or <c>offline</c>, no negative offset, a database address that is a Firebase one (or none),
+    /// and blank text back to its default.
     /// Applying it twice changes nothing more.
     /// </summary>
     public static AppSettings Normalize(AppSettings s)
@@ -165,6 +185,7 @@ public static partial class SettingsJson
         var telegram = s.Telegram ?? d.Telegram;
         var correction = s.Correction ?? d.Correction;
         var system = s.System ?? d.System;
+        var site = s.Site ?? d.Site;
 
         return new AppSettings
         {
@@ -197,6 +218,17 @@ public static partial class SettingsJson
             {
                 Hotkey = NullIfBlank(system.Hotkey) ?? d.System.Hotkey,
                 LastLedDevicePath = NullIfBlank(system.LastLedDevicePath),
+            },
+            Site = new SiteSettings
+            {
+                Enabled = site.Enabled,
+
+                // An address that is not a Firebase database (or not https) is dropped: the connector never sees it.
+                DatabaseUrl = SiteSettings.IsValidDatabaseUrl(site.DatabaseUrl) ? site.DatabaseUrl!.Trim().TrimEnd('/') : string.Empty,
+                ApiKey = NullIfBlank(site.ApiKey) ?? string.Empty,
+                ProjectId = NullIfBlank(site.ProjectId) ?? string.Empty,
+                DeviceEmail = NullIfBlank(site.DeviceEmail) ?? string.Empty,
+                PasswordProtected = NullIfBlank(site.PasswordProtected),
             },
         };
     }
