@@ -103,4 +103,11 @@ describe('SYSTEM_PROMPT', () => {
     expect(SYSTEM_PROMPT).toContain('use kind "free" com texto vazio')
     expect(SYSTEM_PROMPT).toContain('"video aberto" quer dizer "vidro aberto"')
   })
+
+  it('manda reordenar avisos fora de ordem e continua curta (mesmo teto do PC: 300 a 1700)', () => {
+    expect(SYSTEM_PROMPT).toContain('Os campos podem vir fora de ordem.')
+    expect(SYSTEM_PROMPT).toContain('Prata, Gol, ABC-1234 = modelo Gol, cor prata.')
+    expect(SYSTEM_PROMPT.length).toBeGreaterThanOrEqual(300)
+    expect(SYSTEM_PROMPT.length).toBeLessThanOrEqual(1700)
+  })
 })

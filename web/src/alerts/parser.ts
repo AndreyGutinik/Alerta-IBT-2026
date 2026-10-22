@@ -9,7 +9,7 @@ import {
   trimWhiteSpace,
   upper,
 } from './format'
-import { extractPlate, tidyText } from './plate'
+import { extractPlate, locatePlate, tidyText } from './plate'
 import type { ParsedAlert } from './types'
 import { fold, isColor, isColorModifier, isReasonStart } from './vocabulary'
 
@@ -40,9 +40,9 @@ function trimSegmentStart(words: string[]): string[] {
 // Tira o veículo dos segmentos e devolve as palavras dele (aparadas nas pontas, sem "placa"): o primeiro
 // segmento que não começa com gatilho, cortado no primeiro gatilho dentro dele. O que sobra em
 // `segments` são os motivos, em ordem; `next` é onde está o segmento logo depois do veículo.
-function takeVehicle(segments: string[][]): { vehicle: string[]; next: number } {
+function takeVehicle(segments: string[][]): { vehicle: string[]; next: number; vehicleIndex: number } {
   const index = segments.findIndex((words) => !isReasonStart(words[0]))
-  if (index < 0) return { vehicle: [], next: segments.length }
+  if (index < 0) return { vehicle: [], next: segments.length, vehicleIndex: -1 }
 
   const vehicle = segments[index]
   let trigger = -1
@@ -58,7 +58,7 @@ function takeVehicle(segments: string[][]): { vehicle: string[]; next: number } 
   }
 
   segments.splice(index, 1)
-  return { vehicle: vehicle.map(trimEdges).filter((word) => fold(word) !== 'placa'), next: index }
+  return { vehicle: vehicle.map(trimEdges).filter((word) => fold(word) !== 'placa'), next: index, vehicleIndex: index }
 }
 
 // Tira a palavra de cor em `start` (e o modificador logo depois, se houver) e devolve as duas, sem a
@@ -70,11 +70,38 @@ function take(words: string[], start: number): string {
   return taken
 }
 
-// A cor é a primeira palavra de cor do veículo; senão, a palavra que abre o segmento logo depois dele.
-// O modificador que vem depois da cor vai junto. As duas saem de onde estavam.
-function takeColor(vehicle: string[], reasons: string[][], next: number): string {
+// O mais de palavras que cabem entre a placa e a cor quando são o fim do modelo ("fiat abc1234 uno preto").
+const MAX_MODEL_WORDS_AFTER_PLATE = 2
+
+// Quantas palavras do segmento vêm antes da cor dele, quando o segmento não abre com gatilho e tem uma
+// palavra de cor nas primeiras MAX_MODEL_WORDS_AFTER_PLATE palavras, sem gatilho antes; 0 nos outros casos
+// (e quando a cor é a primeira palavra).
+function leadBeforeColor(segment: string[]): number {
+  if (isReasonStart(segment[0])) return 0
+  for (let i = 1; i <= MAX_MODEL_WORDS_AFTER_PLATE && i < segment.length; i++) {
+    if (isReasonStart(segment[i])) return 0
+    if (isColor(segment[i])) return i
+  }
+  return 0
+}
+
+// A cor é a primeira palavra de cor do veículo; senão, a palavra que abre o segmento logo depois dele
+// (antes dela, logo depois da placa, até duas palavras que não são gatilho vão para o modelo). O
+// modificador que vem depois da cor vai junto. As duas saem de onde estavam.
+function takeColor(vehicle: string[], reasons: string[][], next: number, plateFollowsVehicle: boolean): string {
   const at = vehicle.findIndex(isColor)
   if (at >= 0) return take(vehicle, at)
+
+  const lead = next < reasons.length && plateFollowsVehicle ? leadBeforeColor(reasons[next]) : 0
+  if (lead > 0) {
+    vehicle.push(
+      ...reasons[next]
+        .slice(0, lead)
+        .map(trimEdges)
+        .filter((word) => fold(word) !== 'placa'),
+    )
+    reasons[next].splice(0, lead)
+  }
 
   if (next < reasons.length && isColor(reasons[next][0])) {
     const color = take(reasons[next], 0)
@@ -83,6 +110,35 @@ function takeColor(vehicle: string[], reasons: string[][], next: number): string
     return color
   }
   return ''
+}
+
+function isColorOnly(words: string[]): boolean {
+  return isColor(words[0]) && (words.length === 1 || (words.length === 2 && isColorModifier(words[1])))
+}
+
+function hasColorBeforeTrigger(words: string[]): boolean {
+  for (const word of words) {
+    if (isReasonStart(word)) return false
+    if (isColor(word)) return true
+  }
+  return false
+}
+
+// Uma cor sozinha antes do modelo ("Prata, Gol, ABC-1234"): o primeiro segmento que não é motivo é só uma
+// cor (com o modificador) e o segmento logo depois é o começo de um veículo (não é gatilho, não tem cor
+// própria antes do primeiro gatilho), do mesmo lado da placa. O segmento da cor sai e a cor é a do veículo.
+function takeLeadingColorSegment(segments: string[][], plateBreak: { value: number }): string | null {
+  const first = segments.findIndex((words) => !isReasonStart(words[0]))
+  if (first < 0 || first + 1 >= segments.length || !isColorOnly(segments[first])) return null
+
+  const model = segments[first + 1]
+  const crossesPlate = first < plateBreak.value && plateBreak.value <= first + 1
+  if (crossesPlate || isReasonStart(model[0]) || isColorOnly(model) || hasColorBeforeTrigger(model)) return null
+
+  const color = segments[first].map(trimEdges).join(' ')
+  segments.splice(first, 1)
+  if (plateBreak.value > first) plateBreak.value--
+  return color
 }
 
 /**
@@ -100,9 +156,16 @@ export function parseAlert(raw: string): ParsedAlert {
   const rest = found ? found.rest : tidyText(text)
 
   const segments = readSegments(rest)
-  const { vehicle, next } = takeVehicle(segments)
+
+  // Quantos segmentos ficam antes da placa (ela deixou uma quebra de linha ali): as regras de aviso fora
+  // de ordem tratam "depois da placa" diferente de "depois de uma vírgula". -1 sem placa.
+  const located = found ? locatePlate(text) : null
+  const plateBreak = { value: located ? readSegments(text.slice(0, located.index)).length : -1 }
+
+  const leadingColor = takeLeadingColorSegment(segments, plateBreak)
+  const { vehicle, next, vehicleIndex } = takeVehicle(segments)
   // O veículo já saiu dos segmentos: o que sobra neles são os motivos.
-  const color = takeColor(vehicle, segments, next)
+  const color = leadingColor ?? takeColor(vehicle, segments, next, plateBreak.value === vehicleIndex + 1)
 
   return {
     model: upper(vehicle.join(' ')),
