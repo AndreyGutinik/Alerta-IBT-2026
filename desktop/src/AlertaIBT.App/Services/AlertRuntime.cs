@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using AlertaIBT.App.Overlay;
 using AlertaIBT.App.Platform;
 using AlertaIBT.Core.Correction;
@@ -30,6 +31,8 @@ public sealed class AlertRuntime : IDisposable
     private readonly OverlayDisplay _display;
     private readonly LedWatcher _led;
     private readonly SettingsService _settings;
+    private readonly HistoryCleaner _history;
+    private readonly HistoryClearScheduler _weekly;
     private readonly ILogger<AlertRuntime> _logger;
     private int _started;
     private int _stopped;
@@ -49,6 +52,8 @@ public sealed class AlertRuntime : IDisposable
         OverlayDisplay display,
         LedWatcher led,
         SettingsService settings,
+        HistoryCleaner history,
+        HistoryClearScheduler weekly,
         ILogger<AlertRuntime> logger)
     {
         _alerts = alerts;
@@ -64,6 +69,8 @@ public sealed class AlertRuntime : IDisposable
         _display = display;
         _led = led;
         _settings = settings;
+        _history = history;
+        _weekly = weekly;
         _logger = logger;
     }
 
@@ -99,6 +106,10 @@ public sealed class AlertRuntime : IDisposable
         Guarded("o Telegram", _telegram.Start);
         Guarded("a API local", () => _http.Start());
         Guarded("o site", () => _site.Apply(_settings.Current));
+
+        // The Monday 00:00 clear (and the one the PC owes after being off) looks now; the site part waits for the site to be online.
+        _hub.PropertyChanged += OnHubChanged;
+        Guarded("a limpeza semanal do historico", _weekly.Start);
         _logger.LogInformation("Servico de avisos iniciado: {Pending} aviso(s) na fila salva", _queue.Pending.Count);
     }
 
@@ -127,10 +138,12 @@ public sealed class AlertRuntime : IDisposable
         }
 
         _settings.Changed -= OnSettingsChanged;
+        _hub.PropertyChanged -= OnHubChanged;
         _overlay.CaptureExcludedChanged -= OnCaptureExcludedChanged;
         _led.LedChanged -= UpdateLed;
         try
         {
+            _weekly.Dispose();
             _telegram.Dispose();
             _site.Dispose();
             _http.Dispose();
@@ -160,6 +173,28 @@ public sealed class AlertRuntime : IDisposable
     {
         _hub.SetCorrectionMode(ModeOf(settings));
         Guarded("o site", () => _site.Apply(settings));
+    }
+
+    // The site came online: what the last clear left for it is done now, and a Monday that passed while it was offline is made up for.
+    private void OnHubChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(StatusHub.SiteState) && _hub.SiteState == SiteState.Online)
+        {
+            _ = Task.Run(RunOnlineCatchUpAsync);
+        }
+    }
+
+    private async Task RunOnlineCatchUpAsync()
+    {
+        try
+        {
+            await _weekly.CheckNow().ConfigureAwait(false);
+            await _history.RunPendingSiteClearAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao limpar o historico do site");
+        }
     }
 
     private void OnCaptureExcludedChanged() => _hub.SetCaptureExcluded(_overlay.CaptureExcluded);

@@ -8,6 +8,7 @@ using AlertaIBT.Core.Firebase;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Services;
 using AlertaIBT.Core.Settings;
+using AlertaIBT.Core.Telegram;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -307,6 +308,40 @@ public sealed class AlertRuntimeTests : IDisposable
 
             Assert.NotEqual(SiteState.NotConfigured, runtime.Status.SiteState);
             runtime.Dispose(); // must return: the engine stops with it
+            return 0;
+        });
+    }
+
+    [Fact]
+    public void The_history_clearing_is_wired_and_the_first_start_only_begins_the_weekly_count()
+    {
+        WpfTestHost.RunAsync(async () =>
+        {
+            using var host = Host();
+            var runtime = host.Services.GetRequiredService<AlertRuntime>();
+            var settings = host.Services.GetRequiredService<SettingsService>();
+            Assert.Equal(Path.Combine(_dir, "telegram-journal.json"), host.Services.GetRequiredService<TelegramJournal>().FilePath);
+            Assert.Null(settings.Current.System.LastHistoryClearAt);
+            var queue = host.Services.GetRequiredService<AlertQueue>();
+            queue.AddRejected(new QueueItem("old", "X", null, AlertSource.Pc, false, DateTimeOffset.UtcNow, null, "x"), HistoryReasons.TooLong);
+
+            runtime.Start();
+            try
+            {
+                Assert.NotNull(settings.Current.System.LastHistoryClearAt);
+                Assert.True(settings.Current.System.ClearHistoryWeekly);
+                Assert.Single(queue.History); // the first run starts the count; it wipes nothing
+
+                var result = await host.Services.GetRequiredService<IAlertGateway>().ClearHistoryAsync(TestContext.Current.CancellationToken);
+
+                Assert.Equal(new HistoryClearResult(1, SiteClearOutcome.NotConfigured, 0, 0, 0), result);
+                Assert.Empty(queue.History);
+            }
+            finally
+            {
+                runtime.Dispose();
+            }
+
             return 0;
         });
     }

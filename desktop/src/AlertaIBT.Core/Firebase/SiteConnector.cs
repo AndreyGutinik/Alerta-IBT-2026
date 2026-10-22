@@ -46,6 +46,9 @@ public sealed class SiteConnector : IDisposable
         _logger = logger;
     }
 
+    /// <summary>The running connection, to clear the history of the site; <c>null</c> when the site is off or not filled in.</summary>
+    public ISiteHistory? History => Volatile.Read(ref _engine) as ISiteHistory;
+
     /// <summary>The configuration the settings ask for, or <c>null</c> when the site is off or not filled in.</summary>
     public static SiteConfig? ConfigOf(AppSettings settings, ISecretProtector protector)
     {

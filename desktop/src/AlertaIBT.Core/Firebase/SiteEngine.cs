@@ -63,7 +63,7 @@ public interface ISiteEngine
 /// </para>
 /// <para>The rules let only the PC write <c>status</c> and <c>live</c>, and only the owner or an admin set <c>cancel</c>; the PC trusts that.</para>
 /// </remarks>
-public sealed class SiteEngine : ISiteEngine, IDisposable
+public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
 {
     /// <summary>How often the heartbeat is written (the site shows "PC offline" after 90 s without one).</summary>
     public static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(30);
@@ -243,6 +243,66 @@ public sealed class SiteEngine : ISiteEngine, IDisposable
             _http.Dispose();
         }
     }
+
+    /// <inheritdoc />
+    public async Task<SiteClearResult> ClearHistoryAsync(CancellationToken ct)
+    {
+        var db = _db;
+        if (State != SiteState.Online || db is null)
+        {
+            throw new InvalidOperationException("The site is not online.");
+        }
+
+        // What finished a moment ago may not have its last status written yet: write it first, so it is deleted like the rest.
+        await SyncStatusesAsync(ct).ConfigureAwait(false);
+
+        // A fresh read, not the stream's copy: the stream may not have delivered everything yet, and "cleared" must be true.
+        var all = await db.GetAsync("requests", ct).ConfigureAwait(false);
+        var deleted = 0;
+        var failed = 0;
+        if (all is JsonObject requests)
+        {
+            foreach (var (id, node) in requests)
+            {
+                if (!IsFinished(node) || IsTracked(id))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await db.DeleteAsync("requests/" + id, ct).ConfigureAwait(false);
+                    deleted++;
+                }
+                catch (RtdbException ex)
+                {
+                    failed++;
+                    _logger.LogWarning("Nao foi possivel apagar o pedido {Id} do historico: {Failure}", id, ex.Failure);
+                }
+            }
+        }
+
+        try
+        {
+            // An empty list is no node in the database, which the site reads as "nothing recent".
+            await db.PutAsync("live/recent", new JsonArray(), ct).ConfigureAwait(false);
+            _lastLiveJson = null; // the next write of /live is the whole of it again
+        }
+        catch (RtdbException ex)
+        {
+            failed++;
+            _logger.LogWarning("Nao foi possivel esvaziar os avisos recentes do site: {Failure}", ex.Failure);
+        }
+
+        _logger.LogInformation("Historico do site: {Deleted} pedido(s) apagado(s), {Failed} nao apagado(s)", deleted, failed);
+        return new SiteClearResult(deleted, failed);
+    }
+
+    // A request the PC has answered for good. Pending, queued and showing ones (and the ones without a status) are not finished.
+    private static bool IsFinished(JsonNode? node) =>
+        node?["status"]?["state"] is JsonValue value
+        && value.TryGetValue<string>(out var state)
+        && state is SiteContract.Shown or SiteContract.Rejected or SiteContract.Cancelled or SiteContract.Expired;
 
     private sealed class Tracked(string uid)
     {

@@ -40,10 +40,13 @@ public interface IAlertGateway
 
     /// <summary>"Exibir de novo": queues a shown alert again, from the PC.</summary>
     SubmitOutcome Replay(QueueItem shown);
+
+    /// <summary>"Limpar historico": empties the history of the PC, the site and the Telegram group. Never throws; asks nothing.</summary>
+    Task<HistoryClearResult> ClearHistoryAsync(CancellationToken ct);
 }
 
 /// <summary>The real <see cref="IAlertGateway"/>: the PC is the operator, so free text is allowed and a repeated plate only warns.</summary>
-public sealed class AlertGateway(AlertService alerts, AlertRuntime runtime) : IAlertGateway
+public sealed class AlertGateway(AlertService alerts, AlertRuntime runtime, HistoryCleaner history) : IAlertGateway
 {
     /// <inheritdoc />
     public AlertQueue Queue => alerts.Queue;
@@ -73,4 +76,7 @@ public sealed class AlertGateway(AlertService alerts, AlertRuntime runtime) : IA
 
     /// <inheritdoc />
     public SubmitOutcome Replay(QueueItem shown) => alerts.Replay(shown);
+
+    /// <inheritdoc />
+    public Task<HistoryClearResult> ClearHistoryAsync(CancellationToken ct) => history.ClearAllAsync(ct);
 }

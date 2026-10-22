@@ -129,7 +129,8 @@ public static class AppHost
     {
         services.AddSingleton<IAlertGateway>(provider => new AlertGateway(
             provider.GetRequiredService<AlertService>(),
-            provider.GetRequiredService<AlertRuntime>()));
+            provider.GetRequiredService<AlertRuntime>(),
+            provider.GetRequiredService<HistoryCleaner>()));
         services.AddSingleton(provider =>
         {
             var overlay = provider.GetRequiredService<OverlayController>();
@@ -262,13 +263,17 @@ public static class AppHost
                 offset => settings.Update(s => s.Telegram.Offset == offset ? s : s with { Telegram = s.Telegram with { Offset = offset } }),
                 settings.Current.Telegram.Offset);
         });
+        services.AddSingleton(provider => new TelegramJournal(
+            paths.TelegramJournalFile,
+            onError: ex => provider.GetRequiredService<ILogger<TelegramJournal>>().LogError(ex, "Problema com o diario do Telegram")));
         services.AddSingleton(provider =>
         {
             var settings = provider.GetRequiredService<SettingsService>();
             return new TelegramGroupNotifier(
                 provider.GetRequiredService<TelegramClient>(),
                 () => settings.Current.Telegram.ChatId,
-                provider.GetRequiredService<ILogger<TelegramGroupNotifier>>());
+                provider.GetRequiredService<ILogger<TelegramGroupNotifier>>(),
+                journal: provider.GetRequiredService<TelegramJournal>());
         });
         services.AddSingleton<IGroupNotifier>(provider => provider.GetRequiredService<TelegramGroupNotifier>());
 
@@ -322,7 +327,8 @@ public static class AppHost
             provider.GetRequiredService<AlertService>(),
             provider.GetRequiredService<IGroupNotifier>(),
             provider.GetRequiredService<StatusHub>(),
-            provider.GetRequiredService<ILogger<TelegramEngine>>()));
+            provider.GetRequiredService<ILogger<TelegramEngine>>(),
+            journal: provider.GetRequiredService<TelegramJournal>()));
 
         // The site: a new engine (its own HTTP client, which never times out because the stream lasts for hours and never follows a
         // redirect by itself) for each set of credentials; the connector replaces it when the settings change.
@@ -345,6 +351,36 @@ public static class AppHost
                 provider.GetRequiredService<StatusHub>(),
                 provider.GetRequiredService<ISecretProtector>(),
                 provider.GetRequiredService<ILogger<SiteConnector>>());
+        });
+
+        // "Limpar historico": the PC queue, the site and the Telegram group; and the Monday 00:00 clear that calls it.
+        services.AddSingleton<ITelegramHistory>(provider => new TelegramHistoryCleaner(
+            provider.GetRequiredService<TelegramJournal>(),
+            provider.GetRequiredService<TelegramClient>(),
+            null,
+            provider.GetRequiredService<ILogger<TelegramHistoryCleaner>>()));
+        services.AddSingleton(provider =>
+        {
+            var settings = provider.GetRequiredService<SettingsService>();
+            return new HistoryCleaner(
+                provider.GetRequiredService<AlertQueue>(),
+                () => provider.GetRequiredService<SiteConnector>().History,
+                provider.GetRequiredService<ITelegramHistory>(),
+                () => settings.Current,
+                settings.Update,
+                null,
+                provider.GetRequiredService<ILogger<HistoryCleaner>>());
+        });
+        services.AddSingleton(provider =>
+        {
+            var settings = provider.GetRequiredService<SettingsService>();
+            return new HistoryClearScheduler(
+                provider.GetRequiredService<HistoryCleaner>(),
+                () => settings.Current,
+                settings.Update,
+                null,
+                null,
+                provider.GetRequiredService<ILogger<HistoryClearScheduler>>());
         });
         services.AddSingleton(provider => new HttpControlServer(
             provider.GetRequiredService<IOverlayControl>(),

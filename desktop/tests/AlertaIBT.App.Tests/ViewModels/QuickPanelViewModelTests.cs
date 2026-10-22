@@ -542,4 +542,16 @@ internal sealed class FakeGateway(TimeProvider clock) : IAlertGateway
         Replays.Add(shown);
         return OnReplay(shown);
     }
+
+    public int HistoryClears { get; private set; }
+
+    /// <summary>What the clear answers (the PC history is really emptied before it is asked).</summary>
+    public Func<int, Task<HistoryClearResult>> OnClearHistory { get; set; } =
+        pcEntries => Task.FromResult(new HistoryClearResult(pcEntries, SiteClearOutcome.Cleared, 9, 7, 0));
+
+    public Task<HistoryClearResult> ClearHistoryAsync(CancellationToken ct)
+    {
+        HistoryClears++;
+        return OnClearHistory(Queue.ClearHistory());
+    }
 }
