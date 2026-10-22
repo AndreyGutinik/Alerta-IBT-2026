@@ -8,22 +8,36 @@ namespace AlertaIBT.App.Platform;
 /// </summary>
 public sealed class HotkeyService : IHotkeyRegistrar, IDisposable
 {
-    private const int QuickPanelHotkeyId = 0xB11;
+    /// <summary>The id of the quick-panel hotkey.</summary>
+    public const int QuickPanelHotkeyId = 0xB11;
+
+    /// <summary>The id of the mouse-lock hotkey.</summary>
+    public const int MouseLockHotkeyId = 0xB12;
 
     private readonly MessageWindow _window;
+    private readonly int _id;
     private bool _registered;
 
     /// <param name="window">The hidden window that receives <c>WM_HOTKEY</c>.</param>
-    public HotkeyService(MessageWindow window)
+    /// <param name="id">The hotkey id: each hotkey of the app has its own, on the same window.</param>
+    public HotkeyService(MessageWindow window, int id = QuickPanelHotkeyId)
     {
         ArgumentNullException.ThrowIfNull(window);
 
         _window = window;
+        _id = id;
         _window.HotkeyPressed += OnHotkey;
     }
 
-    /// <summary>Raised on the UI thread when the quick-panel hotkey is pressed.</summary>
-    public event Action? QuickPanelPressed;
+    /// <summary>Raised on the UI thread when the hotkey is pressed.</summary>
+    public event Action? Pressed;
+
+    /// <summary>Raised on the UI thread when the quick-panel hotkey is pressed (the same event as <see cref="Pressed"/>).</summary>
+    public event Action? QuickPanelPressed
+    {
+        add => Pressed += value;
+        remove => Pressed -= value;
+    }
 
     /// <summary>The hotkey currently registered, or null when none is.</summary>
     public HotkeyGesture? Current { get; private set; }
@@ -37,7 +51,7 @@ public sealed class HotkeyService : IHotkeyRegistrar, IDisposable
         ArgumentNullException.ThrowIfNull(gesture);
 
         Unregister();
-        if (!NativeMethods.RegisterHotKey(_window.Handle, QuickPanelHotkeyId, (uint)gesture.Modifiers | NativeMethods.MOD_NOREPEAT, (uint)gesture.VirtualKey))
+        if (!NativeMethods.RegisterHotKey(_window.Handle, _id, (uint)gesture.Modifiers | NativeMethods.MOD_NOREPEAT, (uint)gesture.VirtualKey))
         {
             return false;
         }
@@ -52,7 +66,7 @@ public sealed class HotkeyService : IHotkeyRegistrar, IDisposable
     {
         if (_registered)
         {
-            NativeMethods.UnregisterHotKey(_window.Handle, QuickPanelHotkeyId);
+            NativeMethods.UnregisterHotKey(_window.Handle, _id);
             _registered = false;
         }
 
@@ -68,9 +82,9 @@ public sealed class HotkeyService : IHotkeyRegistrar, IDisposable
 
     private void OnHotkey(int id)
     {
-        if (id == QuickPanelHotkeyId)
+        if (id == _id)
         {
-            QuickPanelPressed?.Invoke();
+            Pressed?.Invoke();
         }
     }
 }

@@ -70,6 +70,7 @@ public static partial class SettingsJson
             var correction = Section(root, "correction");
             var system = Section(root, "system");
             var site = Section(root, "site");
+            var mouseLock = Section(root, "mouseLock");
 
             var settings = new AppSettings
             {
@@ -118,6 +119,12 @@ public static partial class SettingsJson
                     ProjectId = ReadString(site, "projectId") ?? defaults.Site.ProjectId,
                     DeviceEmail = ReadString(site, "deviceEmail") ?? defaults.Site.DeviceEmail,
                     PasswordProtected = ReadString(site, "passwordProtected"),
+                },
+                MouseLock = new MouseLockSettings
+                {
+                    Enabled = ReadBool(mouseLock, "enabled") ?? defaults.MouseLock.Enabled,
+                    Hotkey = ReadString(mouseLock, "hotkey") ?? defaults.MouseLock.Hotkey,
+                    TripleCtrl = ReadBool(mouseLock, "tripleCtrl") ?? defaults.MouseLock.TripleCtrl,
                 },
             };
             return (Normalize(settings), false);
@@ -179,6 +186,12 @@ public static partial class SettingsJson
                 ["deviceEmail"] = n.Site.DeviceEmail,
                 ["passwordProtected"] = n.Site.PasswordProtected,
             },
+            ["mouseLock"] = new JsonObject
+            {
+                ["enabled"] = n.MouseLock.Enabled,
+                ["hotkey"] = n.MouseLock.Hotkey,
+                ["tripleCtrl"] = n.MouseLock.TripleCtrl,
+            },
         };
         return root.ToJsonString(WriteOptions);
     }
@@ -200,6 +213,7 @@ public static partial class SettingsJson
         var correction = s.Correction ?? d.Correction;
         var system = s.System ?? d.System;
         var site = s.Site ?? d.Site;
+        var mouseLock = s.MouseLock ?? d.MouseLock;
 
         return new AppSettings
         {
@@ -250,6 +264,14 @@ public static partial class SettingsJson
                 ProjectId = NullIfBlank(site.ProjectId) ?? string.Empty,
                 DeviceEmail = NullIfBlank(site.DeviceEmail) ?? string.Empty,
                 PasswordProtected = NullIfBlank(site.PasswordProtected),
+            },
+            MouseLock = new MouseLockSettings
+            {
+                Enabled = mouseLock.Enabled,
+
+                // Whether the text is a usable shortcut is decided where it is registered (the default takes its place there, with a log line).
+                Hotkey = NullIfBlank(mouseLock.Hotkey) ?? d.MouseLock.Hotkey,
+                TripleCtrl = mouseLock.TripleCtrl,
             },
         };
     }

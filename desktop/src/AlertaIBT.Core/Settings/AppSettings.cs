@@ -23,6 +23,9 @@ public sealed record AppSettings
 
     /// <summary>The panel shortcut and the remembered LED.</summary>
     public SystemSettings System { get; init; } = new();
+
+    /// <summary>The mouse lock: the cursor stays on the primary monitor, and Ctrl pressed 3 times brings it back to its center.</summary>
+    public MouseLockSettings MouseLock { get; init; } = new();
 }
 
 /// <summary>How the bar looks and moves.</summary>
@@ -162,6 +165,22 @@ public sealed record CorrectionSettings
 
     /// <summary>The fixed rules, one per line (see <see cref="FixedRules"/>).</summary>
     public string FixedRules { get; init; } = string.Empty;
+}
+
+/// <summary>The mouse lock (the "bloqueador de mouse"). Every field is optional in <c>settings.json</c>: an older file loads with the defaults.</summary>
+public sealed record MouseLockSettings
+{
+    /// <summary>The shortcut that turns the lock on and off, unless the saved one is not a valid shortcut.</summary>
+    public const string DefaultHotkey = "Ctrl+Alt+M";
+
+    /// <summary>Whether the cursor is locked to the primary monitor (restored when the app starts). Off by default.</summary>
+    public bool Enabled { get; init; }
+
+    /// <summary>The shortcut that toggles the lock, as text such as <c>Ctrl+Alt+M</c> (same form as <see cref="SystemSettings.Hotkey"/>).</summary>
+    public string Hotkey { get; init; } = DefaultHotkey;
+
+    /// <summary>Whether pressing Ctrl three times quickly sends the cursor to the center of the primary monitor (works with the lock on or off). On by default.</summary>
+    public bool TripleCtrl { get; init; } = true;
 }
 
 /// <summary>The remaining settings.</summary>

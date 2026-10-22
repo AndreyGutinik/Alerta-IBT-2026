@@ -32,7 +32,7 @@ public sealed record HotkeyStatus(string Text, string Display, bool Registered, 
 
 /// <summary>
 /// Applies the hotkey of the settings (modifiers plus one key, as text such as <c>Ctrl+Alt+Space</c>) and remembers whether it
-/// took. Another program may own the combination or the text may be invalid: that is never an error for the app, it is a
+/// took. The same class serves the mouse-lock hotkey, with its own default, label and conflict message. Another program may own the combination or the text may be invalid: that is never an error for the app, it is a
 /// <see cref="HotkeyStatus"/> with a message that the panel and the tray tooltip show, while the tray click keeps working.
 /// A saved value that is not a valid shortcut (including the chords of <see cref="HotkeyPolicy"/>) is never registered: the
 /// default takes its place, with one line in the log, and <see cref="HotkeyStatus.FellBackFrom"/> tells the shell to save it back.
@@ -41,6 +41,9 @@ public sealed class QuickPanelHotkey
 {
     private readonly IHotkeyRegistrar _registrar;
     private readonly ILogger? _logger;
+    private readonly string _defaultText;
+    private readonly string _label;
+    private readonly Func<string, string>? _conflictMessage;
     private string? _applied;
 
     /// <summary>The shortcut used when the saved one cannot be (the default of the settings).</summary>
@@ -48,17 +51,31 @@ public sealed class QuickPanelHotkey
 
     /// <param name="registrar">The system registration.</param>
     /// <param name="logger">Receives the line about a saved value that was replaced by the default.</param>
-    public QuickPanelHotkey(IHotkeyRegistrar registrar, ILogger? logger = null)
+    /// <param name="defaultText">The shortcut that takes the place of an unusable saved one; the quick panel's default when null.</param>
+    /// <param name="label">What the shortcut is for, in the log line (<c>do painel rapido</c>).</param>
+    /// <param name="conflictMessage">The text for "another program owns it", given the shortcut as the user reads it; the quick panel's text when null.</param>
+    public QuickPanelHotkey(
+        IHotkeyRegistrar registrar,
+        ILogger? logger = null,
+        string? defaultText = null,
+        string label = "do painel rapido",
+        Func<string, string>? conflictMessage = null)
     {
         ArgumentNullException.ThrowIfNull(registrar);
 
         _registrar = registrar;
         _logger = logger;
+        _defaultText = defaultText ?? DefaultText;
+        _label = label;
+        _conflictMessage = conflictMessage;
     }
 
     /// <summary>The gesture of <paramref name="text"/>, or the default one when the text cannot be used.</summary>
-    public static HotkeyGesture Parse(string? text) =>
-        HotkeyGesture.TryParse(text, out var gesture) ? gesture : HotkeyGesture.TryParse(DefaultText, out var fallback)
+    public static HotkeyGesture Parse(string? text) => Parse(text, DefaultText);
+
+    /// <summary>The gesture of <paramref name="text"/>, or the one of <paramref name="fallbackText"/> when the text cannot be used.</summary>
+    public static HotkeyGesture Parse(string? text, string fallbackText) =>
+        HotkeyGesture.TryParse(text, out var gesture) ? gesture : HotkeyGesture.TryParse(fallbackText, out var fallback)
             ? fallback
             : new HotkeyGesture(HotkeyModifiers.Control | HotkeyModifiers.Alt, 0x20);
 
@@ -98,10 +115,11 @@ public sealed class QuickPanelHotkey
         {
             // Not a shortcut to register: the default takes its place (and the shell saves it back).
             fellBackFrom = text;
-            text = DefaultText;
-            gesture = Parse(text);
+            text = _defaultText;
+            gesture = Parse(text, _defaultText);
             _logger?.LogWarning(
-                "Atalho salvo invalido ({Saved}): usando o padrao {Default}",
+                "Atalho {Label} salvo invalido ({Saved}): usando o padrao {Default}",
+                _label,
                 fellBackFrom.Trim().Length == 0 ? "(vazio)" : fellBackFrom.Trim(),
                 text);
         }
@@ -115,7 +133,8 @@ public sealed class QuickPanelHotkey
             registered,
             registered
                 ? null
-                : $"O atalho {display} já é usado por outro programa. Use o ícone da bandeja ou escolha outro atalho em Configurações.",
+                : _conflictMessage?.Invoke(display)
+                    ?? $"O atalho {display} já é usado por outro programa. Use o ícone da bandeja ou escolha outro atalho em Configurações.",
             registered ? null : $"Atalho {display} em uso por outro programa",
             fellBackFrom);
 

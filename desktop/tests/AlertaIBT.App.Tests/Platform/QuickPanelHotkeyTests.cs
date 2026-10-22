@@ -124,6 +124,22 @@ public sealed class QuickPanelHotkeyTests
     }
 
     [Fact]
+    public void The_same_class_serves_another_hotkey_with_its_own_default_label_and_conflict_message()
+    {
+        var registrar = new FakeRegistrar { Accept = false };
+        var log = new ListLogger();
+        var hotkey = new QuickPanelHotkey(registrar, log, "Ctrl+Alt+M", "do bloqueio do mouse", display => $"{display} esta em uso");
+
+        hotkey.Apply("Ctrl+V");
+
+        Assert.Equal(["Ctrl+Alt+M"], registrar.Registered);
+        Assert.Equal("Ctrl+Alt+M", hotkey.Status.Text);
+        Assert.Equal("Ctrl+V", hotkey.Status.FellBackFrom);
+        Assert.Equal("Ctrl+Alt+M esta em uso", hotkey.Status.Message);
+        Assert.Contains("do bloqueio do mouse", Assert.Single(log.Lines).Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void After_the_fallback_the_default_text_is_not_registered_again()
     {
         var registrar = new FakeRegistrar();

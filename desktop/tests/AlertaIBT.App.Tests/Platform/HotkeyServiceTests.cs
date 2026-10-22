@@ -88,6 +88,37 @@ public sealed class HotkeyServiceTests
         });
     }
 
+    [Fact]
+    public void Two_hotkeys_on_one_window_each_hear_only_their_own_id()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var window = new MessageWindow();
+            using var panel = new HotkeyService(window);
+            using var mouse = new HotkeyService(window, HotkeyService.MouseLockHotkeyId);
+            var panelPressed = 0;
+            var mousePressed = 0;
+            panel.Pressed += () => panelPressed++;
+            mouse.Pressed += () => mousePressed++;
+            Assert.True(HotkeyGesture.TryParse("Ctrl+Alt+Shift+F21", out var other));
+
+            // Two different combinations on the same window, with their own ids: both register.
+            Assert.True(panel.Register(Gesture()));
+            Assert.True(mouse.Register(other));
+
+            const int wmHotkey = 0x0312;
+            SendMessage(window.Handle, wmHotkey, HotkeyService.MouseLockHotkeyId, 0);
+            Assert.Equal((0, 1), (panelPressed, mousePressed));
+
+            SendMessage(window.Handle, wmHotkey, HotkeyService.QuickPanelHotkeyId, 0);
+            Assert.Equal((1, 1), (panelPressed, mousePressed));
+
+            mouse.Unregister();
+            Assert.Null(mouse.Current);
+            Assert.NotNull(panel.Current); // giving back one leaves the other registered
+        });
+    }
+
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern IntPtr SendMessage(IntPtr hWnd, int msg, nint wParam, nint lParam);
 }

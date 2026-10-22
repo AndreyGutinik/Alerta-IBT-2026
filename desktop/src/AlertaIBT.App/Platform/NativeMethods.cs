@@ -37,10 +37,25 @@ internal static class NativeMethods
     public const uint DISPLAY_DEVICE_ACTIVE = 0x1;
     public const uint MOD_NOREPEAT = 0x4000;
     public const uint MONITOR_DEFAULTTONEAREST = 0x2;
+    public const uint MONITOR_DEFAULTTOPRIMARY = 0x1;
+
+    // The low-level keyboard hook (used only to see Ctrl pressed three times).
+    public const int WH_KEYBOARD_LL = 13;
+    public const int HC_ACTION = 0;
+    public const int WM_KEYDOWN = 0x0100;
+    public const int WM_KEYUP = 0x0101;
+    public const int WM_SYSKEYDOWN = 0x0104;
+    public const int WM_SYSKEYUP = 0x0105;
+    public const int LLKHF_ALTDOWN = 0x20;
+
+    /// <summary>The DPI awareness context handle of "per-monitor aware v2" (the app manifest asks for it).</summary>
+    public static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new(-4);
 
     public static readonly IntPtr HWND_TOPMOST = new(-1);
 
     public delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdc, ref RECT rect, IntPtr data);
+
+    public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT
@@ -56,6 +71,16 @@ internal static class NativeMethods
         public int Top;
         public int Right;
         public int Bottom;
+    }
+
+    /// <summary>Monitor info without the device name: blittable, so asking for it every second allocates nothing.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -125,6 +150,39 @@ internal static class NativeMethods
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFOEX info);
+
+    [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW")]
+    public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO info);
+
+    [DllImport("user32.dll")]
+    public static extern bool ClipCursor(ref RECT rect);
+
+    [DllImport("user32.dll", EntryPoint = "ClipCursor")]
+    public static extern bool ClipCursorRelease(IntPtr noRect);
+
+    [DllImport("user32.dll")]
+    public static extern bool GetClipCursor(out RECT rect);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetCursorPos(int x, int y);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc proc, IntPtr module, uint threadId);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool UnhookWindowsHookEx(IntPtr hook);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr CallNextHookEx(IntPtr hook, int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    public static extern IntPtr GetModuleHandle(string? moduleName);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetThreadDpiAwarenessContext();
+
+    [DllImport("user32.dll")]
+    public static extern bool AreDpiAwarenessContextsEqual(IntPtr a, IntPtr b);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern bool EnumDisplayDevices(string? device, uint deviceNumber, ref DISPLAY_DEVICE displayDevice, uint flags);
