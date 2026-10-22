@@ -168,7 +168,28 @@ Pedir a outra pessoa para mandar do grupo (e conferir as respostas do bot).
 
 - [ ] Quando existir uma versão posterior (por exemplo 8.0.1) nas Releases: com o app aberto e com internet, ele baixa em silêncio (log "Atualização ... baixada") e **não reinicia sozinho**. Sair e abrir de novo pelo Menu Iniciar: abre já na versão nova. Sem internet, nada acontece e não aparece erro.
 
-## 14. Depois que tudo passou
+## 14. Site (avisos pelo celular)
+
+Antes: o app do PC com **Configurações → Site** preenchido e ligado (`docs/SITE-COMO-PUBLICAR.md`, seção 5), a bolinha **Site** **verde**, o LED ligado e o app **fora** da pausa. Um celular com a conta Google do teste (e outro, ou a conta do dono, para o administrador).
+
+- [ ] **Site verde**: bolinha Site da barra lateral verde ("Conectado"). No celular, aba **Status**: pílulas **PC online**, **LED** e **Barra** corretas e o mini-telão igual à barra.
+- [ ] **Enviar do celular** `corolla prata abc1d23 vidro aberto`. Em **Seus avisos** o selo muda sozinho: *enviado* → *Nº na fila* → *passando* → **hora** (✅). No LED passa `COROLLA PRATA | PLACA: ABC-1D23 | VIDRO ABERTO`. No grupo do Telegram aparece `✅ Mensagem exibida no telão.` com o texto (também vale para aviso do site).
+- [ ] **Prévia não manda**: o texto que passa é o corrigido pelo PC, mesmo que a prévia do celular tenha dito outra coisa.
+- [ ] **Faltando campo** (`corolla prata`): o botão Enviar fica bloqueado na prévia. Se chegar assim mesmo (modo avião/atrasado), o selo vira `faltou placa` e nada passa no LED.
+- [ ] **Repetido**: mandar a mesma placa de novo logo depois: `repetido`. Como **administrador** o mesmo aviso passa (com aviso de repetido na prévia).
+- [ ] **Urgente** (segurar o botão por 1 s, vibra): passa na frente dos normais; a posição dos outros muda sozinha em "Seus avisos".
+- [ ] **Fila**: com um aviso passando, mandar mais dois do celular: selos `1º na fila` e `2º na fila` e o painel do PC mostra os dois com origem **site**.
+- [ ] **Cancelar**: tocar no **X** de um aviso na fila: vira `cancelado` e some da fila do PC. Aviso que **já está passando** não tem X.
+- [ ] **Admin**: no celular do administrador aparece a aba **Equipe**; um aviso livre (sem placa) passa como aviso livre.
+- [ ] **Bloquear**: na aba **Equipe**, remover (bloquear) a conta de teste. O celular dela mostra "Seu acesso foi removido" e um aviso novo dessa conta nunca passa. Desbloquear volta ao normal.
+- [ ] **Limite**: mandar 11 avisos válidos em uma hora com a mesma conta de membro (placas diferentes, 20 s entre eles): o 11º vira `limite de 10 por hora`. O administrador não tem limite.
+- [ ] **Pregação**: com avisos na fila, pausar (botão Pausar ou `/overlay/off`): os avisos viram `cancelado: pregação`, a pílula do site mostra **Barra pausada** e o Enviar fica bloqueado; um aviso forçado vira `pregação`. Retomar libera de novo.
+- [ ] **LED desligado**: desligar o LED (ou tirar o cabo do monitor): o celular mostra a pílula **Telão desligado** e os avisos ficam `na fila`; ao voltar o LED eles passam.
+- [ ] **PC offline**: fechar o app do PC (**Sair**). Em até ~90 s o celular mostra **PC offline**. Mandar um aviso nesse tempo: fica `enviado`. Abrir o app de novo: a bolinha Site volta a verde, o aviso (se tiver menos de 30 min) passa; se a espera passou de 30 min ele vira `expirou` e **não** passa.
+- [ ] **Sem internet no PC**: tirar o cabo de rede: Site amarelo e depois vermelho ("Sem conexão"); o painel e o Telegram continuam funcionando com o que já estava na fila. Recolocar: volta a verde sozinho e o que foi mandado nesse meio tempo é tratado.
+- [ ] **Trocar a senha da conta do PC** (console do Firebase) e conferir que a bolinha vai a vermelha "Erro de login"; colocar a senha nova em Configurações → Site: volta a verde sem reiniciar o app.
+
+## 15. Depois que tudo passou
 
 - [ ] **Desinstalar o Alerta-IBT antigo (Electron)**: Configurações do Windows > Aplicativos > "Avisos de Estacionamento - IBT" (Alerta-IBT).
 - [ ] Conferir que o `AlertaIBT` continua no início do Windows e que o antigo não aparece mais lá.
@@ -183,5 +204,6 @@ Pedir a outra pessoa para mandar do grupo (e conferir as respostas do bot).
 | Gemini azul "Offline" com internet e chave | O Gemini não está funcionando: log do Diagnóstico, modelo em Correção > Avançado, chave. |
 | Barra vermelha | A barra não conseguiu se esconder da captura: log do Diagnóstico. |
 | Barra não aparece | LED desligado ou sem 2560x768 (bolinha LED vermelha), app pausado (pílula "Pausada"), ou o aviso foi recusado (histórico). |
+| Bolinha Site vermelha ou "PC offline" no celular | Seção "Se der erro" de `docs/SITE-COMO-PUBLICAR.md` (login, regras, internet do PC). |
 | Atalho do painel não abre | Outro programa usa a combinação: trocar em Configurações > Sistema; o clique no ícone sempre funciona. |
 | Qualquer erro estranho | Configurações > Diagnóstico > Copiar logs e me mandar. |
