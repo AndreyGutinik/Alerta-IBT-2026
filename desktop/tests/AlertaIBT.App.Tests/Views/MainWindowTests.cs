@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using AlertaIBT.App.Platform;
@@ -98,7 +99,7 @@ public sealed class MainWindowTests
             element.TransformToAncestor(Root).TransformBounds(new Rect(element.RenderSize));
 
         public IEnumerable<string> AllTexts() =>
-            Find<TextBlock>().Where(Shown).Select(t => t.Text)
+            Find<TextBlock>().Where(Shown).Select(TextOf)
                 .Concat(Find<TextBox>().Where(Shown).Select(t => t.Text))
                 .Concat(Find<ContentControl>().Where(Shown).Select(c => c.Content).OfType<string>());
 
@@ -148,6 +149,10 @@ public sealed class MainWindowTests
             }
         }
     }
+
+    // The text of a block: its Text, or the text of its runs when it holds inlines (a setting title with its (i) icon beside it).
+    internal static string TextOf(TextBlock block) =>
+        block.Inlines.Count == 0 ? block.Text : string.Concat(block.Inlines.OfType<Run>().Select(r => r.Text));
 
     // The root of the window being tested (the tests run one at a time on the WPF thread).
     private static FrameworkElement? s_root;
@@ -496,7 +501,7 @@ public sealed class MainWindowTests
     }
 
     [Fact]
-    public void The_sistema_card_has_the_monday_switch_on_by_default_and_it_saves()
+    public void The_history_section_has_the_monday_switch_on_by_default_and_it_saves()
     {
         WpfTestHost.Run(() =>
         {
@@ -530,7 +535,7 @@ public sealed class MainWindowTests
     }
 
     [Fact]
-    public void The_sistema_card_has_the_update_block_with_the_switch_on_the_version_and_the_button()
+    public void The_updates_section_has_the_update_block_with_the_switch_on_the_version_and_the_button()
     {
         WpfTestHost.Run(() =>
         {
@@ -546,10 +551,11 @@ public sealed class MainWindowTests
             Assert.Equal("Atualizar automaticamente ao abrir", AutomationProperties.GetName(page.AutoUpdateSwitch));
             Assert.Equal("Verificar agora", AutomationProperties.GetName(page.CheckUpdateButton));
 
-            // Below the shortcut, the Monday switch and the site line; the version on the left with the button on its right; the result under both.
+            // Below the Monday switch; the version on the left with the button on its right; the result under both.
+            Assert.Equal("Vers\U000000E3o 8.0.1-pre.1", page.VersionRow.Title);
             Assert.True(rig.BoundsOf(page.AutoUpdateSwitch).Top > rig.BoundsOf(page.ClearHistorySwitch).Bottom);
-            Assert.True(rig.BoundsOf(page.VersionLine).Top > rig.BoundsOf(page.AutoUpdateSwitch).Bottom);
-            Assert.True(rig.BoundsOf(page.CheckUpdateButton).Left > rig.BoundsOf(page.VersionLine).Right);
+            Assert.True(rig.BoundsOf(page.VersionRow).Top > rig.BoundsOf(page.AutoUpdateSwitch).Bottom);
+            Assert.True(rig.BoundsOf(page.CheckUpdateButton).Left > rig.BoundsOf(page.VersionRow).Left + 60);
             Assert.True(rig.BoundsOf(page.UpdateResultLine).Top >= rig.BoundsOf(page.CheckUpdateButton).Bottom);
             Assert.Equal("Ainda n\U000000E3o verificado", page.UpdateResultLine.Text);
         });
@@ -593,7 +599,7 @@ public sealed class MainWindowTests
     }
 
     [Fact]
-    public void The_sistema_card_has_the_mouse_lock_rows_in_order_below_the_panel_shortcut()
+    public void The_mouse_section_has_the_lock_rows_in_order_above_the_panel_shortcut()
     {
         WpfTestHost.Run(() =>
         {
@@ -617,11 +623,11 @@ public sealed class MainWindowTests
             Assert.Equal("Ctrl+Alt+M", page.MouseLockHotkeyBox.Text);
             Assert.True(page.MouseLockHotkeyBox.IsReadOnly);
 
-            // Top to bottom: the panel shortcut, the lock, its shortcut, Ctrl x3, then the Monday switch.
-            Assert.True(rig.BoundsOf(page.MouseLockSwitch).Top > rig.BoundsOf(page.HotkeyBox).Bottom);
+            // Top to bottom: the lock, its shortcut, Ctrl x3 (the Mouse section), then the panel shortcut, then the Monday switch.
             Assert.True(rig.BoundsOf(page.MouseLockHotkeyBox).Top > rig.BoundsOf(page.MouseLockSwitch).Bottom);
             Assert.True(rig.BoundsOf(page.TripleCtrlSwitch).Top > rig.BoundsOf(page.MouseLockHotkeyBox).Bottom);
-            Assert.True(rig.BoundsOf(page.ClearHistorySwitch).Top > rig.BoundsOf(page.TripleCtrlSwitch).Bottom);
+            Assert.True(rig.BoundsOf(page.HotkeyBox).Top > rig.BoundsOf(page.TripleCtrlSwitch).Bottom);
+            Assert.True(rig.BoundsOf(page.ClearHistorySwitch).Top > rig.BoundsOf(page.HotkeyBox).Bottom);
 
             // Switches on the right edge like the others of the card; the box as wide as the panel one and under the same edge.
             Assert.Equal(rig.BoundsOf(page.ClearHistorySwitch).Right, rig.BoundsOf(page.MouseLockSwitch).Right, 1);
@@ -637,7 +643,7 @@ public sealed class MainWindowTests
     }
 
     [Fact]
-    public void The_mouse_lock_rows_have_their_info_tooltips_and_no_long_text_in_the_card()
+    public void The_mouse_lock_rows_have_their_info_tooltips_and_no_long_text_in_the_section()
     {
         WpfTestHost.Run(() =>
         {

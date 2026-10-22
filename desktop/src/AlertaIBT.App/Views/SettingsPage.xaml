@@ -92,6 +92,83 @@
             <Setter Property="ToolTipService.InitialShowDelay" Value="150" />
             <Setter Property="ToolTipService.ShowDuration" Value="30000" />
         </Style>
+
+        <!-- A titled card: the title, then its rows (SettingRow). -->
+        <Style x:Key="SettingsSectionStyle" TargetType="local:SettingsSection">
+            <Setter Property="Margin" Value="0,12,0,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="local:SettingsSection">
+                        <Border Style="{StaticResource IbtCard}">
+                            <StackPanel>
+                                <TextBlock
+                                    x:Name="SectionHeader"
+                                    Margin="0,0,0,8"
+                                    Style="{StaticResource SectionTitle}"
+                                    Text="{TemplateBinding Header}" />
+                                <ContentPresenter />
+                            </StackPanel>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- One setting: title (and (i)) on the left, the control on the right, hints under both, a thin line above. -->
+        <Style x:Key="SettingRowStyle" TargetType="local:SettingRow">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="local:SettingRow">
+                        <Border
+                            MinHeight="46"
+                            Padding="0,10"
+                            BorderBrush="{StaticResource IbtLineBrush}"
+                            BorderThickness="0,1,0,0">
+                            <StackPanel>
+                                <local:SplitRowPanel>
+                                    <TextBlock
+                                        x:Name="RowTitle"
+                                        FontSize="12.5"
+                                        TextWrapping="Wrap">
+                                        <Run Text="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}" /><InlineUIContainer BaselineAlignment="Center">
+                                            <Border
+                                                x:Name="InfoIcon"
+                                                AutomationProperties.Name="Dicas"
+                                                Style="{StaticResource SectionInfo}"
+                                                ToolTip="{Binding Info, RelativeSource={RelativeSource TemplatedParent}}">
+                                                <Path
+                                                    Width="15"
+                                                    Height="15"
+                                                    Data="{StaticResource LucideInfo}"
+                                                    Style="{StaticResource LucideIcon}" />
+                                            </Border>
+                                        </InlineUIContainer></TextBlock>
+                                    <ContentPresenter VerticalAlignment="Center" />
+                                </local:SplitRowPanel>
+                                <ContentPresenter Content="{TemplateBinding Footer}" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Info" Value="{x:Null}">
+                                <Setter TargetName="InfoIcon" Property="Visibility" Value="Collapsed" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A box for a shortcut: click it and press the keys (read only; the keys are captured by the page). -->
+        <Style
+            x:Key="HotkeyInput"
+            BasedOn="{StaticResource IbtInput}"
+            TargetType="TextBox">
+            <Setter Property="MinWidth" Value="150" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="TextAlignment" Value="Center" />
+        </Style>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -502,7 +579,7 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Right: the live preview and the system. -->
+                <!-- Right: the live preview and the system, one card per section. -->
                 <StackPanel Grid.Column="2">
                     <Border Style="{StaticResource IbtCard}">
                         <StackPanel>
@@ -541,167 +618,182 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Margin="0,12,0,0" Style="{StaticResource IbtCard}">
+                    <!-- Sistema, in sections: each one a card with its title, one SettingRow per setting. -->
+                    <local:SettingsSection
+                        x:Name="MouseSection"
+                        Header="Mouse"
+                        Style="{StaticResource SettingsSectionStyle}">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource SectionTitle}" Text="Sistema" />
-
-                            <Grid Margin="0,10,0,0">
-                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
-                                    <TextBlock VerticalAlignment="Center" FontSize="12.5" Text="Atalho do painel rápido" />
-                                    <Border
-                                        AutomationProperties.Name="Dicas"
-                                        Style="{StaticResource SectionInfo}"
-                                        ToolTip="Clique no campo e aperte a nova combinação.&#10;Precisa ter Ctrl, Alt ou Win.">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideInfo}"
-                                            Style="{StaticResource LucideIcon}" />
-                                    </Border>
-                                </StackPanel>
-                                <TextBox
-                                    x:Name="HotkeyBox"
-                                    Width="170"
-                                    HorizontalAlignment="Right"
-                                    AutomationProperties.Name="Atalho do painel rápido"
-                                    Cursor="Hand"
-                                    FontWeight="SemiBold"
-                                    IsReadOnly="True"
-                                    PreviewKeyDown="OnHotkeyKeyDown"
-                                    Style="{StaticResource IbtInput}"
-                                    Text="{Binding HotkeyDisplay, Mode=OneWay}"
-                                    TextAlignment="Center" />
-                            </Grid>
-                            <TextBlock
-                                Style="{StaticResource IbtHint}"
-                                Text="{Binding HotkeyHint}"
-                                Visibility="{Binding HasHotkeyHint, Converter={StaticResource BoolToVisibility}}" />
-                            <TextBlock
-                                Style="{StaticResource IbtHint}"
-                                Text="{Binding HotkeyProblem}"
-                                Visibility="{Binding HasHotkeyProblem, Converter={StaticResource BoolToVisibility}}" />
-
-                            <!-- O bloqueador de mouse: o travamento, o atalho dele e o Ctrl 3 vezes. -->
-                            <Grid Margin="0,12,0,0">
-                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
-                                    <TextBlock
-                                        VerticalAlignment="Center"
-                                        FontSize="12.5"
-                                        Text="Travar o mouse na tela principal" />
-                                    <Border
-                                        AutomationProperties.Name="Dicas"
-                                        Style="{StaticResource SectionInfo}"
-                                        ToolTip="Prende o cursor no monitor principal do Windows: ele não para mais no LED nem no retorno.&#10;Também liga e desliga pelo atalho abaixo e pelo ícone da bandeja.">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideInfo}"
-                                            Style="{StaticResource LucideIcon}" />
-                                    </Border>
-                                </StackPanel>
+                            <local:SettingRow
+                                x:Name="MouseLockRow"
+                                Title="Travar o mouse na tela principal"
+                                Info="Prende o cursor no monitor principal do Windows: ele não para mais no LED nem no retorno.&#10;Também liga e desliga pelo atalho abaixo e pelo ícone da bandeja."
+                                Style="{StaticResource SettingRowStyle}">
                                 <ToggleButton
                                     x:Name="MouseLockSwitch"
-                                    HorizontalAlignment="Right"
                                     AutomationProperties.Name="Travar o mouse na tela principal"
                                     IsChecked="{Binding MouseLockEnabled, Mode=TwoWay}"
                                     Style="{StaticResource IbtSwitch}" />
-                            </Grid>
+                            </local:SettingRow>
 
-                            <Grid Margin="0,12,0,0">
-                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
-                                    <TextBlock VerticalAlignment="Center" FontSize="12.5" Text="Atalho para travar o mouse" />
-                                    <Border
-                                        AutomationProperties.Name="Dicas"
-                                        Style="{StaticResource SectionInfo}"
-                                        ToolTip="Clique no campo e aperte a nova combinação.&#10;Precisa ter Ctrl, Alt ou Win.">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideInfo}"
-                                            Style="{StaticResource LucideIcon}" />
-                                    </Border>
-                                </StackPanel>
+                            <local:SettingRow
+                                x:Name="MouseLockHotkeyRow"
+                                Title="Atalho para travar o mouse"
+                                Info="Clique no campo e aperte a nova combinação.&#10;Precisa ter Ctrl, Alt ou Win."
+                                Style="{StaticResource SettingRowStyle}">
                                 <TextBox
                                     x:Name="MouseLockHotkeyBox"
-                                    Width="170"
-                                    HorizontalAlignment="Right"
                                     AutomationProperties.Name="Atalho para travar o mouse"
-                                    Cursor="Hand"
-                                    FontWeight="SemiBold"
-                                    IsReadOnly="True"
+                                    Style="{StaticResource HotkeyInput}"
                                     PreviewKeyDown="OnMouseLockHotkeyKeyDown"
-                                    Style="{StaticResource IbtInput}"
-                                    Text="{Binding MouseLockHotkeyDisplay, Mode=OneWay}"
-                                    TextAlignment="Center" />
-                            </Grid>
-                            <TextBlock
-                                x:Name="MouseLockHotkeyHintLine"
-                                Style="{StaticResource IbtHint}"
-                                Text="{Binding MouseLockHotkeyHint}"
-                                Visibility="{Binding HasMouseLockHotkeyHint, Converter={StaticResource BoolToVisibility}}" />
-                            <TextBlock
-                                x:Name="MouseLockHotkeyProblemLine"
-                                Style="{StaticResource IbtHint}"
-                                Text="{Binding MouseLockHotkeyProblem}"
-                                Visibility="{Binding HasMouseLockHotkeyProblem, Converter={StaticResource BoolToVisibility}}" />
+                                    Text="{Binding MouseLockHotkeyDisplay, Mode=OneWay}" />
+                                <local:SettingRow.Footer>
+                                    <StackPanel>
+                                        <TextBlock
+                                            x:Name="MouseLockHotkeyHintLine"
+                                            Style="{StaticResource IbtHint}"
+                                            Text="{Binding MouseLockHotkeyHint}"
+                                            Visibility="{Binding HasMouseLockHotkeyHint, Converter={StaticResource BoolToVisibility}}" />
+                                        <TextBlock
+                                            x:Name="MouseLockHotkeyProblemLine"
+                                            Style="{StaticResource IbtHint}"
+                                            Text="{Binding MouseLockHotkeyProblem}"
+                                            Visibility="{Binding HasMouseLockHotkeyProblem, Converter={StaticResource BoolToVisibility}}" />
+                                    </StackPanel>
+                                </local:SettingRow.Footer>
+                            </local:SettingRow>
 
-                            <Grid Margin="0,12,0,0">
-                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
-                                    <TextBlock
-                                        VerticalAlignment="Center"
-                                        FontSize="12.5"
-                                        Text="Ctrl 3 vezes traz o mouse ao centro" />
-                                    <Border
-                                        AutomationProperties.Name="Dicas"
-                                        Style="{StaticResource SectionInfo}"
-                                        ToolTip="Aperte Ctrl três vezes seguidas, rápido e sem outra tecla no meio: o mouse vai para o centro do monitor principal, onde quer que esteja.&#10;Funciona com o travamento ligado ou desligado. O app só conta os Ctrl; não guarda o que é digitado.">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideInfo}"
-                                            Style="{StaticResource LucideIcon}" />
-                                    </Border>
-                                </StackPanel>
+                            <local:SettingRow
+                                x:Name="TripleCtrlRow"
+                                Title="Ctrl 3 vezes traz o mouse ao centro"
+                                Info="Aperte Ctrl três vezes seguidas, rápido e sem outra tecla no meio: o mouse vai para o centro do monitor principal, onde quer que esteja.&#10;Funciona com o travamento ligado ou desligado. O app só conta os Ctrl; não guarda o que é digitado."
+                                Style="{StaticResource SettingRowStyle}">
                                 <ToggleButton
                                     x:Name="TripleCtrlSwitch"
-                                    HorizontalAlignment="Right"
                                     AutomationProperties.Name="Ctrl 3 vezes traz o mouse ao centro"
                                     IsChecked="{Binding TripleCtrl, Mode=TwoWay}"
                                     Style="{StaticResource IbtSwitch}" />
-                            </Grid>
+                            </local:SettingRow>
+                        </StackPanel>
+                    </local:SettingsSection>
 
-                            <Grid Margin="0,12,0,0">
-                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+                    <local:SettingsSection
+                        x:Name="QuickPanelSection"
+                        Header="Painel rápido"
+                        Style="{StaticResource SettingsSectionStyle}">
+                        <local:SettingRow
+                            x:Name="QuickPanelHotkeyRow"
+                            Title="Atalho do painel rápido"
+                            Info="Clique no campo e aperte a nova combinação.&#10;Precisa ter Ctrl, Alt ou Win."
+                            Style="{StaticResource SettingRowStyle}">
+                            <TextBox
+                                x:Name="HotkeyBox"
+                                AutomationProperties.Name="Atalho do painel rápido"
+                                Style="{StaticResource HotkeyInput}"
+                                PreviewKeyDown="OnHotkeyKeyDown"
+                                Text="{Binding HotkeyDisplay, Mode=OneWay}" />
+                            <local:SettingRow.Footer>
+                                <StackPanel>
                                     <TextBlock
-                                        VerticalAlignment="Center"
-                                        FontSize="12.5"
-                                        Text="Limpar histórico toda segunda-feira, 00:00" />
-                                    <Border
-                                        AutomationProperties.Name="Dicas"
-                                        Style="{StaticResource SectionInfo}"
-                                        ToolTip="Apaga o histórico do PC e do site, e as mensagens do bot no Telegram com menos de 48 h.&#10;Se o PC estiver desligado nessa hora, a limpeza acontece quando ele ligar.">
+                                        Style="{StaticResource IbtHint}"
+                                        Text="{Binding HotkeyHint}"
+                                        Visibility="{Binding HasHotkeyHint, Converter={StaticResource BoolToVisibility}}" />
+                                    <TextBlock
+                                        Style="{StaticResource IbtHint}"
+                                        Text="{Binding HotkeyProblem}"
+                                        Visibility="{Binding HasHotkeyProblem, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                            </local:SettingRow.Footer>
+                        </local:SettingRow>
+                    </local:SettingsSection>
+
+                    <local:SettingsSection
+                        x:Name="HistorySection"
+                        Header="Histórico"
+                        Style="{StaticResource SettingsSectionStyle}">
+                        <local:SettingRow
+                            x:Name="ClearHistoryRow"
+                            Title="Limpar histórico toda segunda-feira, 00:00"
+                            Info="Apaga o histórico do PC e do site, e as mensagens do bot no Telegram com menos de 48 h.&#10;Se o PC estiver desligado nessa hora, a limpeza acontece quando ele ligar."
+                            Style="{StaticResource SettingRowStyle}">
+                            <ToggleButton
+                                x:Name="ClearHistorySwitch"
+                                AutomationProperties.Name="Limpar histórico toda segunda-feira"
+                                IsChecked="{Binding ClearHistoryWeekly, Mode=TwoWay}"
+                                Style="{StaticResource IbtSwitch}" />
+                        </local:SettingRow>
+                    </local:SettingsSection>
+                </StackPanel>
+            </Grid>
+
+            <!-- Second row, under the tallest column above: the updates on the left, the system on the right. -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.1*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="1*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+
+                    <!-- The automatic update: the switch, the version with "Verificar agora", and how the last look ended. -->
+                    <local:SettingsSection
+                        x:Name="UpdatesSection"
+                        Header="Atualizações"
+                        Style="{StaticResource SettingsSectionStyle}">
+                        <StackPanel>
+                            <local:SettingRow
+                                x:Name="AutoUpdateRow"
+                                Title="Atualizar automaticamente ao abrir"
+                                Info="Procura uma versão nova ao abrir o app e a cada 30 minutos.&#10;Se achar, baixa e instala sozinho, reiniciando, mas só quando não há aviso na fila nem na barra e a pregação não está pausada."
+                                Style="{StaticResource SettingRowStyle}">
+                                <ToggleButton
+                                    x:Name="AutoUpdateSwitch"
+                                    AutomationProperties.Name="Atualizar automaticamente ao abrir"
+                                    IsChecked="{Binding AutoUpdate, Mode=TwoWay}"
+                                    Style="{StaticResource IbtSwitch}" />
+                            </local:SettingRow>
+
+                            <local:SettingRow
+                                x:Name="VersionRow"
+                                Title="{Binding VersionText}"
+                                Style="{StaticResource SettingRowStyle}">
+                                <Button
+                                    x:Name="CheckUpdateButton"
+                                    AutomationProperties.Name="Verificar agora"
+                                    Command="{Binding CheckUpdateCommand}"
+                                    Style="{StaticResource IbtButton}">
+                                    <StackPanel Orientation="Horizontal">
                                         <Path
                                             Width="15"
                                             Height="15"
-                                            Data="{StaticResource LucideInfo}"
+                                            Data="{StaticResource LucideRotateCcw}"
                                             Style="{StaticResource LucideIcon}" />
-                                    </Border>
-                                </StackPanel>
-                                <ToggleButton
-                                    x:Name="ClearHistorySwitch"
-                                    HorizontalAlignment="Right"
-                                    AutomationProperties.Name="Limpar histórico toda segunda-feira"
-                                    IsChecked="{Binding ClearHistoryWeekly, Mode=TwoWay}"
-                                    Style="{StaticResource IbtSwitch}" />
-                            </Grid>
+                                        <TextBlock Margin="6,0,0,0" Text="Verificar agora" />
+                                    </StackPanel>
+                                </Button>
+                                <local:SettingRow.Footer>
+                                    <TextBlock
+                                        x:Name="UpdateResultLine"
+                                        Style="{StaticResource IbtHint}"
+                                        Text="{Binding UpdateResultText}" />
+                                </local:SettingRow.Footer>
+                            </local:SettingRow>
+                        </StackPanel>
+                    </local:SettingsSection>
+                </StackPanel>
+                <StackPanel Grid.Column="2">
 
-                            <Grid Margin="0,12,0,0">
-                                <TextBlock
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Center"
-                                    FontSize="12.5"
-                                    Text="Esconder da live (OBS e NDI)" />
-                                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                    <local:SettingsSection
+                        x:Name="SystemSection"
+                        Header="Sistema"
+                        Style="{StaticResource SettingsSectionStyle}">
+                        <StackPanel>
+                            <local:SettingRow
+                                x:Name="HideFromLiveRow"
+                                Title="Esconder da live (OBS e NDI)"
+                                Style="{StaticResource SettingRowStyle}">
+                                <StackPanel Orientation="Horizontal">
                                     <Path
                                         Width="13"
                                         Height="13"
@@ -715,15 +807,13 @@
                                         Foreground="{StaticResource IbtOkBrush}"
                                         Text="sempre ligado" />
                                 </StackPanel>
-                            </Grid>
+                            </local:SettingRow>
 
-                            <Grid Margin="0,12,0,0">
-                                <TextBlock
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Center"
-                                    FontSize="12.5"
-                                    Text="Site" />
-                                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                            <local:SettingRow
+                                x:Name="SiteStatusRow"
+                                Title="Conexão com o site"
+                                Style="{StaticResource SettingRowStyle}">
+                                <StackPanel Orientation="Horizontal">
                                     <Border
                                         Width="8"
                                         Height="8"
@@ -737,62 +827,9 @@
                                         Foreground="{StaticResource IbtMutedBrush}"
                                         Text="{Binding SiteText}" />
                                 </StackPanel>
-                            </Grid>
-
-                            <!-- The automatic update: the switch, the version with "Verificar agora", and how the last look ended. -->
-                            <Grid Margin="0,12,0,0">
-                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
-                                    <TextBlock
-                                        VerticalAlignment="Center"
-                                        FontSize="12.5"
-                                        Text="Atualizar automaticamente ao abrir" />
-                                    <Border
-                                        AutomationProperties.Name="Dicas"
-                                        Style="{StaticResource SectionInfo}"
-                                        ToolTip="Procura uma versão nova ao abrir o app e a cada 30 minutos.&#10;Se achar, baixa e instala sozinho, reiniciando, mas só quando não há aviso na fila nem na barra e a pregação não está pausada.">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideInfo}"
-                                            Style="{StaticResource LucideIcon}" />
-                                    </Border>
-                                </StackPanel>
-                                <ToggleButton
-                                    x:Name="AutoUpdateSwitch"
-                                    HorizontalAlignment="Right"
-                                    AutomationProperties.Name="Atualizar automaticamente ao abrir"
-                                    IsChecked="{Binding AutoUpdate, Mode=TwoWay}"
-                                    Style="{StaticResource IbtSwitch}" />
-                            </Grid>
-                            <Grid Margin="0,12,0,0">
-                                <TextBlock
-                                    x:Name="VersionLine"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Center"
-                                    FontSize="12.5"
-                                    Text="{Binding VersionText}" />
-                                <Button
-                                    x:Name="CheckUpdateButton"
-                                    HorizontalAlignment="Right"
-                                    AutomationProperties.Name="Verificar agora"
-                                    Command="{Binding CheckUpdateCommand}"
-                                    Style="{StaticResource IbtButton}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideRotateCcw}"
-                                            Style="{StaticResource LucideIcon}" />
-                                        <TextBlock Margin="6,0,0,0" Text="Verificar agora" />
-                                    </StackPanel>
-                                </Button>
-                            </Grid>
-                            <TextBlock
-                                x:Name="UpdateResultLine"
-                                Style="{StaticResource IbtHint}"
-                                Text="{Binding UpdateResultText}" />
+                            </local:SettingRow>
                         </StackPanel>
-                    </Border>
+                    </local:SettingsSection>
                 </StackPanel>
             </Grid>
 
