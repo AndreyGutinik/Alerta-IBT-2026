@@ -102,6 +102,9 @@ public static partial class SettingsJson
                 {
                     Hotkey = ReadString(system, "hotkey") ?? defaults.System.Hotkey,
                     LastLedDevicePath = ReadString(system, "lastLedDevicePath"),
+                    ClearHistoryWeekly = ReadBool(system, "clearHistoryWeekly") ?? defaults.System.ClearHistoryWeekly,
+                    LastHistoryClearAt = ReadTime(system, "lastHistoryClearAt"),
+                    SitePendingClear = ReadBool(system, "sitePendingClear") ?? defaults.System.SitePendingClear,
                 },
                 Site = new SiteSettings
                 {
@@ -155,6 +158,9 @@ public static partial class SettingsJson
             {
                 ["hotkey"] = n.System.Hotkey,
                 ["lastLedDevicePath"] = n.System.LastLedDevicePath,
+                ["clearHistoryWeekly"] = n.System.ClearHistoryWeekly,
+                ["lastHistoryClearAt"] = n.System.LastHistoryClearAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+                ["sitePendingClear"] = n.System.SitePendingClear,
             },
             ["site"] = new JsonObject
             {
@@ -218,6 +224,9 @@ public static partial class SettingsJson
             {
                 Hotkey = NullIfBlank(system.Hotkey) ?? d.System.Hotkey,
                 LastLedDevicePath = NullIfBlank(system.LastLedDevicePath),
+                ClearHistoryWeekly = system.ClearHistoryWeekly,
+                LastHistoryClearAt = system.LastHistoryClearAt?.ToUniversalTime(),
+                SitePendingClear = system.SitePendingClear,
             },
             Site = new SiteSettings
             {
@@ -273,6 +282,13 @@ public static partial class SettingsJson
     private static bool? ReadBool(JsonElement section, string name) =>
         Find(section, name) is { } value && value.ValueKind is JsonValueKind.True or JsonValueKind.False
             ? value.GetBoolean()
+            : null;
+
+    // A moment written as ISO 8601 text; anything else (a number, a mangled date) is "no moment", so the app starts the weekly count over.
+    private static DateTimeOffset? ReadTime(JsonElement section, string name) =>
+        ReadString(section, name) is { } text
+        && DateTimeOffset.TryParse(text.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var moment)
+            ? moment
             : null;
 
     // A whole number; a fractional or enormous one is rounded or pinned to the int range (the caller then clamps it).

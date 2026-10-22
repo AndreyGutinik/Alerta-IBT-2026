@@ -172,4 +172,16 @@ public sealed record SystemSettings
 
     /// <summary>The device path of the LED screen used last, to prefer it when there are two.</summary>
     public string? LastLedDevicePath { get; init; }
+
+    /// <summary>Whether the history is cleared by itself every Monday at 00:00 (local time), and when the PC was off, at the next start.</summary>
+    public bool ClearHistoryWeekly { get; init; } = true;
+
+    /// <summary>
+    /// When the history was last cleared (or, on the first run and while the switch is off, when the app last looked and had nothing
+    /// to clear), or <c>null</c> before the first run. A Monday 00:00 that passed after this moment is still owed.
+    /// </summary>
+    public DateTimeOffset? LastHistoryClearAt { get; init; }
+
+    /// <summary>Whether the site still has to be cleared: the history was cleared while the site was offline.</summary>
+    public bool SitePendingClear { get; init; }
 }

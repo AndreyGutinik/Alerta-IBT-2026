@@ -261,6 +261,29 @@ public sealed class AlertQueue(TimeProvider clock)
         OnChanged();
     }
 
+    /// <summary>
+    /// Empties the history ("Limpar histórico"). The alert on screen, the waiting ones, the pause and the memory of plates shown in
+    /// the last 10 minutes are not touched: clearing the history must not let a repeated plate through.
+    /// </summary>
+    /// <returns>How many history lines were removed.</returns>
+    public int ClearHistory()
+    {
+        int removed;
+        lock (_gate)
+        {
+            removed = _history.Count;
+            if (removed == 0)
+            {
+                return 0;
+            }
+
+            _history.Clear();
+        }
+
+        OnChanged();
+        return removed;
+    }
+
     /// <summary>The sermon started: cancels the alert on screen and every pending one, and refuses new alerts.</summary>
     /// <returns>The cancelled alerts, the one on screen first; empty when it was already paused.</returns>
     public IReadOnlyList<QueueItem> Pause()
