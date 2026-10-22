@@ -36,6 +36,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly Func<Task> _showBar;
     private readonly ILogger _logger;
     private readonly Action<Action> _post;
+    private readonly IUpdateStatus? _updates;
     private BarSettings _bar;
     private double _sampleWidth;
     private bool _quiet;
@@ -85,6 +86,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _clearHistoryWeekly;
 
     [ObservableProperty]
+    private bool _autoUpdate;
+
+    [ObservableProperty]
+    private string _updateResultText = string.Empty;
+
+    [ObservableProperty]
+    private bool _isCheckingUpdate;
+
+    [ObservableProperty]
     private StatusLight _siteLight = StatusLight.Gray;
 
     [ObservableProperty]
@@ -98,6 +108,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="showBar">Plays the sample alert on the real bar for 3 seconds (<see cref="Overlay.OverlayController.PreviewAsync"/>).</param>
     /// <param name="post">Runs an action on the UI thread; runs it at once when null (tests).</param>
     /// <param name="logger">Receives failures (never a secret).</param>
+    /// <param name="updates">The automatic update, for the version line, "Verificar agora" and the last result; null shows no result.</param>
     public SettingsViewModel(
         SettingsService settings,
         ISecretProtector protector,
@@ -106,7 +117,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         DiagnosticsViewModel diagnostics,
         Func<Task> showBar,
         Action<Action>? post = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        IUpdateStatus? updates = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(protector);
@@ -184,12 +196,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             () => _saver.Cancel("site.password"));
 
         ShowBarCommand = new AsyncRelayCommand(ShowBarAsync);
+        _updates = updates;
+        CheckUpdateCommand = new AsyncRelayCommand(CheckUpdateAsync, () => !IsCheckingUpdate);
 
         _bar = _settings.Current.Bar;
         _previewBar = _bar;
         LoadFrom(_settings.Current);
         _hub.PropertyChanged += OnHubChanged;
         RefreshSite();
+        if (_updates is not null)
+        {
+            _updates.StateChanged += OnUpdateStateChanged;
+            RefreshUpdate();
+        }
     }
 
     /// <summary>The separate font size; blank is automatic (64% of the height).</summary>
@@ -227,6 +246,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>"Mostrar barra 3 s no LED".</summary>
     public IAsyncRelayCommand ShowBarCommand { get; }
+
+    /// <summary>"Verificar agora": looks for a newer version now, even with the automatic update off.</summary>
+    public IAsyncRelayCommand CheckUpdateCommand { get; }
+
+    /// <summary>The running version, as the line of Configurações shows it (<c>Versão 8.0.1</c>).</summary>
+    public string VersionText => $"Vers\U000000E3o {_updates?.CurrentVersion ?? System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "?"}";
 
     /// <summary>The autosave stamp of this tab.</summary>
     public Autosaver Saver => _saver;
@@ -351,8 +376,24 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         _disposed = true;
         _hub.PropertyChanged -= OnHubChanged;
+        if (_updates is not null)
+        {
+            _updates.StateChanged -= OnUpdateStateChanged;
+        }
+
         Diagnostics.Dispose();
     }
+
+    // "Atualizar automaticamente ao abrir": saved like the other switches (the update service reads the setting every time it looks).
+    partial void OnAutoUpdateChanged(bool value)
+    {
+        if (!_quiet)
+        {
+            _saver.Queue("system.autoUpdate", s => s with { System = s.System with { AutoUpdate = value } });
+        }
+    }
+
+    partial void OnIsCheckingUpdateChanged(bool value) => CheckUpdateCommand.NotifyCanExecuteChanged();
 
     partial void OnSiteEnabledChanged(bool value)
     {
@@ -481,6 +522,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             Foreground.Set(bar.Foreground);
             SiteEnabled = settings.Site.Enabled;
             ClearHistoryWeekly = settings.System.ClearHistoryWeekly;
+            AutoUpdate = settings.System.AutoUpdate;
             SiteUrl.Set(settings.Site.DatabaseUrl);
             SiteApiKey.Set(settings.Site.ApiKey);
             SiteEmail.Set(settings.Site.DeviceEmail);
@@ -557,6 +599,42 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         if (e.PropertyName is nameof(StatusHub.Site) or nameof(StatusHub.Led) or nameof(StatusHub.LedPresent))
         {
             _post(RefreshSite);
+        }
+    }
+
+    private void OnUpdateStateChanged(UpdateState state) => _post(RefreshUpdate);
+
+    private void RefreshUpdate()
+    {
+        if (_disposed || _updates is null)
+        {
+            return;
+        }
+
+        UpdateResultText = _updates.State.Result;
+        IsCheckingUpdate = _updates.State.Phase == UpdatePhase.Checking;
+    }
+
+    private async Task CheckUpdateAsync()
+    {
+        if (_updates is null || IsCheckingUpdate)
+        {
+            return; // a second press while the first one works does nothing
+        }
+
+        IsCheckingUpdate = true;
+        try
+        {
+            await _updates.CheckNowAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao verificar atualizacoes");
+        }
+        finally
+        {
+            RefreshUpdate();
+            IsCheckingUpdate = false;
         }
     }
 

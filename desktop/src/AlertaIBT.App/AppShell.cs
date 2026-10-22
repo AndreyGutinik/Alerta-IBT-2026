@@ -27,6 +27,7 @@ public sealed class AppShell : IDisposable
     private readonly LedWatcher _led;
     private readonly OverlayController _overlay;
     private readonly AlertRuntime _runtime;
+    private readonly IUpdateStatus _updates;
 
     private MessageWindow? _messages;
     private HotkeyService? _hotkeys;
@@ -43,7 +44,8 @@ public sealed class AppShell : IDisposable
         StartupArguments arguments,
         LedWatcher led,
         OverlayController overlay,
-        AlertRuntime runtime)
+        AlertRuntime runtime,
+        IUpdateStatus updates)
     {
         _logger = logger;
         _settings = settings;
@@ -53,6 +55,7 @@ public sealed class AppShell : IDisposable
         _led = led;
         _overlay = overlay;
         _runtime = runtime;
+        _updates = updates;
     }
 
     /// <summary>The user wants the quick panel (tray click or the hotkey). Raised on the UI thread.</summary>
@@ -94,6 +97,9 @@ public sealed class AppShell : IDisposable
         WireTray();
 
         _tray.Show();
+
+        // The update line ("Baixando a atualizacao...", "Instalando e reiniciando...") also goes to the tooltip.
+        _updates.StateChanged += OnUpdateStateChanged;
 
         // The bar: watch for the LED, then create the (hidden) window so the capture-exclusion state is known at once.
         _messages.DisplayChanged += _led.NotifyDisplayChanged;
@@ -179,6 +185,7 @@ public sealed class AppShell : IDisposable
     public void Dispose()
     {
         _settings.Changed -= OnSettingsChanged;
+        _updates.StateChanged -= OnUpdateStateChanged;
         _runtime.Status.PropertyChanged -= OnStatusChanged;
         _overlay.Dispose(); // first: it ends the pass in progress, so stopping the alert service does not wait for the UI thread
         _runtime.Dispose();
@@ -203,6 +210,12 @@ public sealed class AppShell : IDisposable
 
         // The pause can start on any thread (the API, Telegram); the tray belongs to the UI thread.
         Application.Current?.Dispatcher.BeginInvoke(() => _tray.SetPaused(_runtime.Status.Paused));
+    }
+
+    private void OnUpdateStateChanged(UpdateState state)
+    {
+        // The update runs on a background thread; the tray belongs to the UI thread.
+        Application.Current?.Dispatcher.BeginInvoke(() => _tray.SetUpdateNotice(state.Notice));
     }
 
     private void OnSettingsChanged(AppSettings changed)

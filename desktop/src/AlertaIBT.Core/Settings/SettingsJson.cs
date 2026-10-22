@@ -105,6 +105,10 @@ public static partial class SettingsJson
                     ClearHistoryWeekly = ReadBool(system, "clearHistoryWeekly") ?? defaults.System.ClearHistoryWeekly,
                     LastHistoryClearAt = ReadTime(system, "lastHistoryClearAt"),
                     SitePendingClear = ReadBool(system, "sitePendingClear") ?? defaults.System.SitePendingClear,
+                    AutoUpdate = ReadBool(system, "autoUpdate") ?? defaults.System.AutoUpdate,
+                    UpdateAttemptVersion = ReadString(system, "updateAttemptVersion"),
+                    UpdateAttemptSince = ReadTime(system, "updateAttemptSince"),
+                    UpdateAttempts = ReadInt(system, "updateAttempts") ?? defaults.System.UpdateAttempts,
                 },
                 Site = new SiteSettings
                 {
@@ -161,6 +165,10 @@ public static partial class SettingsJson
                 ["clearHistoryWeekly"] = n.System.ClearHistoryWeekly,
                 ["lastHistoryClearAt"] = n.System.LastHistoryClearAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
                 ["sitePendingClear"] = n.System.SitePendingClear,
+                ["autoUpdate"] = n.System.AutoUpdate,
+                ["updateAttemptVersion"] = n.System.UpdateAttemptVersion,
+                ["updateAttemptSince"] = n.System.UpdateAttemptSince?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+                ["updateAttempts"] = n.System.UpdateAttempts,
             },
             ["site"] = new JsonObject
             {
@@ -227,6 +235,10 @@ public static partial class SettingsJson
                 ClearHistoryWeekly = system.ClearHistoryWeekly,
                 LastHistoryClearAt = system.LastHistoryClearAt?.ToUniversalTime(),
                 SitePendingClear = system.SitePendingClear,
+                AutoUpdate = system.AutoUpdate,
+                UpdateAttemptVersion = NullIfBlank(system.UpdateAttemptVersion),
+                UpdateAttemptSince = system.UpdateAttemptSince?.ToUniversalTime(),
+                UpdateAttempts = Math.Max(0, system.UpdateAttempts),
             },
             Site = new SiteSettings
             {

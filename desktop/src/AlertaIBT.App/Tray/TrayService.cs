@@ -25,6 +25,7 @@ public sealed class TrayService : IDisposable
     private readonly MenuItem _openItem;
     private bool _paused;
     private string? _hotkeyWarning;
+    private string? _updateNotice;
 
     /// <summary>Creates the icon (not yet visible; call <see cref="Show"/>). Needs the WPF application resources and the UI thread.</summary>
     public TrayService()
@@ -111,7 +112,17 @@ public sealed class TrayService : IDisposable
         UpdateToolTip();
     }
 
-    /// <summary>The tooltip of the icon right now: the name, <c>- pausado</c> while paused, and the hotkey warning if any.</summary>
+    /// <summary>
+    /// Puts the update line in the tooltip while an update downloads or installs (<c>null</c> when none), so the operator sees why the
+    /// app is about to restart even with the window closed.
+    /// </summary>
+    public void SetUpdateNotice(string? notice)
+    {
+        _updateNotice = string.IsNullOrWhiteSpace(notice) ? null : notice;
+        UpdateToolTip();
+    }
+
+    /// <summary>The tooltip of the icon right now: the name, <c>- pausado</c> while paused, the hotkey warning and the update line if any.</summary>
     public string ToolTip => _icon.ToolTipText;
 
     /// <summary>Whether the icon shows the paused state.</summary>
@@ -164,7 +175,17 @@ public sealed class TrayService : IDisposable
     private void UpdateToolTip()
     {
         var text = _paused ? $"{AppName} - pausado" : AppName;
-        _icon.ToolTipText = _hotkeyWarning is null ? text : $"{text}\n{_hotkeyWarning}";
+        if (_hotkeyWarning is not null)
+        {
+            text += $"\n{_hotkeyWarning}";
+        }
+
+        if (_updateNotice is not null)
+        {
+            text += $"\n{_updateNotice}";
+        }
+
+        _icon.ToolTipText = text;
     }
 
     private static string PauseHeader(bool paused) => paused ? "Retomar" : "Pausar";

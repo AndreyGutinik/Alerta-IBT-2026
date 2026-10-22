@@ -28,7 +28,11 @@ public partial class App : Application
         ApplicationAccentColorManager.Apply(Color.FromRgb(0x1D, 0xA3, 0x5F), ApplicationTheme.Dark, false, false);
         var arguments = StartupArguments.Parse(e.Args);
 
-        _instance = SingleInstance.TryAcquire(TimeSpan.Zero);
+        var paths = AppPaths.Default;
+
+        // Just restarted by an update: the old process is leaving (the updater waits for it), so wait for the lock a few seconds
+        // instead of taking it for "another copy is running" and exiting. A normal start waits not at all.
+        _instance = SingleInstance.TryAcquire(UpdateRestartMarker.ConsumeWait(paths.UpdateRestartFile, DateTimeOffset.UtcNow));
         if (_instance is null)
         {
             SingleInstance.SignalExisting(); // the running copy shows its window
@@ -36,7 +40,6 @@ public partial class App : Application
             return;
         }
 
-        var paths = AppPaths.Default;
         ILogger logger = NullLogger<App>.Instance;
         try
         {
@@ -44,7 +47,7 @@ public partial class App : Application
             logger = _host.Services.GetRequiredService<ILogger<App>>();
             InstallErrorLogging(logger);
 
-            // An update downloaded earlier is installed now, at the start (never while the app is serving). The single-instance
+            // An update downloaded earlier is installed now, at the start (nothing is serving yet). The single-instance
             // lock is already ours, so a second launch of a running app never gets here.
             if (_host.Services.GetRequiredService<UpdateService>().TryApplyPendingAtStartup(e.Args))
             {
@@ -71,9 +74,10 @@ public partial class App : Application
             shell.Start();
             _instance.ListenForActivation(() => Dispatcher.BeginInvoke(shell.RaiseMainWindow));
 
-            // Both run in the background after the tray is up: the update check waits minutes and never throws; the old-app
-            // warning waits for the dispatcher to be idle.
-            _host.Services.GetRequiredService<UpdateService>().Start();
+            // Both run in the background after the tray is up: the update check waits 5 seconds and never throws (an update is
+            // installed when the app is idle, restarting with these same arguments); the old-app warning waits for the dispatcher
+            // to be idle.
+            _host.Services.GetRequiredService<UpdateService>().Start(e.Args);
             var host = _host;
             Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() => WarnAboutOldApp(host, paths)));
         }

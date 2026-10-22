@@ -42,6 +42,10 @@ public sealed class AppHostTests : IDisposable
             Assert.NotNull(host.Services.GetRequiredService<UpdateService>());
             Assert.NotNull(host.Services.GetRequiredService<LegacyAppDetector>());
             Assert.False(host.Services.GetRequiredService<IUpdateClient>().IsInstalled); // a test run is not an installed copy
+            Assert.Same(host.Services.GetRequiredService<UpdateService>(), host.Services.GetRequiredService<IUpdateStatus>());
+            Assert.IsType<AppUpdateHost>(host.Services.GetRequiredService<IUpdateHost>());
+            Assert.True(host.Services.GetRequiredService<IUpdateHost>().IsIdle); // nothing queued, nothing on the bar, no sermon pause
+            Assert.Equal(Path.Combine(_dir, "update-restart.txt"), new AppPaths(_dir).UpdateRestartFile);
             Assert.Same(settings, host.Services.GetRequiredService<SettingsService>());
             Assert.IsType<DpapiSecretProtector>(protector);
             Assert.True(Directory.Exists(Path.Combine(_dir, "logs")));

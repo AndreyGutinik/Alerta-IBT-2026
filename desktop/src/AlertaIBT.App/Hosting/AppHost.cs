@@ -71,10 +71,26 @@ public static class AppHost
         });
         services.AddSingleton<IRunKeyStore, WindowsRunKeyStore>();
         services.AddSingleton<IUpdateClient>(_ => new VelopackUpdateClient());
+        services.AddSingleton<IUpdateHost>(provider => new AppUpdateHost(
+            provider.GetRequiredService<AlertQueue>(),
+            provider.GetRequiredService<StatusHub>(),
+
+            // The quick panel and the message field of the main window: either can have a send in flight.
+            () => [provider.GetRequiredService<QuickPanelViewModel>(), provider.GetRequiredService<HomeViewModel>().Composer],
+            () =>
+            {
+                // The restart must not lose the queue or a setting still inside its 600 ms.
+                provider.GetRequiredService<QueueStore>().Flush();
+                provider.GetRequiredService<SettingsService>().Flush();
+            },
+            () => Application.Current?.Dispatcher.BeginInvoke(new Action(() => Application.Current?.Shutdown()))));
         services.AddSingleton(provider => new UpdateService(
             provider.GetRequiredService<IUpdateClient>(),
+            provider.GetRequiredService<IUpdateHost>(),
+            provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<ILogger<UpdateService>>(),
-            Path.Combine(paths.DataFolder, "update-attempt.txt")));
+            restartMarkerFile: paths.UpdateRestartFile));
+        services.AddSingleton<IUpdateStatus>(provider => provider.GetRequiredService<UpdateService>());
         services.AddSingleton(provider => new LegacyAppDetector(
             provider.GetRequiredService<IRunKeyStore>(),
             LegacyAppDetector.IsOldProcessRunning));
@@ -190,14 +206,16 @@ public static class AppHost
             provider.GetRequiredService<DiagnosticsViewModel>(),
             provider.GetRequiredService<OverlayController>().PreviewAsync,
             PostToUi,
-            provider.GetRequiredService<ILogger<SettingsViewModel>>()));
+            provider.GetRequiredService<ILogger<SettingsViewModel>>(),
+            provider.GetRequiredService<IUpdateStatus>()));
         services.AddSingleton(provider => new MainViewModel(
             provider.GetRequiredService<StatusHub>(),
             provider.GetRequiredService<HomeViewModel>(),
             provider.GetRequiredService<CorrectionViewModel>(),
             provider.GetRequiredService<SettingsViewModel>(),
             provider.GetRequiredService<Autosaver>(),
-            PostToUi));
+            PostToUi,
+            provider.GetRequiredService<IUpdateStatus>()));
         services.AddSingleton(provider =>
         {
             var viewModel = provider.GetRequiredService<MainViewModel>();

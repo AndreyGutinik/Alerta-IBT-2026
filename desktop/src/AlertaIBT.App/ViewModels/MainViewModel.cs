@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using AlertaIBT.App.Platform;
 using AlertaIBT.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -33,6 +34,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly StatusHub _hub;
     private readonly Action<Action> _post;
+    private readonly IUpdateStatus? _updates;
     private bool _disposed;
 
     [ObservableProperty]
@@ -44,13 +46,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <param name="settings">The Configurações tab.</param>
     /// <param name="saver">The autosave the two settings tabs share; saved one last time when this is disposed.</param>
     /// <param name="post">Runs an action on the UI thread; runs it at once when null (tests).</param>
+    /// <param name="updates">The automatic update, for the one-line notice while it downloads or installs; null shows none.</param>
     public MainViewModel(
         StatusHub hub,
         HomeViewModel home,
         CorrectionViewModel correction,
         SettingsViewModel settings,
         Autosaver saver,
-        Action<Action>? post = null)
+        Action<Action>? post = null,
+        IUpdateStatus? updates = null)
     {
         ArgumentNullException.ThrowIfNull(hub);
         ArgumentNullException.ThrowIfNull(home);
@@ -68,7 +72,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _hub.PropertyChanged += OnHubChanged;
         RefreshStatus();
+        _updates = updates;
+        if (_updates is not null)
+        {
+            _updates.StateChanged += OnUpdateStateChanged;
+            UpdateNotice = _updates.State.Notice ?? string.Empty;
+        }
     }
+
+    /// <summary>The one line shown at the top of the window while an update downloads or installs; empty otherwise.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUpdateNotice))]
+    private string _updateNotice = string.Empty;
+
+    /// <summary>Whether the update line is shown.</summary>
+    public bool HasUpdateNotice => UpdateNotice.Length > 0;
 
     /// <summary>The Início tab.</summary>
     public HomeViewModel Home { get; }
@@ -114,6 +132,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _disposed = true;
         _hub.PropertyChanged -= OnHubChanged;
+        if (_updates is not null)
+        {
+            _updates.StateChanged -= OnUpdateStateChanged;
+        }
+
         Saver.Dispose();
         Home.Dispose();
         Home.Composer.Dispose();
@@ -129,6 +152,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private void OnHubChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => _post(RefreshStatus);
+
+    private void OnUpdateStateChanged(UpdateState state) =>
+        _post(() =>
+        {
+            if (!_disposed)
+            {
+                UpdateNotice = state.Notice ?? string.Empty;
+            }
+        });
 
     private void RefreshStatus()
     {

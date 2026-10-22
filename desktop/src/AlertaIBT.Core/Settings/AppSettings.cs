@@ -184,4 +184,16 @@ public sealed record SystemSettings
 
     /// <summary>Whether the site still has to be cleared: the history was cleared while the site was offline.</summary>
     public bool SitePendingClear { get; init; }
+
+    /// <summary>Whether the app looks for a newer version when it opens (and every 30 minutes) and installs it, restarting, when it is idle.</summary>
+    public bool AutoUpdate { get; init; } = true;
+
+    /// <summary>The version whose installation was attempted last, or <c>null</c> before the first attempt (see <see cref="UpdateAttemptPolicy"/>).</summary>
+    public string? UpdateAttemptVersion { get; init; }
+
+    /// <summary>When the first attempt for <see cref="UpdateAttemptVersion"/> of the current 24-hour window was made.</summary>
+    public DateTimeOffset? UpdateAttemptSince { get; init; }
+
+    /// <summary>How many attempts were made for <see cref="UpdateAttemptVersion"/> since <see cref="UpdateAttemptSince"/>.</summary>
+    public int UpdateAttempts { get; init; }
 }

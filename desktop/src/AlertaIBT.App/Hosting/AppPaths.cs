@@ -26,6 +26,9 @@ public sealed record AppPaths(string DataFolder)
     /// <summary><c>palavras-bloqueadas.txt</c>, the optional list of extra words the profanity filter blocks (one per line).</summary>
     public string BlockedWordsFile => Path.Combine(DataFolder, Core.Correction.ProfanityFilter.ExtraWordsFileName);
 
+    /// <summary><c>update-restart.txt</c>, written just before an update restarts the app (see <see cref="Platform.UpdateRestartMarker"/>).</summary>
+    public string UpdateRestartFile => Path.Combine(DataFolder, "update-restart.txt");
+
     /// <summary>The folder of the daily log files, kept 7 days.</summary>
     public string LogsFolder => Path.Combine(DataFolder, "logs");
 
