@@ -41,7 +41,14 @@ for (const [size, purpose] of [
 const apple = await sharp(await readFile(resolve(dist, 'apple-touch-icon.png'))).metadata()
 check(apple.width === 180 && apple.height === 180, 'apple-touch-icon.png deve ter 180x180')
 
+const favicon = await readFile(resolve(dist, 'favicon.ico'))
+check(favicon.readUInt16LE(2) === 1 && favicon.readUInt16LE(4) >= 1, 'favicon.ico: cabecalho ICO invalido')
+const faviconSvg = await read('favicon.svg')
+check(/<rect[^>]*rx=/.test(faviconSvg) && faviconSvg.includes('#0a0a0c'), 'favicon.svg: tile escuro arredondado (#0a0a0c) esperado')
+
 const html = await read('index.html')
+check(html.includes('href="/favicon.ico"') || html.includes('href=/favicon.ico'), 'index.html: falta o link do favicon.ico')
+check(/rel="?icon"? href="?\/favicon\.svg"? type="?image\/svg\+xml/.test(html), 'index.html: falta o link do favicon.svg')
 check(html.includes('rel="manifest"'), 'index.html: falta o link do manifesto')
 check(html.includes('registerSW.js'), 'index.html: falta o registro do service worker')
 check(html.includes('rel="apple-touch-icon"'), 'index.html: falta o apple-touch-icon')

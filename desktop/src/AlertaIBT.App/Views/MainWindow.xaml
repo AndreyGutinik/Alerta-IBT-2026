@@ -15,6 +15,7 @@
     FontFamily="{StaticResource MarbleFont}"
     FontSize="13"
     Foreground="{StaticResource IbtTextBrush}"
+    Icon="pack://application:,,,/AlertaIBT;component/Assets/app.ico"
     WindowBackdropType="None"
     WindowCornerPreference="Round"
     WindowStartupLocation="Manual">
@@ -32,7 +33,7 @@
             Background="#0D0D10"
             CloseWindowByDoubleClickOnIcon="False">
             <ui:TitleBar.Icon>
-                <ui:ImageIcon Source="pack://application:,,,/AlertaIBT;component/Assets/app.ico" />
+                <ui:ImageIcon x:Name="TitleLogo" Source="pack://application:,,,/AlertaIBT;component/Assets/app.ico" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 
@@ -63,6 +64,7 @@
 
                     <StackPanel Margin="6,4,6,12" Orientation="Horizontal">
                         <Image
+                            x:Name="SidebarLogo"
                             Width="24"
                             Height="24"
                             Source="pack://application:,,,/AlertaIBT;component/Assets/app.ico" />

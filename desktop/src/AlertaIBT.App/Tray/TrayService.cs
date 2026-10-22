@@ -2,9 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Shapes;
+using AlertaIBT.App.Theme;
 using H.NotifyIcon;
 using H.NotifyIcon.Core;
-using DrawingIcon = System.Drawing.Icon;
 using MenuItem = System.Windows.Controls.MenuItem;
 using Separator = System.Windows.Controls.Separator;
 
@@ -89,7 +89,7 @@ public sealed class TrayService : IDisposable
     /// <summary>Puts the icon in the notification area.</summary>
     public void Show()
     {
-        _icon.Icon = LoadIcon();
+        _icon.Icon = AppIcon.LoadTrayIcon(); // the frame that matches this PC's tray size, not the 256 one shrunk by Windows
         _icon.ForceCreate(enablesEfficiencyMode: false);
     }
 
@@ -189,14 +189,6 @@ public sealed class TrayService : IDisposable
     }
 
     private static string PauseHeader(bool paused) => paused ? "Retomar" : "Pausar";
-
-    private static DrawingIcon LoadIcon()
-    {
-        var info = Application.GetResourceStream(new Uri("pack://application:,,,/AlertaIBT;component/Assets/app.ico", UriKind.Absolute))
-            ?? throw new InvalidOperationException("The app icon resource is missing.");
-        using var stream = info.Stream;
-        return new DrawingIcon(stream);
-    }
 
     private sealed class ActionCommand(Action action) : ICommand
     {

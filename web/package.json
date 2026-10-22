@@ -10,7 +10,7 @@
     "build": "tsc -b && vite build",
     "test": "vitest run --project unit",
     "test:emu": "firebase emulators:exec --only auth,database --project demo-alertaibt \"vitest run --project emulator\"",
-    "icons": "node scripts/make-icons.mjs",
+    "icons": "npm --prefix ../desktop/build run icons",
     "test:e2e": "firebase emulators:exec --only auth,database --project demo-alertaibt \"playwright test\"",
     "check:pwa": "node scripts/check-pwa.mjs"
   },

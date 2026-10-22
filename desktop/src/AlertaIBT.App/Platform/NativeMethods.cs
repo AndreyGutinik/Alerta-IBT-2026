@@ -135,6 +135,12 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    /// <summary>Metric index of the width of a small icon (the notification-area icon), in pixels.</summary>
+    public const int SM_CXSMICON = 49;
+
+    [DllImport("user32.dll")]
+    public static extern int GetSystemMetrics(int index);
+
     /// <summary>The window's extended style bits.</summary>
     public static int GetExStyle(IntPtr hwnd) => (int)GetWindowLongPtr(hwnd, GWL_EXSTYLE);
 

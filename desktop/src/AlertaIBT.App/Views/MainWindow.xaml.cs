@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 using AlertaIBT.App.Platform;
 using AlertaIBT.App.ViewModels;
@@ -52,6 +53,10 @@ public partial class MainWindow : FluentWindow, IMainWindow
         _progress.Stop();
         _logs.Stop();
         IsVisibleChanged += (_, _) => UpdateTimers();
+
+        // The logo in the title bar and the side bar: the icon frame that matches the pixels drawn (16 and 24 dips), not a stretched one.
+        Loaded += (_, _) => UpdateLogos();
+        DpiChanged += (_, _) => UpdateLogos();
     }
 
     /// <summary>The Início page (for tests).</summary>
@@ -108,6 +113,14 @@ public partial class MainWindow : FluentWindow, IMainWindow
     {
         _policy.KeepOffLed(this, neverPlaced: !_placed);
         _placed = true;
+    }
+
+    private void UpdateLogos()
+    {
+        var scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        TitleLogo.Source = Theme.AppIcon.Frame(16, scale);
+        SidebarLogo.Source = Theme.AppIcon.Frame(24, scale);
+        RenderOptions.SetBitmapScalingMode(SidebarLogo, BitmapScalingMode.HighQuality);
     }
 
     private void UpdateTimers()

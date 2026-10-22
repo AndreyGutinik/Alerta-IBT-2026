@@ -12,7 +12,7 @@ export default defineConfig({
     // (Realtime Database, Auth, IA) nunca passam por ele nem ficam guardados.
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'Alerta IBT',
         short_name: 'Alerta IBT',
