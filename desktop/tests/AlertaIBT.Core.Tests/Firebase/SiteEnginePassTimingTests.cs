@@ -98,7 +98,7 @@ public sealed class SiteEnginePassTimingTests
         var total = TimelineTotal(900);
         var firstStart = rig.NowMs;
         clock.Begin(first.Text, firstStart, total);
-        await rig.WaitFor(() => Now(rig)?["startedAt"]?.GetValue<long>() == firstStart, "first start in live");
+        await rig.WaitFor(() => Now(rig)?["durationMs"] is not null && Now(rig)!["startedAt"]!.GetValue<long>() == firstStart, "first start in live");
 
         // The LED vanishes: the pass is cut short, the bar hides, the item goes back to the front.
         rig.H.Display.SetLed(false);
@@ -111,7 +111,7 @@ public sealed class SiteEnginePassTimingTests
         var secondStart = rig.NowMs;
         clock.Begin(second.Text, secondStart, total);
 
-        await rig.WaitFor(() => Now(rig)?["startedAt"]?.GetValue<long>() == secondStart, "restart in live");
+        await rig.WaitFor(() => Now(rig)?["durationMs"] is not null && Now(rig)!["startedAt"]!.GetValue<long>() == secondStart, "restart in live");
         Assert.NotEqual(firstStart, secondStart);
         Assert.Equal((long)Math.Round(total.TotalMilliseconds), Now(rig)!["durationMs"]!.GetValue<long>());
     }
