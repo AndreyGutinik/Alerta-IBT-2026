@@ -6,6 +6,7 @@ import type { RequestRecord, WithId } from '../data/types'
 import { useBackend, useLive } from '../state/AppData'
 import { Toast } from '../ui/Toast'
 import { useToast } from '../ui/useToast'
+import { PassProgress } from './PassProgress'
 
 /** Quantos avisos aparecem (os mais novos). */
 export const MY_ALERTS_LIMIT = 10
@@ -82,6 +83,7 @@ export function MyAlerts({ uid }: { uid: string }) {
                     <X aria-hidden="true" />
                   </button>
                 )}
+                {live?.now?.id === r.id && <PassProgress now={live.now} bar={live.bar} />}
               </li>
             )
           })}

@@ -6,6 +6,8 @@ import type { RequestRecord, RequestStatus, WithId } from '../data/types'
 import { liveState } from '../test/fakes'
 import { renderActive } from '../test/helpers'
 import { MyAlerts } from './MyAlerts'
+import { measureTextPx } from './PassProgress'
+import { passTotalMs } from './passMath'
 
 const T0 = 1_800_000_000_000
 
@@ -57,6 +59,45 @@ describe('MyAlerts', () => {
     expect(within(row('TEXTO c')).getByText('cancelado: pregação')).toBeInTheDocument()
     expect(within(row('TEXTO e')).getByText('expirou')).toBeInTheDocument()
     expect(within(row('TEXTO p')).getByText('enviado')).toBeInTheDocument()
+  })
+
+  describe('linha de progresso do "passando"', () => {
+    const NOW_TEXT = 'GOL BRANCO | PLACA: ABC-1234 | FAROL ACESO'
+
+    function withNow(startedAtOffset: (total: number) => number) {
+      // tamanho da letra e velocidade vêm de /live/bar (altura 56 x 0,64, 90 px/s)
+      const total = passTotalMs(90, measureTextPx(NOW_TEXT, Math.round(56 * 0.64)))
+      const live = liveState({ now: { id: 'n', text: NOW_TEXT, source: 'site', startedAt: T0 - startedAtOffset(total) } }, T0)
+      return setup([req('n', { state: 'showing', at: T0 })], { live })
+    }
+
+    it('aparece só no aviso que está passando, com o andamento pelo startedAt do PC', () => {
+      withNow(() => 0)
+      const bar = within(row('TEXTO n')).getByRole('progressbar', { name: 'Andamento na barra' })
+      expect(bar).toHaveAttribute('aria-valuenow', '0')
+    })
+
+    it('na metade da passagem mostra ~50%, e no fim mostra 100%', () => {
+      withNow((total) => total / 2)
+      expect(Number(within(row('TEXTO n')).getByRole('progressbar').getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(49)
+      expect(Number(within(row('TEXTO n')).getByRole('progressbar').getAttribute('aria-valuenow'))).toBeLessThanOrEqual(51)
+    })
+
+    it('depois da hora de acabar fica em 100% (o PC ainda não marcou como exibido)', () => {
+      withNow((total) => total * 2)
+      expect(within(row('TEXTO n')).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+    })
+
+    it('avisos na fila, exibidos ou de outra pessoa não têm a linha', () => {
+      const live = liveState({ now: { id: 'outro', text: NOW_TEXT, source: 'site', startedAt: T0 } }, T0)
+      setup([req('q', { state: 'queued', position: 1, at: T0 }), req('o', { state: 'shown', at: T0 })], { live })
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    })
+
+    it('sem /live ou sem aviso passando não há linha', () => {
+      setup([req('n', { state: 'showing', at: T0 })], { live: null })
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    })
   })
 
   it('cancelado e expirado ficam com o texto riscado (cx); os outros não', () => {
