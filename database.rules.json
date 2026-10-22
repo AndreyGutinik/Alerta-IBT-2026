@@ -13,17 +13,17 @@
           ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80"
         },
         "email": {
-          ".validate": "newData.isString() && newData.val() === auth.token.email"
+          ".validate": "newData.isString() && !data.exists() && newData.val().toLowerCase() === auth.token.email.toLowerCase()"
         },
         "createdAt": {
           ".validate": "newData.val() === now && !data.exists()"
         },
         "role": {
-          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('blocked').val() !== true && auth.uid !== $uid && data.parent().exists() && newData.exists()",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('blocked').val() !== true && auth.uid !== $uid && data.parent().exists() && newData.exists() && !(data.parent().child('email').isString() && data.parent().child('email').val().toLowerCase().matches(/^gutnikandrey01@protonmail\\.com$/))",
           ".validate": "newData.isString() && (newData.val() === 'member' || (newData.val() === 'admin' && data.parent().exists()))"
         },
         "blocked": {
-          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('blocked').val() !== true && auth.uid !== $uid && data.parent().exists() && newData.exists()",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin' && root.child('users').child(auth.uid).child('blocked').val() !== true && auth.uid !== $uid && data.parent().exists() && newData.exists() && !(data.parent().child('email').isString() && data.parent().child('email').val().toLowerCase().matches(/^gutnikandrey01@protonmail\\.com$/))",
           ".validate": "newData.isBoolean() && (newData.val() === false || data.parent().exists())"
         },
         "lastSeenAt": {
