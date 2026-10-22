@@ -1,0 +1,368 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using AlertaIBT.Core.Audio;
+using NAudio.CoreAudioApi;
+
+namespace AlertaIBT.App.Platform;
+
+/// <summary>
+/// The Windows audio through Core Audio (NAudio for the devices, the endpoint volume and the sessions) and the undocumented but long-stable
+/// <c>IPolicyConfig</c> for choosing the default output. Nothing is created or read before the first call, so building the app's object graph
+/// (tests included) never touches the audio. Tests never use this class: they use a fake <see cref="IAudioSystem"/>.
+/// </summary>
+public sealed class WindowsAudioSystem : IAudioSystem
+{
+    private readonly object _gate = new();
+    private MMDeviceEnumerator? _enumerator;
+    private MMDeviceNotificationClient? _notifications;
+    private MMDevice? _watchedDevice;
+    private AudioSessionManager? _watchedManager;
+    private bool _disposed;
+
+    /// <inheritdoc />
+    public event Action? DevicesChanged;
+
+    /// <inheritdoc />
+    public event Action? DefaultDeviceChanged;
+
+    /// <inheritdoc />
+    public event Action? SessionCreated;
+
+    /// <inheritdoc />
+    public IReadOnlyList<AudioDevice> ActiveRenderDevices()
+    {
+        lock (_gate)
+        {
+            var devices = new List<AudioDevice>();
+            foreach (var device in Enumerator().EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
+            {
+                try
+                {
+                    devices.Add(new AudioDevice(device.ID, device.FriendlyName));
+                }
+                catch (Exception ex) when (ex is COMException or InvalidOperationException)
+                {
+                    // The device went away while it was being read: it is simply not active any more.
+                }
+                finally
+                {
+                    device.Dispose();
+                }
+            }
+
+            return devices;
+        }
+    }
+
+    /// <inheritdoc />
+    public DefaultDevices GetDefaultDevices()
+    {
+        lock (_gate)
+        {
+            return new DefaultDevices(DefaultId(Role.Console), DefaultId(Role.Multimedia), DefaultId(Role.Communications));
+        }
+    }
+
+    /// <inheritdoc />
+    public bool SetDefaultRenderDevice(string deviceId)
+    {
+        if (string.IsNullOrWhiteSpace(deviceId))
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            IPolicyConfig? policy = null;
+            try
+            {
+                policy = (IPolicyConfig)new PolicyConfigClient();
+                var ok = true;
+                foreach (var role in new[] { Role.Console, Role.Multimedia, Role.Communications })
+                {
+                    ok &= policy.SetDefaultEndpoint(deviceId, (int)role) >= 0;
+                }
+
+                return ok;
+            }
+            catch (Exception ex) when (ex is COMException or InvalidCastException or InvalidOperationException)
+            {
+                return false;
+            }
+            finally
+            {
+                if (policy is not null)
+                {
+                    Marshal.ReleaseComObject(policy);
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public bool SetMasterVolume(string deviceId, int percent, bool muted)
+    {
+        lock (_gate)
+        {
+            try
+            {
+                using var device = Enumerator().GetDevice(deviceId);
+                var volume = device.AudioEndpointVolume;
+                volume.MasterVolumeLevelScalar = Scalar(percent);
+                volume.Mute = muted;
+                return true;
+            }
+            catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
+            {
+                return false;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<AudioSessionInfo> GetSessions(string deviceId)
+    {
+        lock (_gate)
+        {
+            var result = new List<AudioSessionInfo>();
+            try
+            {
+                using var device = Enumerator().GetDevice(deviceId);
+                var manager = device.AudioSessionManager;
+                manager.RefreshSessions();
+                var sessions = manager.Sessions;
+                for (var i = 0; i < sessions.Count; i++)
+                {
+                    var session = sessions[i];
+                    var system = session.IsSystemSoundsSession;
+                    result.Add(new AudioSessionInfo(session.GetSessionInstanceIdentifier, system ? null : ProcessName(session.GetProcessID), system));
+                }
+            }
+            catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
+            {
+                // The output vanished: no sessions.
+            }
+
+            return result;
+        }
+    }
+
+    /// <inheritdoc />
+    public bool SetSessionVolume(string deviceId, string sessionKey, int percent, bool muted)
+    {
+        lock (_gate)
+        {
+            try
+            {
+                using var device = Enumerator().GetDevice(deviceId);
+                var manager = device.AudioSessionManager;
+                manager.RefreshSessions();
+                var sessions = manager.Sessions;
+                for (var i = 0; i < sessions.Count; i++)
+                {
+                    var session = sessions[i];
+                    if (!string.Equals(session.GetSessionInstanceIdentifier, sessionKey, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    session.SimpleAudioVolume.Volume = Scalar(percent);
+                    session.SimpleAudioVolume.Mute = muted;
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
+            {
+                return false;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void WatchSessions(string? deviceId)
+    {
+        lock (_gate)
+        {
+            StopWatching();
+            if (_disposed || string.IsNullOrWhiteSpace(deviceId))
+            {
+                return;
+            }
+
+            try
+            {
+                _watchedDevice = Enumerator().GetDevice(deviceId);
+                _watchedManager = _watchedDevice.AudioSessionManager;
+                _watchedManager.OnSessionCreated += OnSessionCreated;
+            }
+            catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
+            {
+                StopWatching();
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            StopWatching();
+            if (_notifications is not null)
+            {
+                _notifications.DeviceStateChanged -= OnDevicesChanged;
+                _notifications.DeviceAdded -= OnDevicesChanged;
+                _notifications.DeviceRemoved -= OnDevicesChanged;
+                _notifications.DefaultDeviceChanged -= OnDefaultChanged;
+                _notifications.Dispose();
+                _notifications = null;
+            }
+
+            _enumerator?.Dispose();
+            _enumerator = null;
+        }
+    }
+
+    private static float Scalar(int percent) => Math.Clamp(percent, 0, 100) / 100f;
+
+    // A session whose program already closed has no process: no name, so no setting is applied to it.
+    private static string? ProcessName(uint processId)
+    {
+        if (processId == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var process = Process.GetProcessById((int)processId);
+            return process.ProcessName;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private string? DefaultId(Role role)
+    {
+        if (!Enumerator().TryGetDefaultAudioEndpoint(DataFlow.Render, role, out var device) || device is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return device.ID;
+        }
+        finally
+        {
+            device.Dispose();
+        }
+    }
+
+    // Made on first use, with the change notifications (raised on a Windows thread: the listener only schedules work).
+    private MMDeviceEnumerator Enumerator()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_enumerator is not null)
+        {
+            return _enumerator;
+        }
+
+        _enumerator = new MMDeviceEnumerator();
+        _notifications = _enumerator.CreateNotificationClient(useSynchronizationContext: false);
+        _notifications.DeviceStateChanged += OnDevicesChanged;
+        _notifications.DeviceAdded += OnDevicesChanged;
+        _notifications.DeviceRemoved += OnDevicesChanged;
+        _notifications.DefaultDeviceChanged += OnDefaultChanged;
+        return _enumerator;
+    }
+
+    private void StopWatching()
+    {
+        if (_watchedManager is not null)
+        {
+            try
+            {
+                _watchedManager.OnSessionCreated -= OnSessionCreated;
+                _watchedManager.Dispose();
+            }
+            catch (Exception ex) when (ex is COMException or InvalidOperationException)
+            {
+                // Closing a manager of a device that is gone can fail: nothing is left to close.
+            }
+        }
+
+        _watchedManager = null;
+        _watchedDevice?.Dispose();
+        _watchedDevice = null;
+    }
+
+    private void OnSessionCreated(object? sender, AudioSessionControl newSession) => Raise(SessionCreated);
+
+    private void OnDevicesChanged(object? sender, EventArgs e) => Raise(DevicesChanged);
+
+    private void OnDefaultChanged(object? sender, DefaultDeviceChangedEventArgs e)
+    {
+        if (e.Flow == DataFlow.Render)
+        {
+            Raise(DefaultDeviceChanged);
+        }
+    }
+
+    private static void Raise(Action? handler)
+    {
+        try
+        {
+            handler?.Invoke();
+        }
+        catch (Exception)
+        {
+            // A listener's failure must never travel back into a Windows callback thread.
+        }
+    }
+
+    // The undocumented policy-config interface (stable since Windows Vista): only SetDefaultEndpoint is used, the other slots keep the vtable layout.
+    [ComImport]
+    [Guid("F8679F50-850A-41CF-9C72-430F290290C8")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IPolicyConfig
+    {
+        [PreserveSig] int GetMixFormat();
+
+        [PreserveSig] int GetDeviceFormat();
+
+        [PreserveSig] int ResetDeviceFormat();
+
+        [PreserveSig] int SetDeviceFormat();
+
+        [PreserveSig] int GetProcessingPeriod();
+
+        [PreserveSig] int SetProcessingPeriod();
+
+        [PreserveSig] int GetShareMode();
+
+        [PreserveSig] int SetShareMode();
+
+        [PreserveSig] int GetPropertyValue();
+
+        [PreserveSig] int SetPropertyValue();
+
+        [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string deviceId, int role);
+
+        [PreserveSig] int SetEndpointVisibility();
+    }
+
+    [ComImport]
+    [Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")]
+    private class PolicyConfigClient;
+}

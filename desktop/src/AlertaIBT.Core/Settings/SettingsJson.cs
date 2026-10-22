@@ -71,6 +71,7 @@ public static partial class SettingsJson
             var system = Section(root, "system");
             var site = Section(root, "site");
             var mouseLock = Section(root, "mouseLock");
+            var audio = Section(root, "audio");
 
             var settings = new AppSettings
             {
@@ -125,6 +126,18 @@ public static partial class SettingsJson
                     Enabled = ReadBool(mouseLock, "enabled") ?? defaults.MouseLock.Enabled,
                     Hotkey = ReadString(mouseLock, "hotkey") ?? defaults.MouseLock.Hotkey,
                     TripleCtrl = ReadBool(mouseLock, "tripleCtrl") ?? defaults.MouseLock.TripleCtrl,
+                },
+                Audio = new AudioSettings
+                {
+                    Enabled = ReadBool(audio, "enabled") ?? defaults.Audio.Enabled,
+                    MasterVolume = ReadInt(audio, "masterVolume") ?? defaults.Audio.MasterVolume,
+                    MasterMuted = ReadBool(audio, "masterMuted") ?? defaults.Audio.MasterMuted,
+                    SystemSoundsVolume = ReadInt(audio, "systemSoundsVolume") ?? defaults.Audio.SystemSoundsVolume,
+                    SystemSoundsMuted = ReadBool(audio, "systemSoundsMuted") ?? defaults.Audio.SystemSoundsMuted,
+                    Apps = ReadApps(audio) ?? defaults.Audio.Apps,
+                    LockOutput = ReadBool(audio, "lockOutput") ?? defaults.Audio.LockOutput,
+                    OutputDeviceId = ReadString(audio, "outputDeviceId"),
+                    OutputDeviceName = ReadString(audio, "outputDeviceName"),
                 },
             };
             return (Normalize(settings), false);
@@ -192,6 +205,24 @@ public static partial class SettingsJson
                 ["hotkey"] = n.MouseLock.Hotkey,
                 ["tripleCtrl"] = n.MouseLock.TripleCtrl,
             },
+            ["audio"] = new JsonObject
+            {
+                ["enabled"] = n.Audio.Enabled,
+                ["masterVolume"] = n.Audio.MasterVolume,
+                ["masterMuted"] = n.Audio.MasterMuted,
+                ["systemSoundsVolume"] = n.Audio.SystemSoundsVolume,
+                ["systemSoundsMuted"] = n.Audio.SystemSoundsMuted,
+                ["apps"] = new JsonArray(n.Audio.Apps.Select(app => (JsonNode)new JsonObject
+                {
+                    ["name"] = app.Name,
+                    ["processNames"] = new JsonArray(app.ProcessNames.Select(name => (JsonNode)JsonValue.Create(name)!).ToArray()),
+                    ["volume"] = app.Volume,
+                    ["muted"] = app.Muted,
+                }).ToArray()),
+                ["lockOutput"] = n.Audio.LockOutput,
+                ["outputDeviceId"] = n.Audio.OutputDeviceId,
+                ["outputDeviceName"] = n.Audio.OutputDeviceName,
+            },
         };
         return root.ToJsonString(WriteOptions);
     }
@@ -214,6 +245,7 @@ public static partial class SettingsJson
         var system = s.System ?? d.System;
         var site = s.Site ?? d.Site;
         var mouseLock = s.MouseLock ?? d.MouseLock;
+        var audio = s.Audio ?? d.Audio;
 
         return new AppSettings
         {
@@ -273,7 +305,81 @@ public static partial class SettingsJson
                 Hotkey = NullIfBlank(mouseLock.Hotkey) ?? d.MouseLock.Hotkey,
                 TripleCtrl = mouseLock.TripleCtrl,
             },
+            Audio = new AudioSettings
+            {
+                Enabled = audio.Enabled,
+                MasterVolume = ClampVolume(audio.MasterVolume),
+                MasterMuted = audio.MasterMuted,
+                SystemSoundsVolume = ClampVolume(audio.SystemSoundsVolume),
+                SystemSoundsMuted = audio.SystemSoundsMuted,
+                Apps = NormalizeApps(audio.Apps) ?? AudioSettings.DefaultApps(),
+                LockOutput = audio.LockOutput,
+                OutputDeviceId = NullIfBlank(audio.OutputDeviceId),
+                OutputDeviceName = NullIfBlank(audio.OutputDeviceName),
+            },
         };
+    }
+
+    private static int ClampVolume(int volume) => Math.Clamp(volume, AudioSettings.MinVolume, AudioSettings.MaxVolume);
+
+    // The programs held usable: a name, at least one process name, a volume 0 to 100. An empty result is "nothing usable": null.
+    private static List<AudioAppEntry>? NormalizeApps(IReadOnlyList<AudioAppEntry>? apps)
+    {
+        if (apps is null)
+        {
+            return null;
+        }
+
+        var result = new List<AudioAppEntry>();
+        foreach (var app in apps)
+        {
+            var name = NullIfBlank(app?.Name);
+            var processes = app?.ProcessNames?
+                .Select(NullIfBlank)
+                .OfType<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (name is null || processes is not { Count: > 0 } || result.Any(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            result.Add(new AudioAppEntry(name, processes, ClampVolume(app!.Volume), app.Muted));
+        }
+
+        return result.Count > 0 ? result : null;
+    }
+
+    // The "apps" list of the audio section; null when it is missing or not a list (the defaults then apply).
+    private static List<AudioAppEntry>? ReadApps(JsonElement audio)
+    {
+        if (Find(audio, "apps") is not { ValueKind: JsonValueKind.Array } list)
+        {
+            return null;
+        }
+
+        var apps = new List<AudioAppEntry>();
+        foreach (var item in list.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var processes = new List<string>();
+            if (Find(item, "processNames") is { ValueKind: JsonValueKind.Array } names)
+            {
+                processes.AddRange(names.EnumerateArray().Where(n => n.ValueKind == JsonValueKind.String).Select(n => n.GetString() ?? string.Empty));
+            }
+
+            apps.Add(new AudioAppEntry(
+                ReadString(item, "name") ?? string.Empty,
+                processes,
+                ReadInt(item, "volume") ?? 100,
+                ReadBool(item, "muted") ?? false));
+        }
+
+        return apps;
     }
 
     private static string? NullIfBlank(string? text)

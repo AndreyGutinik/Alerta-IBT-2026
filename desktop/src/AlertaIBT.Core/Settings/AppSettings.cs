@@ -26,6 +26,9 @@ public sealed record AppSettings
 
     /// <summary>The mouse lock: the cursor stays on the primary monitor, and Ctrl pressed 3 times brings it back to its center.</summary>
     public MouseLockSettings MouseLock { get; init; } = new();
+
+    /// <summary>The sound: volumes set when the PC starts, and the lock of the Windows output on one device.</summary>
+    public AudioSettings Audio { get; init; } = new();
 }
 
 /// <summary>How the bar looks and moves.</summary>
@@ -181,6 +184,90 @@ public sealed record MouseLockSettings
 
     /// <summary>Whether pressing Ctrl three times quickly sends the cursor to the center of the primary monitor (works with the lock on or off). On by default.</summary>
     public bool TripleCtrl { get; init; } = true;
+}
+
+/// <summary>One program whose volume is set when its audio session appears. Data, not code: a later "Adicionar programa" only adds entries.</summary>
+/// <param name="Name">The name shown on the screen and in the log (<c>Holyrics</c>).</param>
+/// <param name="ProcessNames">The process names that belong to the program, any case, with or without <c>.exe</c>.</param>
+/// <param name="Volume">The volume to set, 0 to 100.</param>
+/// <param name="Muted">Whether it starts muted.</param>
+public sealed record AudioAppEntry(string Name, IReadOnlyList<string> ProcessNames, int Volume, bool Muted)
+{
+    /// <summary>Value equality, with the process names compared one by one (a list is otherwise compared by reference).</summary>
+    public bool Equals(AudioAppEntry? other) =>
+        other is not null && Name == other.Name && Volume == other.Volume && Muted == other.Muted && ProcessNames.SequenceEqual(other.ProcessNames);
+
+    /// <inheritdoc />
+    public override int GetHashCode() => HashCode.Combine(Name, Volume, Muted, ProcessNames.Count);
+}
+
+/// <summary>
+/// The "Som" tab. Every field is optional in <c>settings.json</c>: an older file loads with the defaults. The app never plays sound; it only
+/// sets Windows audio state (volumes, mutes, which output is the default).
+/// </summary>
+public sealed record AudioSettings
+{
+    /// <summary>Lowest volume.</summary>
+    public const int MinVolume = 0;
+
+    /// <summary>Highest volume.</summary>
+    public const int MaxVolume = 100;
+
+    /// <summary>Value equality, with the programs compared one by one (a list is otherwise compared by reference).</summary>
+    public bool Equals(AudioSettings? other) =>
+        other is not null
+        && Enabled == other.Enabled
+        && MasterVolume == other.MasterVolume
+        && MasterMuted == other.MasterMuted
+        && SystemSoundsVolume == other.SystemSoundsVolume
+        && SystemSoundsMuted == other.SystemSoundsMuted
+        && LockOutput == other.LockOutput
+        && OutputDeviceId == other.OutputDeviceId
+        && OutputDeviceName == other.OutputDeviceName
+        && Apps.SequenceEqual(other.Apps);
+
+    /// <inheritdoc />
+    public override int GetHashCode() => HashCode.Combine(Enabled, MasterVolume, SystemSoundsVolume, LockOutput, OutputDeviceId, Apps.Count);
+
+    /// <summary>The text that picks the output when none was chosen yet: the name of the Behringer WING USB contains it.</summary>
+    public const string DefaultOutputMatch = "WING";
+
+    /// <summary>Whether the volumes are set when the PC starts (and when a program opens within 30 minutes). On by default.</summary>
+    public bool Enabled { get; init; } = true;
+
+    /// <summary>The Windows master volume of the output, 0 to 100 (80 by default).</summary>
+    public int MasterVolume { get; init; } = 80;
+
+    /// <summary>Whether the master starts muted (no by default).</summary>
+    public bool MasterMuted { get; init; }
+
+    /// <summary>The volume of "Sons do Windows" (notifications and such, the "System sounds" entry of the mixer), 0 by default.</summary>
+    public int SystemSoundsVolume { get; init; }
+
+    /// <summary>Whether "Sons do Windows" starts muted (no by default).</summary>
+    public bool SystemSoundsMuted { get; init; }
+
+    /// <summary>The programs and the volume each one gets.</summary>
+    public IReadOnlyList<AudioAppEntry> Apps { get; init; } = DefaultApps();
+
+    /// <summary>Whether Windows is kept from changing the default output away from <see cref="OutputDeviceId"/>. On by default.</summary>
+    public bool LockOutput { get; init; } = true;
+
+    /// <summary>The endpoint id of the chosen output, or <c>null</c> until one was found (the first one whose name contains <see cref="DefaultOutputMatch"/>).</summary>
+    public string? OutputDeviceId { get; init; }
+
+    /// <summary>The friendly name of the chosen output (matched when the id changes, for example on another USB port).</summary>
+    public string? OutputDeviceName { get; init; }
+
+    /// <summary>
+    /// Holyrics and Spotify at 100%, unmuted. Holyrics is a Launch4j program: the visible Holyrics.exe starts the bundled Java
+    /// (the jre folder inside the Holyrics folder), so the sound comes from <c>javaw</c> on a PC that only runs Holyrics as a Java program.
+    /// </summary>
+    public static IReadOnlyList<AudioAppEntry> DefaultApps() =>
+    [
+        new AudioAppEntry("Holyrics", ["Holyrics", "javaw"], 100, false),
+        new AudioAppEntry("Spotify", ["Spotify"], 100, false),
+    ];
 }
 
 /// <summary>The remaining settings.</summary>
