@@ -581,6 +581,95 @@
                                 Text="{Binding HotkeyProblem}"
                                 Visibility="{Binding HasHotkeyProblem, Converter={StaticResource BoolToVisibility}}" />
 
+                            <!-- O bloqueador de mouse: o travamento, o atalho dele e o Ctrl 3 vezes. -->
+                            <Grid Margin="0,12,0,0">
+                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontSize="12.5"
+                                        Text="Travar o mouse na tela principal" />
+                                    <Border
+                                        AutomationProperties.Name="Dicas"
+                                        Style="{StaticResource SectionInfo}"
+                                        ToolTip="Prende o cursor no monitor principal do Windows: ele não para mais no LED nem no retorno.&#10;Também liga e desliga pelo atalho abaixo e pelo ícone da bandeja.">
+                                        <Path
+                                            Width="15"
+                                            Height="15"
+                                            Data="{StaticResource LucideInfo}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Border>
+                                </StackPanel>
+                                <ToggleButton
+                                    x:Name="MouseLockSwitch"
+                                    HorizontalAlignment="Right"
+                                    AutomationProperties.Name="Travar o mouse na tela principal"
+                                    IsChecked="{Binding MouseLockEnabled, Mode=TwoWay}"
+                                    Style="{StaticResource IbtSwitch}" />
+                            </Grid>
+
+                            <Grid Margin="0,12,0,0">
+                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+                                    <TextBlock VerticalAlignment="Center" FontSize="12.5" Text="Atalho para travar o mouse" />
+                                    <Border
+                                        AutomationProperties.Name="Dicas"
+                                        Style="{StaticResource SectionInfo}"
+                                        ToolTip="Clique no campo e aperte a nova combinação.&#10;Precisa ter Ctrl, Alt ou Win.">
+                                        <Path
+                                            Width="15"
+                                            Height="15"
+                                            Data="{StaticResource LucideInfo}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBox
+                                    x:Name="MouseLockHotkeyBox"
+                                    Width="170"
+                                    HorizontalAlignment="Right"
+                                    AutomationProperties.Name="Atalho para travar o mouse"
+                                    Cursor="Hand"
+                                    FontWeight="SemiBold"
+                                    IsReadOnly="True"
+                                    PreviewKeyDown="OnMouseLockHotkeyKeyDown"
+                                    Style="{StaticResource IbtInput}"
+                                    Text="{Binding MouseLockHotkeyDisplay, Mode=OneWay}"
+                                    TextAlignment="Center" />
+                            </Grid>
+                            <TextBlock
+                                x:Name="MouseLockHotkeyHintLine"
+                                Style="{StaticResource IbtHint}"
+                                Text="{Binding MouseLockHotkeyHint}"
+                                Visibility="{Binding HasMouseLockHotkeyHint, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock
+                                x:Name="MouseLockHotkeyProblemLine"
+                                Style="{StaticResource IbtHint}"
+                                Text="{Binding MouseLockHotkeyProblem}"
+                                Visibility="{Binding HasMouseLockHotkeyProblem, Converter={StaticResource BoolToVisibility}}" />
+
+                            <Grid Margin="0,12,0,0">
+                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontSize="12.5"
+                                        Text="Ctrl 3 vezes traz o mouse ao centro" />
+                                    <Border
+                                        AutomationProperties.Name="Dicas"
+                                        Style="{StaticResource SectionInfo}"
+                                        ToolTip="Aperte Ctrl três vezes seguidas, rápido e sem outra tecla no meio: o mouse vai para o centro do monitor principal, onde quer que esteja.&#10;Funciona com o travamento ligado ou desligado. O app só conta os Ctrl; não guarda o que é digitado.">
+                                        <Path
+                                            Width="15"
+                                            Height="15"
+                                            Data="{StaticResource LucideInfo}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Border>
+                                </StackPanel>
+                                <ToggleButton
+                                    x:Name="TripleCtrlSwitch"
+                                    HorizontalAlignment="Right"
+                                    AutomationProperties.Name="Ctrl 3 vezes traz o mouse ao centro"
+                                    IsChecked="{Binding TripleCtrl, Mode=TwoWay}"
+                                    Style="{StaticResource IbtSwitch}" />
+                            </Grid>
+
                             <Grid Margin="0,12,0,0">
                                 <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
                                     <TextBlock

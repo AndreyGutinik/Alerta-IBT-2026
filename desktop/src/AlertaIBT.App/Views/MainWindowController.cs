@@ -43,6 +43,8 @@ public sealed class MainWindowController : IDisposable
         shell.MainWindowRequested += Show;
         shell.HotkeyStatusChanged += ViewModel.Settings.ApplyHotkey;
         ViewModel.Settings.ApplyHotkey(shell.HotkeyStatus);
+        shell.MouseLock.HotkeyStatusChanged += ViewModel.Settings.ApplyMouseLockHotkey;
+        ViewModel.Settings.ApplyMouseLockHotkey(shell.MouseLock.HotkeyStatus);
     }
 
     /// <summary>Shows the window in front (making it the first time). A failure is logged, never thrown: the app lives in the tray.</summary>

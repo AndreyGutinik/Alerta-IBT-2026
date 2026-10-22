@@ -186,6 +186,17 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
             logger.LogCritical(args.ExceptionObject as Exception, "Erro fatal");
+
+            // Give the mouse back before the process dies (Windows also releases it when the process ends).
+            try
+            {
+                _host?.Services.GetService<MouseLockController>()?.ReleaseNow();
+            }
+            catch (Exception)
+            {
+                // Nothing more can be done while crashing.
+            }
+
             Serilog.Log.CloseAndFlush();
         };
     }

@@ -23,7 +23,9 @@ public sealed class TrayService : IDisposable
     private readonly MenuItem _pauseItem;
     private readonly MenuItem _exitItem;
     private readonly MenuItem _openItem;
+    private readonly MenuItem _mouseLockItem;
     private bool _paused;
+    private bool _mouseLocked;
     private string? _hotkeyWarning;
     private string? _updateNotice;
 
@@ -36,6 +38,18 @@ public sealed class TrayService : IDisposable
         _pauseItem = new MenuItem { Header = PauseHeader(paused: false), Icon = LucideIcon("LucidePause") };
         _pauseItem.Click += (_, _) => PauseToggleRequested?.Invoke();
 
+        _mouseLockItem = new MenuItem
+        {
+            Header = MouseLockHeader,
+            IsCheckable = true,
+            Icon = LucideIcon("LucideLock"),
+        };
+        _mouseLockItem.Click += (_, _) =>
+        {
+            MouseLockToggleRequested?.Invoke();
+            _mouseLockItem.IsChecked = _mouseLocked; // the check shows what really happened (the lock may have been refused)
+        };
+
         _exitItem = new MenuItem { Header = "Sair", Icon = LucideIcon("LucidePower") };
         _exitItem.Click += (_, _) => ExitRequested?.Invoke();
 
@@ -43,6 +57,7 @@ public sealed class TrayService : IDisposable
         Menu.Opened += (_, _) => ExcludeFromCapture(Menu); // the menu is a window of its own, at the taskbar
         Menu.Items.Add(_openItem);
         Menu.Items.Add(_pauseItem);
+        Menu.Items.Add(_mouseLockItem);
         Menu.Items.Add(new Separator());
         Menu.Items.Add(_exitItem);
 
@@ -71,8 +86,17 @@ public sealed class TrayService : IDisposable
     /// <summary>Raised by the menu's Pausar/Retomar.</summary>
     public event Action? PauseToggleRequested;
 
+    /// <summary>Raised by the menu's "Travar o mouse na tela principal".</summary>
+    public event Action? MouseLockToggleRequested;
+
     /// <summary>Raised by the menu's Sair.</summary>
     public event Action? ExitRequested;
+
+    /// <summary>The text of the mouse-lock menu item.</summary>
+    public const string MouseLockHeader = "Travar o mouse na tela principal";
+
+    /// <summary>The tooltip suffix while the mouse is locked.</summary>
+    public const string MouseLockedSuffix = "mouse travado";
 
     /// <summary>The right-click menu, so a later part of the app can add an item.</summary>
     public ContextMenu Menu { get; }
@@ -102,6 +126,14 @@ public sealed class TrayService : IDisposable
         UpdateToolTip();
     }
 
+    /// <summary>Shows whether the mouse is locked to the primary monitor: the menu item is checked and the tooltip says so.</summary>
+    public void SetMouseLocked(bool locked)
+    {
+        _mouseLocked = locked;
+        _mouseLockItem.IsChecked = locked;
+        UpdateToolTip();
+    }
+
     /// <summary>
     /// Tells the tooltip that the quick-panel hotkey does not work (<c>null</c> when it does), so the user finds out without
     /// opening anything; the click on the icon always opens the panel.
@@ -127,6 +159,12 @@ public sealed class TrayService : IDisposable
 
     /// <summary>Whether the icon shows the paused state.</summary>
     public bool IsPaused => _paused;
+
+    /// <summary>Whether the icon shows the mouse lock on (the menu item is checked).</summary>
+    public bool IsMouseLocked => _mouseLocked;
+
+    /// <summary>The mouse-lock menu item, for tests.</summary>
+    internal MenuItem MouseLockItem => _mouseLockItem;
 
     /// <summary>A balloon from the icon. Failing to show one never matters.</summary>
     public void ShowNotification(string title, string message)
@@ -175,6 +213,11 @@ public sealed class TrayService : IDisposable
     private void UpdateToolTip()
     {
         var text = _paused ? $"{AppName} - pausado" : AppName;
+        if (_mouseLocked)
+        {
+            text += $" - {MouseLockedSuffix}";
+        }
+
         if (_hotkeyWarning is not null)
         {
             text += $"\n{_hotkeyWarning}";

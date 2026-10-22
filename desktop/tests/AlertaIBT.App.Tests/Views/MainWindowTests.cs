@@ -13,6 +13,7 @@ using AlertaIBT.Core.Alerts;
 using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Firebase;
+using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Services;
@@ -588,6 +589,148 @@ public sealed class MainWindowTests
             rig.Select(MainTab.Settings);
 
             Assert.False(rig.Window.Settings.AutoUpdateSwitch.IsChecked);
+        });
+    }
+
+    [Fact]
+    public void The_sistema_card_has_the_mouse_lock_rows_in_order_below_the_panel_shortcut()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Select(MainTab.Settings);
+            var page = rig.Window.Settings;
+
+            Assert.Contains("Travar o mouse na tela principal", rig.AllTexts());
+            Assert.Contains("Atalho para travar o mouse", rig.AllTexts());
+            Assert.Contains("Ctrl 3 vezes traz o mouse ao centro", rig.AllTexts());
+            Assert.True(Shown(page.MouseLockSwitch));
+            Assert.True(Shown(page.MouseLockHotkeyBox));
+            Assert.True(Shown(page.TripleCtrlSwitch));
+            Assert.Equal("Travar o mouse na tela principal", AutomationProperties.GetName(page.MouseLockSwitch));
+            Assert.Equal("Atalho para travar o mouse", AutomationProperties.GetName(page.MouseLockHotkeyBox));
+            Assert.Equal("Ctrl 3 vezes traz o mouse ao centro", AutomationProperties.GetName(page.TripleCtrlSwitch));
+
+            // The defaults: lock off, Ctrl+Alt+M (a read-only box, like the panel one), Ctrl x3 on.
+            Assert.False(page.MouseLockSwitch.IsChecked);
+            Assert.True(page.TripleCtrlSwitch.IsChecked);
+            Assert.Equal("Ctrl+Alt+M", page.MouseLockHotkeyBox.Text);
+            Assert.True(page.MouseLockHotkeyBox.IsReadOnly);
+
+            // Top to bottom: the panel shortcut, the lock, its shortcut, Ctrl x3, then the Monday switch.
+            Assert.True(rig.BoundsOf(page.MouseLockSwitch).Top > rig.BoundsOf(page.HotkeyBox).Bottom);
+            Assert.True(rig.BoundsOf(page.MouseLockHotkeyBox).Top > rig.BoundsOf(page.MouseLockSwitch).Bottom);
+            Assert.True(rig.BoundsOf(page.TripleCtrlSwitch).Top > rig.BoundsOf(page.MouseLockHotkeyBox).Bottom);
+            Assert.True(rig.BoundsOf(page.ClearHistorySwitch).Top > rig.BoundsOf(page.TripleCtrlSwitch).Bottom);
+
+            // Switches on the right edge like the others of the card; the box as wide as the panel one and under the same edge.
+            Assert.Equal(rig.BoundsOf(page.ClearHistorySwitch).Right, rig.BoundsOf(page.MouseLockSwitch).Right, 1);
+            Assert.Equal(rig.BoundsOf(page.ClearHistorySwitch).Right, rig.BoundsOf(page.TripleCtrlSwitch).Right, 1);
+            Assert.Equal(rig.BoundsOf(page.HotkeyBox).Width, rig.BoundsOf(page.MouseLockHotkeyBox).Width, 1);
+            Assert.Equal(rig.BoundsOf(page.HotkeyBox).Right, rig.BoundsOf(page.MouseLockHotkeyBox).Right, 1);
+
+            // No hint or problem line while all is well.
+            Assert.False(Shown(page.MouseLockHotkeyHintLine));
+            Assert.False(Shown(page.MouseLockHotkeyProblemLine));
+            rig.Snapshot("main-settings-mouse-lock");
+        });
+    }
+
+    [Fact]
+    public void The_mouse_lock_rows_have_their_info_tooltips_and_no_long_text_in_the_card()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Select(MainTab.Settings);
+
+            var tips = rig.Find<Border>().Where(b => AutomationProperties.GetName(b) == "Dicas" && Shown(b)).Select(b => (string)b.ToolTip).ToList();
+
+            Assert.Contains(tips, t => t.StartsWith("Prende o cursor no monitor principal", StringComparison.Ordinal) && t.Contains("bandeja", StringComparison.Ordinal));
+            Assert.Equal(2, tips.Count(t => t.Contains("Clique no campo", StringComparison.Ordinal))); // the panel shortcut and the lock one
+            Assert.Contains(tips, t => t.Contains("tr\U000000EAs vezes", StringComparison.Ordinal) && t.Contains("n\U000000E3o guarda o que \U000000E9 digitado", StringComparison.Ordinal));
+            Assert.DoesNotContain(rig.Find<TextBlock>().Where(Shown), t => t.Text.Length > 70 && t.Text.Contains("mouse", StringComparison.OrdinalIgnoreCase));
+        });
+    }
+
+    [Fact]
+    public void The_lock_switch_saves_at_once_and_follows_a_toggle_made_by_the_shortcut()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Select(MainTab.Settings);
+            var page = rig.Window.Settings;
+
+            page.MouseLockSwitch.IsChecked = true;
+            rig.Layout();
+
+            Assert.True(rig.Settings.OnDisk().MouseLock.Enabled); // no rest needed
+
+            // The shortcut (or the tray item) turns it off: the switch follows.
+            rig.Settings.Settings.Update(s => s with { MouseLock = s.MouseLock with { Enabled = false } });
+            rig.Layout();
+            Assert.False(page.MouseLockSwitch.IsChecked);
+        });
+    }
+
+    [Fact]
+    public void The_Ctrl_x3_switch_saves_after_the_rest()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Select(MainTab.Settings);
+            rig.Window.Settings.TripleCtrlSwitch.IsChecked = false;
+            rig.Layout();
+            rig.Settings.Rest();
+
+            Assert.False(rig.Settings.OnDisk().MouseLock.TripleCtrl);
+        });
+    }
+
+    [Fact]
+    public void Saved_mouse_lock_values_are_shown()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(new AppSettings { MouseLock = new MouseLockSettings { Enabled = true, Hotkey = "Ctrl+Shift+F9", TripleCtrl = false } });
+            rig.Select(MainTab.Settings);
+            var page = rig.Window.Settings;
+
+            Assert.True(page.MouseLockSwitch.IsChecked);
+            Assert.False(page.TripleCtrlSwitch.IsChecked);
+            Assert.Equal("Ctrl+Shift+F9", page.MouseLockHotkeyBox.Text);
+        });
+    }
+
+    [Fact]
+    public void The_mouse_lock_hint_and_problem_lines_show_under_the_box_and_hide_again()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Select(MainTab.Settings);
+            var page = rig.Window.Settings;
+            var vm = rig.ViewModel.Settings;
+
+            vm.TryCaptureMouseLockHotkey(HotkeyModifiers.Control, 0x56); // Ctrl+V
+            rig.Layout();
+            Assert.True(Shown(page.MouseLockHotkeyHintLine));
+            Assert.Contains("Windows", page.MouseLockHotkeyHintLine.Text, StringComparison.Ordinal);
+            Assert.True(rig.BoundsOf(page.MouseLockHotkeyHintLine).Top >= rig.BoundsOf(page.MouseLockHotkeyBox).Bottom);
+            Assert.True(rig.BoundsOf(page.TripleCtrlSwitch).Top > rig.BoundsOf(page.MouseLockHotkeyHintLine).Bottom);
+
+            vm.TryCaptureMouseLockHotkey(HotkeyModifiers.Control | HotkeyModifiers.Alt, 0x77);
+            vm.ApplyMouseLockHotkey(new HotkeyStatus("Ctrl+Alt+F8", "Ctrl+Alt+F8", false, "long", "Atalho Ctrl+Alt+F8 em uso por outro programa"));
+            rig.Layout();
+            Assert.False(Shown(page.MouseLockHotkeyHintLine));
+            Assert.True(Shown(page.MouseLockHotkeyProblemLine));
+            Assert.Contains("em uso por outro programa", page.MouseLockHotkeyProblemLine.Text, StringComparison.Ordinal);
+
+            vm.ApplyMouseLockHotkey(new HotkeyStatus("Ctrl+Alt+F8", "Ctrl+Alt+F8", true, null));
+            rig.Layout();
+            Assert.False(Shown(page.MouseLockHotkeyProblemLine));
         });
     }
 

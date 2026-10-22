@@ -10,6 +10,7 @@ using AlertaIBT.App.Views;
 using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Firebase;
+using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Services;
@@ -136,6 +137,19 @@ public static class AppHost
             provider.GetRequiredService<IUiDispatcher>(),
             provider.GetRequiredService<ILogger<OverlayController>>()));
         ConfigureAlertServices(services, paths, apiPort);
+
+        // The mouse lock: nothing here touches the mouse or the keyboard until the shell starts it (tests replace INativeCursor with a fake).
+        services.AddSingleton<INativeCursor, WinCursor>();
+        services.AddSingleton<IKeyboardHook, LowLevelKeyboardHook>();
+        services.AddSingleton(provider => new MouseLockService(
+            provider.GetRequiredService<INativeCursor>(),
+            provider.GetRequiredService<ILogger<MouseLockService>>()));
+        services.AddSingleton(provider => new MouseLockController(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<MouseLockService>(),
+            provider.GetRequiredService<IKeyboardHook>(),
+            PostToUi,
+            provider.GetRequiredService<ILogger<MouseLockController>>()));
         services.AddSingleton<TrayService>();
         services.AddSingleton<AppShell>();
         ConfigureQuickPanel(services);

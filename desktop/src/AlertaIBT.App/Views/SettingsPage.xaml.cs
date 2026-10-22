@@ -106,8 +106,14 @@ public partial class SettingsPage : UserControl
             });
     }
 
-    // The shortcut box takes the combination that is pressed in it.
-    private void OnHotkeyKeyDown(object sender, KeyEventArgs e)
+    // The shortcut boxes take the combination that is pressed in them.
+    private void OnHotkeyKeyDown(object sender, KeyEventArgs e) =>
+        CaptureHotkey(e, (settings, modifiers, key) => settings.TryCaptureHotkey(modifiers, key));
+
+    private void OnMouseLockHotkeyKeyDown(object sender, KeyEventArgs e) =>
+        CaptureHotkey(e, (settings, modifiers, key) => settings.TryCaptureMouseLockHotkey(modifiers, key));
+
+    private void CaptureHotkey(KeyEventArgs e, Func<SettingsViewModel, HotkeyModifiers, int, bool> accept)
     {
         if (DataContext is not SettingsViewModel settings)
         {
@@ -128,7 +134,7 @@ public partial class SettingsPage : UserControl
             return; // a modifier on its own is not a shortcut yet
         }
 
-        if (settings.TryCaptureHotkey(modifiers, KeyInterop.VirtualKeyFromKey(key)))
+        if (accept(settings, modifiers, KeyInterop.VirtualKeyFromKey(key)))
         {
             Keyboard.ClearFocus();
         }

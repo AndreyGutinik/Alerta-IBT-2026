@@ -26,7 +26,7 @@ public sealed class TrayServiceTests
     }
 
     [Fact]
-    public void The_menu_has_Abrir_Pausar_and_Sair_in_that_order_and_each_raises_its_event()
+    public void The_menu_has_Abrir_Pausar_the_mouse_lock_and_Sair_in_that_order_and_each_raises_its_event()
     {
         WpfTestHost.Run(() =>
         {
@@ -34,17 +34,68 @@ public sealed class TrayServiceTests
             var events = new List<string>();
             tray.MainWindowRequested += () => events.Add("open");
             tray.PauseToggleRequested += () => events.Add("pause");
+            tray.MouseLockToggleRequested += () => events.Add("mouse");
             tray.ExitRequested += () => events.Add("exit");
 
             var items = tray.Menu.Items.OfType<MenuItem>().ToList();
-            Assert.Equal(["Abrir", "Pausar", "Sair"], items.Select(i => (string)i.Header));
+            Assert.Equal(["Abrir", "Pausar", "Travar o mouse na tela principal", "Sair"], items.Select(i => (string)i.Header));
 
             foreach (var item in items)
             {
                 item.RaiseEvent(new System.Windows.RoutedEventArgs(MenuItem.ClickEvent));
             }
 
-            Assert.Equal(["open", "pause", "exit"], events);
+            Assert.Equal(["open", "pause", "mouse", "exit"], events);
+        });
+    }
+
+    [Fact]
+    public void The_mouse_lock_item_is_a_check_item_that_follows_the_lock_and_never_lies_when_the_lock_is_refused()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var tray = new TrayService();
+            var item = tray.MouseLockItem;
+            Assert.True(item.IsCheckable);
+            Assert.False(item.IsChecked);
+
+            tray.SetMouseLocked(true);
+            Assert.True(item.IsChecked);
+            Assert.True(tray.IsMouseLocked);
+
+            // The user clicks: WPF flips the check itself, the shell answers with the real state (here: nothing changed).
+            item.IsChecked = false;
+            item.RaiseEvent(new System.Windows.RoutedEventArgs(MenuItem.ClickEvent));
+            Assert.True(item.IsChecked);
+
+            tray.SetMouseLocked(false);
+            item.IsChecked = true; // the click flipped it on, but the shell could not lock
+            item.RaiseEvent(new System.Windows.RoutedEventArgs(MenuItem.ClickEvent));
+            Assert.False(item.IsChecked);
+        });
+    }
+
+    [Fact]
+    public void The_tooltip_adds_mouse_travado_only_while_the_lock_is_on()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var tray = new TrayService();
+            Assert.Equal("Alerta-IBT", tray.ToolTip);
+
+            tray.SetMouseLocked(true);
+            Assert.Equal("Alerta-IBT - mouse travado", tray.ToolTip);
+
+            tray.SetPaused(true);
+            Assert.Equal("Alerta-IBT - pausado - mouse travado", tray.ToolTip);
+
+            tray.SetHotkeyWarning("Atalho em uso");
+            Assert.Equal("Alerta-IBT - pausado - mouse travado\nAtalho em uso", tray.ToolTip);
+
+            tray.SetHotkeyWarning(null);
+            tray.SetPaused(false);
+            tray.SetMouseLocked(false);
+            Assert.Equal("Alerta-IBT", tray.ToolTip);
         });
     }
 

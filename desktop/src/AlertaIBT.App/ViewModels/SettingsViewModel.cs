@@ -42,6 +42,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _quiet;
     private bool _disposed;
     private bool _isTop;
+    private HotkeyGesture? _panelGesture;
+    private HotkeyGesture? _mouseLockGesture;
 
     [ObservableProperty]
     private BarSettings _previewBar;
@@ -72,6 +74,21 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string? _hotkeyProblem;
+
+    [ObservableProperty]
+    private bool _mouseLockEnabled;
+
+    [ObservableProperty]
+    private bool _tripleCtrl;
+
+    [ObservableProperty]
+    private string _mouseLockHotkeyDisplay = string.Empty;
+
+    [ObservableProperty]
+    private string? _mouseLockHotkeyHint;
+
+    [ObservableProperty]
+    private string? _mouseLockHotkeyProblem;
 
     [ObservableProperty]
     private string _barTestMessage = string.Empty;
@@ -203,6 +220,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _previewBar = _bar;
         LoadFrom(_settings.Current);
         _hub.PropertyChanged += OnHubChanged;
+        _settings.Changed += OnSettingsChanged;
         RefreshSite();
         if (_updates is not null)
         {
@@ -317,6 +335,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>Whether the shortcut problem (another program owns it) is shown.</summary>
     public bool HasHotkeyProblem => HotkeyProblem is not null;
 
+    /// <summary>Whether the mouse-lock shortcut hint is shown.</summary>
+    public bool HasMouseLockHotkeyHint => MouseLockHotkeyHint is not null;
+
+    /// <summary>Whether the mouse-lock shortcut problem (another program owns it) is shown.</summary>
+    public bool HasMouseLockHotkeyProblem => MouseLockHotkeyProblem is not null;
+
     /// <summary>Whether the message about the bar test is shown.</summary>
     public bool HasBarTestMessage => BarTestMessage.Length > 0;
 
@@ -348,11 +372,55 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return false;
         }
 
+        if (gesture == _mouseLockGesture)
+        {
+            HotkeyHint = "Esse atalho já trava o mouse. Escolha outro.";
+            return false;
+        }
+
         HotkeyHint = null;
         HotkeyDisplay = QuickPanelHotkey.Describe(gesture);
+        _panelGesture = gesture;
         var text = gesture.ToString();
         _saver.Queue("system.hotkey", s => s with { System = s.System with { Hotkey = text } });
         return true;
+    }
+
+    /// <summary>
+    /// Takes the shortcut pressed in the mouse-lock shortcut box, with the same rules as <see cref="TryCaptureHotkey"/> (and it cannot be
+    /// the panel's shortcut). The shell applies a saved shortcut by itself.
+    /// </summary>
+    /// <returns>Whether the shortcut was accepted.</returns>
+    public bool TryCaptureMouseLockHotkey(HotkeyModifiers modifiers, int virtualKey)
+    {
+        if (!HotkeyGesture.TryCreate(modifiers, virtualKey, out var gesture))
+        {
+            MouseLockHotkeyHint = HotkeyPolicy.Hint(HotkeyGesture.Validate(modifiers, virtualKey));
+            return false;
+        }
+
+        if (gesture == _panelGesture)
+        {
+            MouseLockHotkeyHint = "Esse atalho já abre o painel rápido. Escolha outro.";
+            return false;
+        }
+
+        MouseLockHotkeyHint = null;
+        MouseLockHotkeyDisplay = QuickPanelHotkey.Describe(gesture);
+        _mouseLockGesture = gesture;
+        var text = gesture.ToString();
+        _saver.Queue("mouseLock.hotkey", s => s with { MouseLock = s.MouseLock with { Hotkey = text } });
+        return true;
+    }
+
+    /// <summary>Tells the tab whether the mouse-lock shortcut works; shows why it does not.</summary>
+    public void ApplyMouseLockHotkey(HotkeyStatus status)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+
+        MouseLockHotkeyProblem = status.Registered
+            ? null
+            : status.Short is { Length: > 0 } reason ? $"{reason}. Escolha outro no campo acima." : status.Message;
     }
 
     /// <summary>Tells the tab whether the global shortcut works; shows why it does not.</summary>
@@ -375,6 +443,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         _disposed = true;
+        _settings.Changed -= OnSettingsChanged;
         _hub.PropertyChanged -= OnHubChanged;
         if (_updates is not null)
         {
@@ -392,6 +461,28 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             _saver.Queue("system.autoUpdate", s => s with { System = s.System with { AutoUpdate = value } });
         }
     }
+
+    // "Travar o mouse na tela principal": the switch takes effect at once (saved now, the shell follows the setting), so no 600 ms wait.
+    partial void OnMouseLockEnabledChanged(bool value)
+    {
+        if (!_quiet)
+        {
+            _saver.Queue("mouseLock.enabled", s => s with { MouseLock = s.MouseLock with { Enabled = value } });
+            _saver.FlushNow();
+        }
+    }
+
+    partial void OnTripleCtrlChanged(bool value)
+    {
+        if (!_quiet)
+        {
+            _saver.Queue("mouseLock.tripleCtrl", s => s with { MouseLock = s.MouseLock with { TripleCtrl = value } });
+        }
+    }
+
+    partial void OnMouseLockHotkeyHintChanged(string? value) => OnPropertyChanged(nameof(HasMouseLockHotkeyHint));
+
+    partial void OnMouseLockHotkeyProblemChanged(string? value) => OnPropertyChanged(nameof(HasMouseLockHotkeyProblem));
 
     partial void OnIsCheckingUpdateChanged(bool value) => CheckUpdateCommand.NotifyCanExecuteChanged();
 
@@ -530,7 +621,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             var hotkeyText = settings.System.Hotkey;
 
             // A value that cannot be used is replaced by the default when the shell applies it (and saved back): show that one.
-            HotkeyDisplay = QuickPanelHotkey.Describe(QuickPanelHotkey.Parse(hotkeyText));
+            _panelGesture = QuickPanelHotkey.Parse(hotkeyText);
+            HotkeyDisplay = QuickPanelHotkey.Describe(_panelGesture);
+            MouseLockEnabled = settings.MouseLock.Enabled;
+            TripleCtrl = settings.MouseLock.TripleCtrl;
+            _mouseLockGesture = QuickPanelHotkey.Parse(settings.MouseLock.Hotkey, MouseLockSettings.DefaultHotkey);
+            MouseLockHotkeyDisplay = QuickPanelHotkey.Describe(_mouseLockGesture);
         }
         finally
         {
@@ -603,6 +699,27 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     private void OnUpdateStateChanged(UpdateState state) => _post(RefreshUpdate);
+
+    // The lock was also toggled by the shortcut or the tray item: the switch follows (without saving it again).
+    private void OnSettingsChanged(AppSettings settings) => _post(RefreshMouseLock);
+
+    private void RefreshMouseLock()
+    {
+        if (_disposed || MouseLockEnabled == _settings.Current.MouseLock.Enabled)
+        {
+            return;
+        }
+
+        _quiet = true;
+        try
+        {
+            MouseLockEnabled = _settings.Current.MouseLock.Enabled;
+        }
+        finally
+        {
+            _quiet = false;
+        }
+    }
 
     private void RefreshUpdate()
     {
