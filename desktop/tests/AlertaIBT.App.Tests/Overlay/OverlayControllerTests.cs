@@ -90,6 +90,66 @@ public sealed class OverlayControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task The_pass_reports_its_real_start_and_the_timeline_total_and_clears_when_it_ends_or_is_cut_short()
+    {
+        var changes = 0;
+        _controller.PassChanged += () => changes++;
+        Assert.Null(_controller.Pass);
+
+        var started = _clock.GetUtcNow().ToUnixTimeMilliseconds();
+        var task = _controller.ShowAsync("CRETA PRETO | PLACA: GBR-9003", CancellationToken.None);
+        var pass = _controller.Pass;
+        Assert.NotNull(pass);
+        Assert.Equal("CRETA PRETO | PLACA: GBR-9003", pass.Text);
+        Assert.Equal(started, pass.StartedAtMs);
+        Assert.Equal((long)Math.Round(Total.TotalMilliseconds), pass.DurationMs);
+        Assert.Equal(1, changes);
+
+        _frames.Push(TimeSpan.FromSeconds(1000));
+        _frames.Push(TimeSpan.FromSeconds(1000) + Total + TimeSpan.FromMilliseconds(16));
+        Assert.True(await task.WaitAsync(Wait, TestContext.Current.CancellationToken));
+        Assert.Null(_controller.Pass);
+        Assert.Equal(2, changes);
+
+        // Cut short (the LED vanishes): cleared as well, and the next pass starts a new one.
+        _clock.Advance(TimeSpan.FromSeconds(30));
+        var again = _controller.ShowAsync("CRETA PRETO | PLACA: GBR-9003", CancellationToken.None);
+        Assert.Equal(started + 30_000, _controller.Pass!.StartedAtMs);
+        _led.Raise(null);
+        _ui.Drain();
+        Assert.False(await again.WaitAsync(Wait, TestContext.Current.CancellationToken));
+        Assert.Null(_controller.Pass);
+    }
+
+    [Fact]
+    public void The_pass_clock_follows_the_speed_of_the_settings_of_each_alert()
+    {
+        _ = _controller.ShowAsync("A", CancellationToken.None);
+        var slow = _controller.Pass!.DurationMs;
+        _controller.Dispose();
+
+        _settings.Update(s => s with { Bar = s.Bar with { Speed = 200 } });
+        using var second = new OverlayController(_settings, _led, NewSurface, _frames, _ui, NullLogger<OverlayController>.Instance, _clock);
+        _ = second.ShowAsync("A", CancellationToken.None);
+
+        Assert.Equal((long)Math.Round(new BarTimeline(2560, 1000, 200, TimeSpan.FromMilliseconds(320)).Total.TotalMilliseconds), second.Pass!.DurationMs);
+        Assert.True(second.Pass.DurationMs < slow);
+    }
+
+    [Fact]
+    public void The_three_second_test_of_the_bar_is_not_a_pass_for_the_site()
+    {
+        var changes = 0;
+        _controller.PassChanged += () => changes++;
+
+        _ = _controller.PreviewAsync();
+
+        Assert.True(_controller.IsShowing);
+        Assert.Null(_controller.Pass);
+        Assert.Equal(0, changes);
+    }
+
+    [Fact]
     public void The_three_second_test_of_the_bar_does_not_report_progress()
     {
         _ = _controller.PreviewAsync();

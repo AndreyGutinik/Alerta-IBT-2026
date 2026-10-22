@@ -24,6 +24,22 @@ public interface IAlertDisplay
     Task<bool> ShowAsync(string text, CancellationToken ct);
 }
 
+/// <summary>The one pass of an alert on the bar, as it really is: the text, when it began and how long it lasts.</summary>
+/// <param name="Text">The text on the bar (the one given to <see cref="IAlertDisplay.ShowAsync"/>), to tell which queue item it is.</param>
+/// <param name="StartedAtMs">When the pass began, in milliseconds since 1970 (UTC), on the clock of this computer.</param>
+/// <param name="DurationMs">The whole pass in milliseconds: slide in, scroll (real text width and speed), slide out (<c>BarTimeline.Total</c>).</param>
+public sealed record PassTiming(string Text, long StartedAtMs, long DurationMs);
+
+/// <summary>Tells what the bar is doing right now, for the site to publish the real length of the pass.</summary>
+public interface IPassClock
+{
+    /// <summary>The alert on the bar now; <c>null</c> when none (between alerts, paused, the LED gone, the 3 s test). Any thread.</summary>
+    PassTiming? Current { get; }
+
+    /// <summary>Raised when <see cref="Current"/> changes (a pass begins, restarts or ends); on any thread. A handler must not throw.</summary>
+    event Action? Changed;
+}
+
 /// <summary>Writes to the Telegram group. It never blocks and never throws: a message that cannot be sent is only logged.</summary>
 public interface IGroupNotifier
 {

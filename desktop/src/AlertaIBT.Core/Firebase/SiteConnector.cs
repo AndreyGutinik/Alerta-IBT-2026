@@ -154,6 +154,8 @@ public sealed class SiteConnector : IDisposable
             {
                 if (wanted is not null && Same(wanted, _running) && _engine is not null)
                 {
+                    // Nothing about the connection changed, but another setting may have (the bar): the site is told again.
+                    _engine.SettingsChanged();
                     continue;
                 }
 

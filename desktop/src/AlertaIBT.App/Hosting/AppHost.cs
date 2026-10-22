@@ -364,6 +364,7 @@ public static class AppHost
 
         services.AddSingleton<OverlayDisplay>();
         services.AddSingleton<IAlertDisplay>(provider => provider.GetRequiredService<OverlayDisplay>());
+        services.AddSingleton<IPassClock>(provider => provider.GetRequiredService<OverlayDisplay>());
         services.AddSingleton(provider => new AlertService(
             provider.GetRequiredService<AlertQueue>(),
             provider.GetRequiredService<CorrectionPipeline>(),
@@ -399,7 +400,8 @@ public static class AppHost
                     () => provider.GetRequiredService<SettingsService>().Current,
                     version,
                     provider.GetRequiredService<ILogger<SiteEngine>>(),
-                    ownsHttp: true),
+                    ownsHttp: true,
+                    passClock: provider.GetRequiredService<IPassClock>()),
                 provider.GetRequiredService<StatusHub>(),
                 provider.GetRequiredService<ISecretProtector>(),
                 provider.GetRequiredService<ILogger<SiteConnector>>());

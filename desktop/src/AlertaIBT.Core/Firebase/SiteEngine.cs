@@ -45,6 +45,11 @@ public interface ISiteEngine
 
     /// <summary>Stops everything and waits a little for it. Never throws.</summary>
     Task StopAsync();
+
+    /// <summary>The settings changed (the bar, for one): the site is told again, soon. Does nothing by default.</summary>
+    void SettingsChanged()
+    {
+    }
 }
 
 /// <summary>
@@ -102,6 +107,7 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
     private readonly TimeProvider _clock;
     private readonly ILogger _logger;
     private readonly TimeSpan _syncDebounce;
+    private readonly IPassClock? _passClock;
     private readonly PerPersonLimiter _limiter = new(MaxPerHour, LimiterWindow);
 
     private readonly Channel<string?> _work = Channel.CreateUnbounded<string?>(new UnboundedChannelOptions { SingleReader = true });
@@ -140,6 +146,7 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
     /// <param name="clock">The source of time.</param>
     /// <param name="ownsHttp">Whether to dispose <paramref name="http"/> with the engine.</param>
     /// <param name="syncDebounce">How long changes are gathered before they are written; <see cref="SyncDebounce"/> by default.</param>
+    /// <param name="passClock">The real start and length of the pass on the bar, published as <c>now.startedAt</c> and <c>now.durationMs</c>; without it <c>startedAt</c> is when the item became current and there is no <c>durationMs</c>.</param>
     public SiteEngine(
         SiteConfig config,
         HttpClient http,
@@ -150,7 +157,8 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
         ILogger logger,
         TimeProvider? clock = null,
         bool ownsHttp = false,
-        TimeSpan? syncDebounce = null)
+        TimeSpan? syncDebounce = null,
+        IPassClock? passClock = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(http);
@@ -169,6 +177,7 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
         _logger = logger;
         _clock = clock ?? TimeProvider.System;
         _syncDebounce = syncDebounce ?? SyncDebounce;
+        _passClock = passClock;
     }
 
     /// <inheritdoc />
@@ -374,6 +383,11 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
         _listener.Changed += OnRequestsChanged;
         _alerts.Queue.Changed += OnQueueChanged;
         _hub.PropertyChanged += OnHubChanged;
+        if (_passClock is not null)
+        {
+            _passClock.Changed += SignalSync;
+        }
+
         try
         {
             // Publishes /live first of all: it clears whatever the last session left in "now".
@@ -390,6 +404,11 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
             _listener.Changed -= OnRequestsChanged;
             _alerts.Queue.Changed -= OnQueueChanged;
             _hub.PropertyChanged -= OnHubChanged;
+            if (_passClock is not null)
+            {
+                _passClock.Changed -= SignalSync;
+            }
+
             DisarmOffline();
         }
     }
@@ -840,6 +859,9 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
 
     private void SignalSync() => _sync.Writer.TryWrite(true);
 
+    /// <inheritdoc />
+    public void SettingsChanged() => SignalSync();
+
     private async Task SyncLoopAsync(CancellationToken ct)
     {
         try
@@ -983,6 +1005,11 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
             _nowStartedAt = now;
         }
 
+        // The real pass on the bar, when it is the one of the current item (same text): the real start and length.
+        var timing = current is not null && _passClock?.Current is { } pass && string.Equals(pass.Text, current.Text, StringComparison.Ordinal)
+            ? pass
+            : null;
+
         var bar = _settings().Bar;
         var barJson = new JsonObject { ["position"] = bar.Position, ["height"] = bar.Height, ["speed"] = bar.Speed };
         if (bar.FontSize is { } fontSize)
@@ -1043,8 +1070,13 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
                 ["id"] = current.Id,
                 ["text"] = Clip(current.Text),
                 ["source"] = SourceName(current.Source),
-                ["startedAt"] = _nowStartedAt,
+                ["startedAt"] = timing?.StartedAtMs ?? _nowStartedAt,
             };
+            if (timing is not null)
+            {
+                nowJson["durationMs"] = timing.DurationMs;
+            }
+
             if (current.Plate is not null)
             {
                 nowJson["plate"] = current.Plate;

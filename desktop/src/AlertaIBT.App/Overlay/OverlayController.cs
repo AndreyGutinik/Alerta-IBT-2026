@@ -1,5 +1,6 @@
 using AlertaIBT.Core.Overlay;
 using AlertaIBT.Core.Screens;
+using AlertaIBT.Core.Services;
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
 
@@ -29,6 +30,7 @@ public sealed class OverlayController : IDisposable
     private IBarSurface? _surface;
     private Run? _run;
     private volatile bool _captureExcluded;
+    private volatile PassTiming? _pass;
     private bool _disposed;
 
     /// <param name="settings">Where the bar settings are read, once per alert.</param>
@@ -83,6 +85,15 @@ public sealed class OverlayController : IDisposable
     /// quick panel; <c>null</c> when no alert is on the bar (the 3 s test does not count). Read it on the UI thread.
     /// </summary>
     public double? PassProgress => _run is { IsPreview: false, Progress: var progress } ? progress : null;
+
+    /// <summary>
+    /// The alert on the bar now with its real numbers (text, start in UTC ms, <see cref="BarTimeline.Total"/> in ms); <c>null</c> when
+    /// none. The 3 s test is not an alert and never shows here. Any thread.
+    /// </summary>
+    public PassTiming? Pass => _pass;
+
+    /// <summary>Raised when <see cref="Pass"/> changes (an alert begins on the bar, or its pass ends for any reason). On the UI thread.</summary>
+    public event Action? PassChanged;
 
     /// <summary>Creates the window now (hidden), so the capture-exclusion state is known before the first alert. Call on the UI thread.</summary>
     public void Start()
@@ -203,6 +214,11 @@ public sealed class OverlayController : IDisposable
             ? ct.Register(() => _ui.Post(() => Complete(run, false, "cancelado")))
             : default;
 
+        if (!preview)
+        {
+            SetPass(new PassTiming(text, _clock.GetUtcNow().ToUnixTimeMilliseconds(), (long)Math.Round(timeline.Total.TotalMilliseconds)));
+        }
+
         _frames.Start();
         return await run.Done.Task;
     }
@@ -264,6 +280,11 @@ public sealed class OverlayController : IDisposable
         if (ReferenceEquals(_run, run))
         {
             _run = null;
+            if (!run.IsPreview)
+            {
+                SetPass(null);
+            }
+
             _frames.Stop();
             try
             {
@@ -276,6 +297,19 @@ public sealed class OverlayController : IDisposable
         }
 
         run.Done.TrySetResult(passed);
+    }
+
+    private void SetPass(PassTiming? pass)
+    {
+        _pass = pass;
+        try
+        {
+            PassChanged?.Invoke();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger.LogError(ex, "Erro ao avisar a mudanca da passagem da barra");
+        }
     }
 
     private IBarSurface EnsureSurface()

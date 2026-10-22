@@ -110,6 +110,20 @@ public sealed class SiteConnectorTests : IDisposable
         Assert.False(Engines[0].Stopped);
     }
 
+    [Fact]
+    public async Task Settings_that_leave_the_connection_alone_tell_the_running_engine_so_the_site_gets_the_new_bar()
+    {
+        _connector.Apply(Settings());
+        await _connector.SettledAsync();
+        var before = Engines[0].SettingsChangedCalls;
+
+        _connector.Apply(Settings() with { Bar = new BarSettings { Speed = 200 } });
+        await _connector.SettledAsync();
+
+        Assert.Single(Engines);
+        Assert.True(Engines[0].SettingsChangedCalls > before);
+    }
+
     [Theory]
     [InlineData("password")]
     [InlineData("email")]
@@ -226,7 +240,14 @@ public sealed class SiteConnectorTests : IDisposable
 
         public event Action<SiteState, string?>? StateChanged;
 
+        public int SettingsChangedCalls => Volatile.Read(ref _settingsChangedCalls);
+
+        private int _settingsChangedCalls;
+
         public void Start() => Started = true;
+
+        public void SettingsChanged() => Interlocked.Increment(ref _settingsChangedCalls);
+
 
         public Task StopAsync()
         {

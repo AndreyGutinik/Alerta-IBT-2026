@@ -21,7 +21,7 @@ internal sealed class SiteRig : IAsyncDisposable
     private readonly object _gate = new();
     private readonly List<(SiteState State, string? Detail)> _states = [];
 
-    public SiteRig(bool ledOn = true, string? password = null, TimeSpan? debounce = null)
+    public SiteRig(bool ledOn = true, string? password = null, TimeSpan? debounce = null, IPassClock? passClock = null)
     {
         H = new ServiceHarness(start: false);
         if (!ledOn)
@@ -43,7 +43,8 @@ internal sealed class SiteRig : IAsyncDisposable
             "8.0.0-test",
             Log,
             H.Clock,
-            syncDebounce: debounce ?? TimeSpan.Zero);
+            syncDebounce: debounce ?? TimeSpan.Zero,
+            passClock: passClock);
         Engine.StateChanged += (state, detail) =>
         {
             lock (_gate)
