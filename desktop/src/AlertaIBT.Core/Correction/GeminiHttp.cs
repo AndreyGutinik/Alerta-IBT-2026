@@ -11,7 +11,7 @@ public static class GeminiHttp
     /// The timeout of the client itself: longer than <see cref="CorrectionPipeline.DefaultGeminiTimeout"/>, so the pipeline
     /// is the one that gives up first and the offline corrector takes over.
     /// </summary>
-    public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
+    public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(15);
 
     /// <summary>A pooled connection is replaced after this long, so a changed address is noticed.</summary>
     public static readonly TimeSpan ConnectionLifetime = TimeSpan.FromMinutes(5);

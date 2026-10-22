@@ -32,7 +32,7 @@ public class GeminiTimeoutTests
     [Fact]
     public void The_limit_used_by_the_app_is_five_seconds()
     {
-        Assert.Equal(TimeSpan.FromSeconds(5), CorrectionPipeline.DefaultGeminiTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(8), CorrectionPipeline.DefaultGeminiTimeout);
     }
 
     [Fact]

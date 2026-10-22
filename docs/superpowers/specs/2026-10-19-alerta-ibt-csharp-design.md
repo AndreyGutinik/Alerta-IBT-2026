@@ -182,7 +182,7 @@ A prévia que vem do celular é só uma sugestão: como qualquer conta Google en
 - Site/APK: Firebase AI Logic (Gemini Developer API) com App Check; prévia com espera de ~700 ms depois que a pessoa para de digitar.
 - Pedido em JSON com schema: o modelo corrige ortografia, acentos e concordância, extrai `modelo/cor/placa/motivo`, diz se é aviso livre e **não inventa nada**.
 - **Trava de segurança:** se a placa da IA não bater com a placa achada no texto original (após normalizar), ou se o JSON vier inválido, ou se o texto da IA trouxer palavras que não existem no original além de correções, usa o resultado offline.
-- Tempo máximo 5 s (o primeiro pedido depois de uns minutos parado demora mais; a conexão fica aquecida, sem pedidos extras, e o cliente HTTP espera 10 s); erro, cota estourada, sem chave ou sem internet → corretor offline, e a bolinha do Gemini fica **azul "Offline"**.
+- Tempo máximo 8 s (antes 5 s: o primeiro pedido depois de horas parado passou de 5 s no teste real) (o primeiro pedido depois de uns minutos parado demora mais; a conexão fica aquecida, sem pedidos extras, e o cliente HTTP espera 10 s); erro, cota estourada, sem chave ou sem internet → corretor offline, e a bolinha do Gemini fica **azul "Offline"**.
 - No plano grátis, o Google pode usar os textos para melhorar os produtos dele (aceito pelo dono). Os textos são só carro, cor, placa e motivo.
 
 **Offline (PC):** dicionário pt-BR (Hunspell) + lista do domínio (modelos de carro, cores, motivos comuns) + **regras fixas** do usuário (`texto errado => texto certo`, aplicadas por último e também quando o Gemini está ativo). Nunca mexe na placa. Só troca uma palavra quando a sugestão é segura (fora da lista do domínio, distância pequena).

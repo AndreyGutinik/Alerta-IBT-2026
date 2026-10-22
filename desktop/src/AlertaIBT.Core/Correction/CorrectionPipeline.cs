@@ -29,7 +29,7 @@ public sealed partial class CorrectionPipeline
     /// How long Gemini may take in the app before the offline corrector takes over: 5 seconds (3 was too short for the first
     /// call after a quiet spell). <see cref="GeminiHttp.RequestTimeout"/> stays above it.
     /// </summary>
-    public static readonly TimeSpan DefaultGeminiTimeout = TimeSpan.FromSeconds(5);
+    public static readonly TimeSpan DefaultGeminiTimeout = TimeSpan.FromSeconds(8);
 
     private const int CacheCapacity = 50;
 

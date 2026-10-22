@@ -19,6 +19,6 @@ public class GeminiHttpTests
     {
         using var client = GeminiHttp.CreateClient();
 
-        Assert.Equal(TimeSpan.FromSeconds(10), client.Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(15), client.Timeout);
     }
 }
