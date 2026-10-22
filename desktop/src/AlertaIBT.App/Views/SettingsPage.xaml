@@ -649,6 +649,59 @@
                                         Text="{Binding SiteText}" />
                                 </StackPanel>
                             </Grid>
+
+                            <!-- The automatic update: the switch, the version with "Verificar agora", and how the last look ended. -->
+                            <Grid Margin="0,12,0,0">
+                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontSize="12.5"
+                                        Text="Atualizar automaticamente ao abrir" />
+                                    <Border
+                                        AutomationProperties.Name="Dicas"
+                                        Style="{StaticResource SectionInfo}"
+                                        ToolTip="Procura uma versão nova ao abrir o app e a cada 30 minutos.&#10;Se achar, baixa e instala sozinho, reiniciando, mas só quando não há aviso na fila nem na barra e a pregação não está pausada.">
+                                        <Path
+                                            Width="15"
+                                            Height="15"
+                                            Data="{StaticResource LucideInfo}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Border>
+                                </StackPanel>
+                                <ToggleButton
+                                    x:Name="AutoUpdateSwitch"
+                                    HorizontalAlignment="Right"
+                                    AutomationProperties.Name="Atualizar automaticamente ao abrir"
+                                    IsChecked="{Binding AutoUpdate, Mode=TwoWay}"
+                                    Style="{StaticResource IbtSwitch}" />
+                            </Grid>
+                            <Grid Margin="0,12,0,0">
+                                <TextBlock
+                                    x:Name="VersionLine"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    FontSize="12.5"
+                                    Text="{Binding VersionText}" />
+                                <Button
+                                    x:Name="CheckUpdateButton"
+                                    HorizontalAlignment="Right"
+                                    AutomationProperties.Name="Verificar agora"
+                                    Command="{Binding CheckUpdateCommand}"
+                                    Style="{StaticResource IbtButton}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path
+                                            Width="15"
+                                            Height="15"
+                                            Data="{StaticResource LucideRotateCcw}"
+                                            Style="{StaticResource LucideIcon}" />
+                                        <TextBlock Margin="6,0,0,0" Text="Verificar agora" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                            <TextBlock
+                                x:Name="UpdateResultLine"
+                                Style="{StaticResource IbtHint}"
+                                Text="{Binding UpdateResultText}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

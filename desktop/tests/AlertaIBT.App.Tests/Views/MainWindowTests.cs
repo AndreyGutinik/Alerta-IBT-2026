@@ -48,8 +48,9 @@ public sealed class MainWindowTests
             var home = new HomeViewModel(Gateway, composer, clock: Settings.Clock);
             var correction = new CorrectionViewModel(Settings.Settings, Settings.Protector, Hub, Settings.Saver);
             Diagnostics = new DiagnosticsViewModel(new LogFiles(Logs), text => Copied.Add(text), () => null);
-            var settings = new SettingsViewModel(Settings.Settings, Settings.Protector, Hub, Settings.Saver, Diagnostics, () => Task.CompletedTask);
-            ViewModel = new MainViewModel(Hub, home, correction, settings, Settings.Saver);
+            Updates = new FakeUpdateStatus();
+            var settings = new SettingsViewModel(Settings.Settings, Settings.Protector, Hub, Settings.Saver, Diagnostics, () => Task.CompletedTask, updates: Updates);
+            ViewModel = new MainViewModel(Hub, home, correction, settings, Settings.Saver, updates: Updates);
             Window = new MainWindow(ViewModel, policy);
             Root = (FrameworkElement)Window.Content;
             s_root = Root;
@@ -67,6 +68,8 @@ public sealed class MainWindowTests
         public List<string> Copied { get; } = [];
 
         public DiagnosticsViewModel Diagnostics { get; }
+
+        public FakeUpdateStatus Updates { get; }
 
         public MainViewModel ViewModel { get; }
 
@@ -522,6 +525,98 @@ public sealed class MainWindowTests
             rig.Select(MainTab.Settings);
 
             Assert.False(rig.Window.Settings.ClearHistorySwitch.IsChecked);
+        });
+    }
+
+    [Fact]
+    public void The_sistema_card_has_the_update_block_with_the_switch_on_the_version_and_the_button()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Select(MainTab.Settings);
+            var page = rig.Window.Settings;
+
+            Assert.Contains("Atualizar automaticamente ao abrir", rig.AllTexts());
+            Assert.Contains("Vers\U000000E3o 8.0.1-pre.1", rig.AllTexts());
+            Assert.Contains("Verificar agora", rig.AllTexts());
+            Assert.True(Shown(page.AutoUpdateSwitch));
+            Assert.True(page.AutoUpdateSwitch.IsChecked);
+            Assert.Equal("Atualizar automaticamente ao abrir", AutomationProperties.GetName(page.AutoUpdateSwitch));
+            Assert.Equal("Verificar agora", AutomationProperties.GetName(page.CheckUpdateButton));
+
+            // Below the shortcut, the Monday switch and the site line; the version on the left with the button on its right; the result under both.
+            Assert.True(rig.BoundsOf(page.AutoUpdateSwitch).Top > rig.BoundsOf(page.ClearHistorySwitch).Bottom);
+            Assert.True(rig.BoundsOf(page.VersionLine).Top > rig.BoundsOf(page.AutoUpdateSwitch).Bottom);
+            Assert.True(rig.BoundsOf(page.CheckUpdateButton).Left > rig.BoundsOf(page.VersionLine).Right);
+            Assert.True(rig.BoundsOf(page.UpdateResultLine).Top >= rig.BoundsOf(page.CheckUpdateButton).Bottom);
+            Assert.Equal("Ainda n\U000000E3o verificado", page.UpdateResultLine.Text);
+        });
+    }
+
+    [Fact]
+    public void The_update_switch_saves_and_Verificar_agora_asks_the_service_and_the_result_line_follows()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Select(MainTab.Settings);
+            var page = rig.Window.Settings;
+
+            page.AutoUpdateSwitch.IsChecked = false;
+            rig.Layout();
+            rig.Settings.Rest();
+            Assert.False(rig.Settings.OnDisk().System.AutoUpdate);
+
+            Assert.True(page.CheckUpdateButton.Command.CanExecute(null));
+            page.CheckUpdateButton.Command.Execute(null);
+            Assert.Equal(1, rig.Updates.CheckNows);
+
+            rig.Updates.Set(new UpdateState(UpdatePhase.Idle, null, "Atualizado (8.0.1-pre.1) \U000000E0s 14:32"));
+            rig.Layout();
+            Assert.Equal("Atualizado (8.0.1-pre.1) \U000000E0s 14:32", page.UpdateResultLine.Text);
+            Assert.True(Shown(page.UpdateResultLine));
+        });
+    }
+
+    [Fact]
+    public void A_saved_off_update_switch_is_shown_off()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(new AppSettings { System = new SystemSettings { AutoUpdate = false } });
+            rig.Select(MainTab.Settings);
+
+            Assert.False(rig.Window.Settings.AutoUpdateSwitch.IsChecked);
+        });
+    }
+
+    [Fact]
+    public void The_update_line_shows_at_the_top_of_the_window_only_while_updating_and_pushes_nothing_when_hidden()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            var pageTop = rig.BoundsOf(rig.Window.Home).Top;
+            Assert.False(Shown(rig.Window.UpdateBanner));
+
+            rig.Updates.Set(new UpdateState(UpdatePhase.Downloading, "Baixando a atualiza\U000000E7\U000000E3o 8.0.1-pre.2\U00002026", "x"));
+            rig.Layout();
+
+            Assert.True(Shown(rig.Window.UpdateBanner));
+            Assert.Equal("Baixando a atualiza\U000000E7\U000000E3o 8.0.1-pre.2\U00002026", rig.Window.UpdateBannerText.Text);
+            Assert.True(rig.BoundsOf(rig.Window.UpdateBanner).Bottom <= rig.BoundsOf(rig.Window.Home).Top);
+            Assert.True(rig.BoundsOf(rig.Window.UpdateBanner).Width > 500);
+            Assert.True(rig.BoundsOf(rig.Window.UpdateBanner).Height < 40);
+
+            rig.Updates.Set(new UpdateState(UpdatePhase.Installing, "Instalando e reiniciando\U00002026", "x"));
+            rig.Layout();
+            Assert.Equal("Instalando e reiniciando\U00002026", rig.Window.UpdateBannerText.Text);
+
+            rig.Updates.Set(new UpdateState(UpdatePhase.Idle, null, "Atualizado"));
+            rig.Layout();
+            Assert.False(Shown(rig.Window.UpdateBanner));
+            Assert.Equal(pageTop, rig.BoundsOf(rig.Window.Home).Top);
         });
     }
 

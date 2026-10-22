@@ -113,6 +113,28 @@ public sealed class TrayServiceTests
     }
 
     [Fact]
+    public void The_tooltip_says_what_the_update_is_doing_and_goes_back_when_it_is_done()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var tray = new TrayService();
+
+            tray.SetUpdateNotice("Baixando a atualiza\U000000E7\U000000E3o 8.0.1-pre.2\U00002026");
+            Assert.Equal("Alerta-IBT\nBaixando a atualiza\U000000E7\U000000E3o 8.0.1-pre.2\U00002026", tray.ToolTip);
+
+            tray.SetPaused(true);
+            tray.SetHotkeyWarning("Atalho em uso");
+            tray.SetUpdateNotice("Instalando e reiniciando\U00002026");
+            Assert.Equal("Alerta-IBT - pausado\nAtalho em uso\nInstalando e reiniciando\U00002026", tray.ToolTip);
+
+            tray.SetUpdateNotice(null);
+            tray.SetHotkeyWarning(null);
+            tray.SetPaused(false);
+            Assert.Equal("Alerta-IBT", tray.ToolTip);
+        });
+    }
+
+    [Fact]
     public void The_menu_items_carry_lucide_icons()
     {
         WpfTestHost.Run(() =>

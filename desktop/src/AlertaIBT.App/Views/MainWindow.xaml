@@ -173,18 +173,50 @@
 
             <!-- The three tabs stay alive (their text, scroll and state survive a switch); only one is visible. -->
             <Grid Grid.Column="1">
-                <local:HomePage
-                    x:Name="HomePage"
-                    DataContext="{Binding Home}"
-                    Visibility="{Binding DataContext.IsHomeSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
-                <local:CorrectionPage
-                    x:Name="CorrectionPage"
-                    DataContext="{Binding Correction}"
-                    Visibility="{Binding DataContext.IsCorrectionSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
-                <local:SettingsPage
-                    x:Name="SettingsPage"
-                    DataContext="{Binding Settings}"
-                    Visibility="{Binding DataContext.IsSettingsSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- One line while an update downloads or installs ("Baixando a atualização 8.0.1…", "Instalando e reiniciando…"). -->
+                <Border
+                    x:Name="UpdateBanner"
+                    Padding="16,7"
+                    Background="{StaticResource IbtAccentSoftBrush}"
+                    BorderBrush="{StaticResource IbtLineBrush}"
+                    BorderThickness="0,0,0,1"
+                    Visibility="{Binding HasUpdateNotice, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path
+                            Width="14"
+                            Height="14"
+                            Data="{StaticResource LucideDownload}"
+                            Style="{StaticResource LucideIcon}"
+                            TextElement.Foreground="{StaticResource IbtOkBrush}" />
+                        <TextBlock
+                            x:Name="UpdateBannerText"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Foreground="{StaticResource IbtOkBrush}"
+                            Text="{Binding UpdateNotice}" />
+                    </StackPanel>
+                </Border>
+
+                <Grid Grid.Row="1">
+                    <local:HomePage
+                        x:Name="HomePage"
+                        DataContext="{Binding Home}"
+                        Visibility="{Binding DataContext.IsHomeSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
+                    <local:CorrectionPage
+                        x:Name="CorrectionPage"
+                        DataContext="{Binding Correction}"
+                        Visibility="{Binding DataContext.IsCorrectionSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
+                    <local:SettingsPage
+                        x:Name="SettingsPage"
+                        DataContext="{Binding Settings}"
+                        Visibility="{Binding DataContext.IsSettingsSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
+                </Grid>
             </Grid>
         </Grid>
     </Grid>
