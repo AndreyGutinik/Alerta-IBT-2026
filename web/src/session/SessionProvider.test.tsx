@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { FakeAuth, FakeBackend, liveState, TEST_USER, userRecord } from '../test/fakes'
 import { Root } from '../ui/Root'
 import { TUTORIAL_KEY } from '../ui/Tutorial'
+import { OWNER_EMAIL } from './owner'
 import { readCachedRecord } from './SessionProvider'
 
 beforeEach(() => localStorage.setItem(TUTORIAL_KEY, '1'))
@@ -77,5 +78,42 @@ describe('registro guardado no aparelho (abrir sem rede)', () => {
     expect(localStorage.getItem(KEY)).toBeNull()
     act(() => auth.emitUser(null))
     expect(screen.getByRole('button', { name: 'Entrar com Google' })).toBeInTheDocument()
+  })
+})
+
+describe('o mantenedor nunca vê a tela de bloqueado', () => {
+  const owner = { ...TEST_USER, email: OWNER_EMAIL }
+
+  it('registro com blocked true: o app abre normalmente (e-mail do login)', () => {
+    const backend = new FakeBackend()
+    backend.emitUser(userRecord({ email: 'outro@example.com', role: 'admin', blocked: true }))
+    backend.emitLive(liveState({}, backend.now))
+    mount(new FakeAuth(owner), backend)
+    expect(screen.queryByText('Seu acesso foi removido')).not.toBeInTheDocument()
+    expect(screen.getByRole('tablist')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Equipe' })).toBeInTheDocument()
+  })
+
+  it('vale também pelo e-mail do registro, em outra caixa, e pelo registro guardado sem rede', () => {
+    const backend = new FakeBackend()
+    backend.emitUser(userRecord({ email: OWNER_EMAIL.toUpperCase(), role: 'admin', blocked: true }))
+    backend.emitLive(liveState({}, backend.now))
+    mount(new FakeAuth(TEST_USER), backend)
+    expect(screen.queryByText('Seu acesso foi removido')).not.toBeInTheDocument()
+    expect(screen.getByRole('tablist')).toBeInTheDocument()
+  })
+
+  it('o guardado bloqueado do mantenedor não abre a tela de bloqueado', () => {
+    localStorage.setItem(KEY, JSON.stringify({ name: 'D', email: OWNER_EMAIL, role: 'admin', blocked: true }))
+    mount(new FakeAuth(TEST_USER), new FakeBackend())
+    expect(screen.queryByText('Seu acesso foi removido')).not.toBeInTheDocument()
+    expect(screen.getByRole('tablist')).toBeInTheDocument()
+  })
+
+  it('outra pessoa bloqueada continua vendo a tela de bloqueado', () => {
+    const backend = new FakeBackend()
+    backend.emitUser(userRecord({ blocked: true }))
+    mount(new FakeAuth(TEST_USER), backend)
+    expect(screen.getByText('Seu acesso foi removido')).toBeInTheDocument()
   })
 })

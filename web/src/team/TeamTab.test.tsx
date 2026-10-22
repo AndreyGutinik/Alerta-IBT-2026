@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { formatDayTime } from '../data/time'
 import { FakeBackend, TEST_USER, userRecord } from '../test/fakes'
 import { renderActive } from '../test/helpers'
-import { MSG_TEAM_FAILED, TeamTab } from './TeamTab'
+import { OWNER_EMAIL } from '../session/owner'
+import { MSG_OWNER, MSG_TEAM_FAILED, TeamTab } from './TeamTab'
 import type { Member } from './members'
 
 const DAY = 86_400_000
@@ -149,5 +150,43 @@ describe('TeamTab', () => {
     expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
     unmount()
     expect(backend.listenerCount).toBe(0)
+  })
+
+  describe('o mantenedor', () => {
+    const OWNER = member('dono', { name: 'Dono', email: OWNER_EMAIL, role: 'admin', lastSeenAt: backendNow - 2000 })
+
+    it('mostra o selo Mantenedor do app e nenhum botão de remover, rebaixar ou restaurar', () => {
+      setup([SELF, OWNER, ANA])
+      const li = row('Dono')
+      expect(within(li).getByText('Mantenedor do app')).toBeInTheDocument()
+      expect(within(li).queryByText('admin')).not.toBeInTheDocument()
+      for (const name of ['Remover', 'Restaurar', 'Tirar admin', 'Tornar admin']) {
+        expect(within(li).queryByRole('button', { name })).not.toBeInTheDocument()
+      }
+      // só o (i) da explicação, e a linha de uma pessoa comum segue com os botões
+      expect(within(li).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['Sobre o mantenedor'])
+      expect(within(row('Ana')).getByRole('button', { name: 'Remover' })).toBeInTheDocument()
+    })
+
+    it('o (i) explica que o mantenedor não pode ser removido nem deixar de ser administrador', async () => {
+      setup([SELF, OWNER])
+      await userEvent.click(within(row('Dono')).getByRole('button', { name: 'Sobre o mantenedor' }))
+      expect(screen.getByRole('note')).toHaveTextContent(MSG_OWNER)
+      expect(MSG_OWNER).toBe('Mantém o app. Não pode ser removido nem deixar de ser administrador.')
+    })
+
+    it('o selo vale pelo e-mail em outra caixa e mesmo com registro bloqueado ou member (sem selo de removido)', () => {
+      const odd = member('dono', { name: 'Dono', email: OWNER_EMAIL.toUpperCase(), role: 'member', blocked: true })
+      setup([SELF, odd])
+      const li = row('Dono')
+      expect(within(li).getByText('Mantenedor do app')).toBeInTheDocument()
+      expect(within(li).queryByText('removido')).not.toBeInTheDocument()
+      expect(within(li).queryByRole('button', { name: 'Restaurar' })).not.toBeInTheDocument()
+    })
+
+    it('Sair continua disponível', () => {
+      setup([SELF, OWNER])
+      expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
+    })
   })
 })

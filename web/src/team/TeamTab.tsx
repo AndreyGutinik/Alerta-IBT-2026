@@ -2,7 +2,9 @@ import { LogOut, ShieldCheck, ShieldOff, UserCheck, UserX } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { Role } from '../alerts/types'
 import { formatDayTime } from '../data/time'
+import { isOwnerEmail } from '../session/owner'
 import { useActiveSession } from '../session/SessionProvider'
+import { InfoPopover } from '../send/InfoPopover'
 import { useBackend, useServerNow } from '../state/AppData'
 import { initialOf } from '../ui/Avatar'
 import { Toast } from '../ui/Toast'
@@ -10,6 +12,7 @@ import { useToast } from '../ui/useToast'
 import { isNewMember, leavesAnotherAdmin, type Member, sortMembers } from './members'
 
 export const MSG_TEAM_FAILED = 'Não deu certo. Tente de novo.'
+export const MSG_OWNER = 'Mantém o app. Não pode ser removido nem deixar de ser administrador.'
 const MSG_LAST_ADMIN = 'É o único admin: não pode ser removido.'
 
 function count(n: number): string {
@@ -63,6 +66,7 @@ export function TeamTab() {
           <ul className="list">
             {members.map((m) => {
               const self = m.id === user.uid
+              const owner = isOwnerEmail(m.email)
               const admin = m.role === 'admin'
               const working = busy.has(m.id)
               // O único admin ativo não pode perder o cargo nem ser removido.
@@ -78,8 +82,17 @@ export function TeamTab() {
                       <div className="mem-name">
                         <span className="mem-n">{m.name}</span>
                         {self && <span className="bdg you">você</span>}
-                        {admin && <span className="bdg adm">admin</span>}
-                        {m.blocked && <span className="bdg off">removido</span>}
+                        {owner ? (
+                          <>
+                            <span className="bdg adm">Mantenedor do app</span>
+                            <InfoPopover lines={[MSG_OWNER]} label="Sobre o mantenedor" />
+                          </>
+                        ) : (
+                          <>
+                            {admin && <span className="bdg adm">admin</span>}
+                            {m.blocked && <span className="bdg off">removido</span>}
+                          </>
+                        )}
                         {isNewMember(m, serverNow) && <span className="bdg new">novo</span>}
                       </div>
                       <div className="mem-mail">{m.email}</div>
@@ -90,7 +103,7 @@ export function TeamTab() {
                       </div>
                     </div>
                   </div>
-                  {!self && (
+                  {!self && !owner && (
                     <div className="mem-actions">
                       {(admin || !m.blocked) && (
                         <button

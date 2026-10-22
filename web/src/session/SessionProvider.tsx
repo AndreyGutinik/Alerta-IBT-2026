@@ -2,6 +2,7 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 import type { Role } from '../alerts/types'
 import type { AuthPort, Backend } from '../data/backend'
 import type { SessionUser, UserRecord } from '../data/types'
+import { isOwnerEmail } from './owner'
 
 export type SessionState =
   | { status: 'loading' }
@@ -63,6 +64,10 @@ function derive(raw: Raw): SessionState {
   // escritas exigem conexão e as regras do banco decidem de verdade; chegando o registro, ele vale).
   const record = raw.record === undefined ? readCachedRecord(raw.user.uid) : raw.record
   if (record == null) return { status: 'loading' }
+  // O mantenedor nunca fica bloqueado: as regras já impedem, e aqui a tela de bloqueio nunca aparece para ele.
+  if (isOwnerEmail(raw.user.email) || isOwnerEmail(record.email)) {
+    return { status: 'active', user: raw.user, record: record.blocked ? { ...record, blocked: false } : record, role: record.role }
+  }
   if (record.blocked) return { status: 'blocked', user: raw.user }
   return { status: 'active', user: raw.user, record, role: record.role }
 }
