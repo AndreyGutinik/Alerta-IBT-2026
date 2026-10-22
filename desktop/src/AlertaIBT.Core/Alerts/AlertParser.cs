@@ -52,10 +52,16 @@ public static partial class AlertParser
         var found = PlateParser.TryExtract(text, out var plate, out var rest);
 
         var segments = ReadSegments(rest);
-        var vehicle = TakeVehicle(segments, out var next);
+
+        // How many segments sit before the plate (the plate left a line break there): the new rules for messages typed out of
+        // order treat "after the plate" differently from "after a comma". -1 when there is no plate.
+        var plateBreak = found && PlateParser.TryLocate(text, out var plateAt, out _) ? ReadSegments(text[..plateAt]).Count : -1;
+
+        var leadingColor = TakeLeadingColorSegment(segments, ref plateBreak);
+        var vehicle = TakeVehicle(segments, out var next, out var vehicleIndex);
 
         // The vehicle is out of the segments now: what is left in them are the reasons.
-        var color = TakeColor(vehicle, segments, next);
+        var color = leadingColor ?? TakeColor(vehicle, segments, next, plateBreak == vehicleIndex + 1);
 
         return new ParsedAlert(
             Model: AlertFormatter.Tidy(string.Join(' ', vehicle)),
@@ -92,9 +98,10 @@ public static partial class AlertParser
     // Takes the vehicle out of the segments and returns its words (trimmed at their ends, without "placa"): the first
     // segment that does not start with a trigger, cut at the first trigger inside it. What is left in `segments` are
     // the reasons, in order; `next` is where the segment right after the vehicle is (segments.Count when there is none).
-    private static List<string> TakeVehicle(List<List<string>> segments, out int next)
+    private static List<string> TakeVehicle(List<List<string>> segments, out int next, out int vehicleIndex)
     {
         var index = segments.FindIndex(words => !Vocabulary.IsReasonStart(words[0]));
+        vehicleIndex = index;
         if (index < 0)
         {
             next = segments.Count;
@@ -116,12 +123,22 @@ public static partial class AlertParser
 
     // The color is the first color word of the vehicle; failing that, the word that opens the segment right after the
     // vehicle. The modifier that follows the color word goes with it. Both are removed from where they were found.
-    private static string TakeColor(List<string> vehicle, List<List<string>> reasons, int next)
+    private static string TakeColor(List<string> vehicle, List<List<string>> reasons, int next, bool plateFollowsVehicle)
     {
         var at = vehicle.FindIndex(Vocabulary.IsColor);
         if (at >= 0)
         {
             return Take(vehicle, at);
+        }
+
+        // Typed out of order ("fiat abc1234 uno preto"): right after the plate, up to MaxModelWordsAfterPlate words that are not a
+        // trigger may come before the color; they go to the model (after what was typed before the plate). Past the color
+        // everything stays a reason. Only right after the plate: after a comma ("gol, 2015 branco") the words stay a reason.
+        var lead = next < reasons.Count && plateFollowsVehicle ? LeadBeforeColor(reasons[next]) : 0;
+        if (lead > 0)
+        {
+            vehicle.AddRange(reasons[next].GetRange(0, lead).Select(Vocabulary.TrimEdges).Where(word => Vocabulary.Fold(word) != "placa"));
+            reasons[next].RemoveRange(0, lead);
         }
 
         if (next < reasons.Count && Vocabulary.IsColor(reasons[next][0]))
@@ -140,6 +157,83 @@ public static partial class AlertParser
         }
 
         return string.Empty;
+    }
+
+    // The most words that may stand between the plate and the color when they are the end of the model ("fiat abc1234 uno preto").
+    private const int MaxModelWordsAfterPlate = 2;
+
+    // How many words of the segment come before its color, when the segment does not start with a trigger and holds a color
+    // word within MaxModelWordsAfterPlate words, none of them a trigger; 0 otherwise (and when the color is the first word).
+    private static int LeadBeforeColor(List<string> segment)
+    {
+        if (Vocabulary.IsReasonStart(segment[0]))
+        {
+            return 0;
+        }
+
+        for (var i = 1; i <= MaxModelWordsAfterPlate && i < segment.Count; i++)
+        {
+            if (Vocabulary.IsReasonStart(segment[i]))
+            {
+                return 0;
+            }
+
+            if (Vocabulary.IsColor(segment[i]))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    // A color typed alone before the model ("Prata, Gol, ABC-1234"): the first segment that is not a reason is only a color
+    // (with its modifier) and the segment right after it is the start of a vehicle (not a trigger, no color of its own before
+    // its first trigger), on the same side of the plate. The color segment is taken out and its color is the vehicle's.
+    private static string? TakeLeadingColorSegment(List<List<string>> segments, ref int plateBreak)
+    {
+        var first = segments.FindIndex(words => !Vocabulary.IsReasonStart(words[0]));
+        if (first < 0 || first + 1 >= segments.Count || !IsColorOnly(segments[first]))
+        {
+            return null;
+        }
+
+        var model = segments[first + 1];
+        var crossesPlate = first < plateBreak && plateBreak <= first + 1;
+        if (crossesPlate || Vocabulary.IsReasonStart(model[0]) || IsColorOnly(model) || HasColorBeforeTrigger(model))
+        {
+            return null;
+        }
+
+        var color = string.Join(' ', segments[first].Select(Vocabulary.TrimEdges));
+        segments.RemoveAt(first);
+        if (plateBreak > first)
+        {
+            plateBreak--;
+        }
+
+        return color;
+    }
+
+    private static bool IsColorOnly(List<string> words) =>
+        Vocabulary.IsColor(words[0]) && (words.Count == 1 || (words.Count == 2 && Vocabulary.IsColorModifier(words[1])));
+
+    private static bool HasColorBeforeTrigger(List<string> words)
+    {
+        foreach (var word in words)
+        {
+            if (Vocabulary.IsReasonStart(word))
+            {
+                return false;
+            }
+
+            if (Vocabulary.IsColor(word))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Removes the color word at `start` (and the modifier right after it, if there is one) and returns them, without

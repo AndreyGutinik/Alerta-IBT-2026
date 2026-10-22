@@ -607,5 +607,117 @@
     "expectedText": "GOL BRANCO | PLACA: ABC-1234 | 1 FAROL ACESO",
     "missing": [],
     "kind": "vehicle"
+  },
+  {
+    "raw": "fiat abc1234 uno preto",
+    "role": "member",
+    "expectedText": "FIAT UNO PRETO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "Prata, Gol, ABC-1234",
+    "role": "member",
+    "expectedText": "GOL PRATA | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "azul marinho, onix, abc1d23",
+    "role": "member",
+    "expectedText": "ONIX AZUL MARINHO | PLACA: ABC-1D23",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "fiat abc1234 uno preto chave dentro",
+    "role": "member",
+    "expectedText": "FIAT UNO PRETO | PLACA: ABC-1234 | CHAVE DENTRO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "hb20 abc1234 sedan prata farol aceso",
+    "role": "member",
+    "expectedText": "HB20 SEDAN PRATA | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "Prata, Gol, farol aceso, ABC-1234",
+    "role": "member",
+    "expectedText": "GOL PRATA | PLACA: ABC-1234 | FAROL ACESO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "abc1234 Prata Gol",
+    "role": "member",
+    "expectedText": "GOL PRATA | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "civic preto abc1234 chave dentro do carro",
+    "role": "operator",
+    "expectedText": "CIVIC PRETO | PLACA: ABC-1234 | CHAVE DENTRO DO CARRO",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "fiat abc1234 uno",
+    "role": "member",
+    "expectedText": "",
+    "missing": ["cor"],
+    "kind": "reject"
+  },
+  {
+    "raw": "gol abc1234 chave dentro do carro azul",
+    "role": "operator",
+    "expectedText": "GOL | PLACA: ABC-1234 | CHAVE DENTRO DO CARRO AZUL",
+    "missing": ["cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol abc1234 uno novo zero preto",
+    "role": "operator",
+    "expectedText": "GOL | PLACA: ABC-1234 | UNO NOVO ZERO PRETO",
+    "missing": ["cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol abc1234 vidro aberto preto",
+    "role": "operator",
+    "expectedText": "GOL | PLACA: ABC-1234 | VIDRO ABERTO PRETO",
+    "missing": ["cor"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "gol abc1234, uno preto",
+    "role": "member",
+    "expectedText": "GOL UNO PRETO | PLACA: ABC-1234",
+    "missing": [],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "prata abc1234 gol",
+    "role": "operator",
+    "expectedText": "PRATA | PLACA: ABC-1234 | GOL",
+    "missing": ["modelo"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "Prata, vidro aberto, ABC-1234",
+    "role": "operator",
+    "expectedText": "PRATA | PLACA: ABC-1234 | VIDRO ABERTO",
+    "missing": ["modelo"],
+    "kind": "vehicle"
+  },
+  {
+    "raw": "Prata, Gol branco, ABC-1234",
+    "role": "operator",
+    "expectedText": "PRATA | PLACA: ABC-1234 | GOL BRANCO",
+    "missing": ["modelo"],
+    "kind": "vehicle"
   }
 ]

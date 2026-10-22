@@ -216,7 +216,7 @@ public class GeminiCorrectorTests
     [Fact]
     public void Prompt_IsShortAndSaysWhatItMust()
     {
-        Assert.InRange(GeminiPrompt.System.Length, 300, 1300);
+        Assert.InRange(GeminiPrompt.System.Length, 300, 1700); // the cap went from 1300 to 1700 with the out-of-order rule and its four examples
         Assert.Contains("kind", GeminiPrompt.System);
         Assert.Contains("free", GeminiPrompt.System);
         Assert.Contains("vehicle", GeminiPrompt.System);
