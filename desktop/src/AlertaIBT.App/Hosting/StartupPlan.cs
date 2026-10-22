@@ -13,7 +13,7 @@ public readonly record struct StartupPlan(bool ShowWindow, bool ShowTrayBalloon)
     /// <summary>The title of the tray notification.</summary>
     public const string BalloonTitle = "Alerta-IBT";
 
-    /// <summary>The text of the tray notification ("Alerta-IBT está na bandeja").</summary>
+    /// <summary>The text of the tray notification ("Alerta-IBT esta na bandeja", with the accent in the string below).</summary>
     public const string BalloonMessage = "Alerta-IBT est\U000000E1 na bandeja";
 
     /// <summary>Whether this is the first run after an installation: no <c>settings.json</c> yet. Ask before anything creates the file.</summary>
