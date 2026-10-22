@@ -30,15 +30,26 @@ public partial class App : Application
 
         var paths = AppPaths.Default;
 
+        // No settings file yet: a fresh installation, the one launch that shows the window (read before anything creates the file).
+        var firstRun = StartupPlan.IsFirstRun(paths);
+
         // Just restarted by an update: the old process is leaving (the updater waits for it), so wait for the lock a few seconds
         // instead of taking it for "another copy is running" and exiting. A normal start waits not at all.
-        _instance = SingleInstance.TryAcquire(UpdateRestartMarker.ConsumeWait(paths.UpdateRestartFile, DateTimeOffset.UtcNow));
+        var restartWait = UpdateRestartMarker.ConsumeWait(paths.UpdateRestartFile, DateTimeOffset.UtcNow);
+        _instance = SingleInstance.TryAcquire(restartWait);
         if (_instance is null)
         {
-            SingleInstance.SignalExisting(); // the running copy shows its window
+            if (StartupPlan.Decide(arguments, firstRun, alreadyRunning: true).ShowWindow)
+            {
+                SingleInstance.SignalExisting(); // the running copy shows its window
+            }
+
             Shutdown();
             return;
         }
+
+        // Always hidden in the tray, except the first run after an installation (see StartupPlan).
+        var plan = StartupPlan.Decide(arguments, firstRun, alreadyRunning: false, restartedByUpdate: restartWait > TimeSpan.Zero);
 
         ILogger logger = NullLogger<App>.Instance;
         try
@@ -70,8 +81,8 @@ public partial class App : Application
 
             var shell = _host.Services.GetRequiredService<AppShell>();
             _host.Services.GetRequiredService<QuickPanelController>().Attach(shell); // before Start: it raises the hotkey state
-            _host.Services.GetRequiredService<MainWindowController>().Attach(shell); // before Start: a launch without --tray opens the window
-            shell.Start();
+            _host.Services.GetRequiredService<MainWindowController>().Attach(shell); // before Start: the first run opens the window
+            shell.Start(plan);
             _instance.ListenForActivation(() => Dispatcher.BeginInvoke(shell.RaiseMainWindow));
 
             // Both run in the background after the tray is up: the update check waits 5 seconds and never throws (an update is

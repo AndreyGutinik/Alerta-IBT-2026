@@ -85,8 +85,12 @@ public sealed class AppShell : IDisposable
     /// <summary>The hotkey was applied again (start, or the setting changed). Raised on the UI thread.</summary>
     public event Action<HotkeyStatus>? HotkeyStatusChanged;
 
-    /// <summary>Starts the tray, the hotkey and "start with Windows". Call on the UI thread.</summary>
-    public void Start()
+    /// <summary>
+    /// Starts the tray, the hotkey and "start with Windows". Call on the UI thread. Nothing here shows a window or takes the focus:
+    /// the window only comes up when <paramref name="plan"/> says so (see <see cref="StartupPlan"/>).
+    /// </summary>
+    /// <param name="plan">How this launch opens; hidden in the tray when omitted.</param>
+    public void Start(StartupPlan? plan = null)
     {
         _messages = new MessageWindow();
         _hotkeys = new HotkeyService(_messages);
@@ -122,10 +126,28 @@ public sealed class AppShell : IDisposable
         var registration = _startup.Apply(ex => _logger.LogWarning(ex, "Nao foi possivel ajustar o inicio com o Windows"));
         _logger.LogInformation("Inicio com o Windows: {Result}", registration);
 
-        _logger.LogInformation("Alerta-IBT iniciado (bandeja: {Tray}, LED de teste: {TestLed})", _arguments.Tray, _arguments.TestLed);
-        if (!_arguments.Tray)
+        var chosen = plan ?? StartupPlan.Decide(_arguments, firstRun: false, alreadyRunning: false);
+        _logger.LogInformation(
+            "Alerta-IBT iniciado (janela: {Window}, aviso na bandeja: {Balloon}, LED de teste: {TestLed})",
+            chosen.ShowWindow,
+            chosen.ShowTrayBalloon,
+            _arguments.TestLed);
+        ApplyStartupPlan(chosen, _tray.ShowNotification);
+    }
+
+    /// <summary>
+    /// Carries out <paramref name="plan"/>: the window only when it says so (first run), else, for a manual launch, one tray
+    /// notification. Nothing else is shown or activated, so Holyrics and OBS keep the focus. Separate from <see cref="Start"/> so it can be tested.
+    /// </summary>
+    internal void ApplyStartupPlan(StartupPlan plan, Action<string, string> notify)
+    {
+        if (plan.ShowWindow)
         {
             RaiseMainWindow();
+        }
+        else if (plan.ShowTrayBalloon)
+        {
+            notify(StartupPlan.BalloonTitle, StartupPlan.BalloonMessage);
         }
     }
 

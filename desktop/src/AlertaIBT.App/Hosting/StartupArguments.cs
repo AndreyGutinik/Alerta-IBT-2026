@@ -2,8 +2,8 @@ namespace AlertaIBT.App.Hosting;
 
 /// <summary>The command-line switches the app understands. Anything else is ignored.</summary>
 /// <param name="Tray">
-/// <c>--tray</c>: start hidden in the notification area. The Windows Run entry passes it, so booting the PC never opens a window.
-/// Without it (the user opened the app by hand) the main window is shown.
+/// <c>--tray</c>: start hidden in the notification area. The Windows Run entry passes it. The app now always starts hidden (see
+/// <see cref="StartupPlan"/>), so the switch is kept for compatibility: without it a manual launch also shows one tray notification.
 /// </param>
 /// <param name="TestLed">
 /// <c>--test-led</c>: treat the primary monitor as the LED, whatever its size, so the bar can be developed and checked

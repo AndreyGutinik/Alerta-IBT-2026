@@ -5,7 +5,7 @@ namespace AlertaIBT.App.Views;
 
 /// <summary>
 /// Opens the main window (spec 7.2) when the shell asks for it: the tray's double click and menu "Abrir", "Abrir janela" of the
-/// quick panel, a second launch of the app, or the app opened by hand. The window is made on first use, on the UI thread, and then
+/// quick panel, a second launch of the app, or the first run after an installation. The window is made on first use, on the UI thread, and then
 /// reused (its X only hides it). Also the owner of the window's view-model: disposing the controller saves a setting that was still
 /// waiting for its 600 ms.
 /// </summary>
