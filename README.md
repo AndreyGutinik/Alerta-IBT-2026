@@ -130,4 +130,4 @@ Sem o LED (PC de desenvolvimento): `AlertaIBT.exe --test-led` usa o monitor prin
 
 ## Licença
 
-O repositório ainda não tem um arquivo de licença. O dicionário pt-BR (VERO/LibreOffice) segue a licença descrita em `desktop/src/AlertaIBT.Core/Dictionaries/README.md`.
+O código deste repositório é licenciado sob a [Licença MIT](LICENSE) (© 2026 Andrey Gutinik). O dicionário pt-BR (VERO/LibreOffice) é de terceiros e segue a licença descrita em `desktop/src/AlertaIBT.Core/Dictionaries/README.md`.
