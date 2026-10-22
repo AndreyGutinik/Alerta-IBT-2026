@@ -65,7 +65,7 @@ try {
   if (-not (Test-Path -LiteralPath (Join-Path $publishDir $MainExe))) { throw "$MainExe nao foi publicado em $publishDir." }
 
   # Start clean: vpk refuses to pack a version that is already in the folder.
-  if (Test-Path -LiteralPath $releasesDir) { Remove-Item -LiteralPath $releasesDir -Recurse -Force }
+  if (Test-Path -LiteralPath $releasesDir) { Get-ChildItem -LiteralPath $releasesDir -Force | Remove-Item -Recurse -Force }  # esvazia a pasta (apagar a pasta falha se algum terminal estiver aberto nela)
   New-Item -ItemType Directory -Force -Path $releasesDir | Out-Null
   if ($DownloadPrevious) {
     Write-Host '[pack] baixando a versao anterior para gerar o delta...' -ForegroundColor Cyan
