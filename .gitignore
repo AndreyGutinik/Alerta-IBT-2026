@@ -16,3 +16,6 @@ TestResults/
 desktop/**/publish/
 Releases/
 artifacts/
+
+# Firebase CLI hosting cache
+.firebase/

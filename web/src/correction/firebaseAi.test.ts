@@ -27,7 +27,7 @@ vi.mock('firebase/ai', () => ({
   },
 }))
 vi.mock('firebase/app-check', () => ({
-  ReCaptchaV3Provider: class {
+  ReCaptchaEnterpriseProvider: class {
     constructor(key: string) {
       sdk.provider(key)
     }

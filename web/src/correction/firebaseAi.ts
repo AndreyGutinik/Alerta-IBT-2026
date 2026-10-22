@@ -1,7 +1,7 @@
 import { AI_SCHEMA, SYSTEM_PROMPT, parseAiJson, thinkingConfigFor } from './prompt'
 import { AI_TIMEOUT_MS } from './correct'
 import type { FirebaseApp } from 'firebase/app'
-import { ReCaptchaV3Provider, initializeAppCheck } from 'firebase/app-check'
+import { ReCaptchaEnterpriseProvider, initializeAppCheck } from 'firebase/app-check'
 import { GoogleAIBackend, Schema, getAI, getGenerativeModel } from 'firebase/ai'
 import type { AiAlert, AiCorrector } from './types'
 
@@ -37,7 +37,7 @@ export function createFirebaseAiCorrector(app: FirebaseApp, opts: FirebaseAiOpti
     ;(self as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true
   }
   initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(opts.recaptchaSiteKey),
+    provider: new ReCaptchaEnterpriseProvider(opts.recaptchaSiteKey),
     isTokenAutoRefreshEnabled: true,
   })
 
