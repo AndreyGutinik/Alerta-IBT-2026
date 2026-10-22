@@ -209,7 +209,22 @@ O botão **Limpar histórico** (Início, cabeçalho do Histórico) apaga **sem p
 - [ ] **PC desligado na segunda (teste em casa, sem esperar)**: feche o app, copie `%AppData%\AlertaIBT` para uma pasta temporária, edite o `settings.json` dessa cópia e ponha em `system` o valor `"lastHistoryClearAt": "2026-01-05T12:00:00Z"` (uma data de uma semana ou mais atrás), abra o app com `ALERTAIBT_DATA_DIR` apontando para a cópia: o histórico é limpo **na hora**, e `lastHistoryClearAt` passa a ser o momento atual. Sem esse campo (primeira vez depois de instalar) nada é apagado: o app só passa a contar a partir dali.
 - [ ] **Chave desligada**: desligar a chave e repetir o teste acima: nada é apagado.
 
-## 16. Depois que tudo passou
+## 16. Bloqueador de mouse (3 monitores: principal, LED e retorno)
+
+O travamento prende o cursor no **monitor principal do Windows**, para ele não parar no LED nem no retorno. Fica em **Configurações > Sistema**: a chave "Travar o mouse na tela principal", o atalho (padrão **Ctrl+Alt+M**) e a chave "Ctrl 3 vezes traz o mouse ao centro". Também há o item **Travar o mouse na tela principal** no menu do ícone da bandeja. Vem **desligado**; o que você escolher é lembrado ao reabrir.
+
+- [ ] **Travar**: ligar a chave (ou o atalho, ou o item da bandeja) e empurrar o mouse para o LED e para o retorno: ele **para na borda da tela principal e não passa**. Se o mouse estava no LED na hora de ligar, ele vem para a tela principal. O item da bandeja fica marcado e a dica do ícone diz **mouse travado**.
+- [ ] **Atalho**: **Ctrl+Alt+M** liga e desliga; a chave de Configurações e o item da bandeja acompanham. Trocar o atalho no campo e usar o novo. Se outro programa já usa a combinação, aparece o aviso embaixo do campo (o atalho do painel rápido e o do mouse não podem ser iguais).
+- [ ] **Lembrar**: com o travamento ligado, **Sair** e abrir de novo: continua ligado. Desligado e reaberto: continua desligado.
+- [ ] **Ctrl 3 vezes**: com o travamento **desligado**, levar o mouse ao LED e apertar **Ctrl três vezes seguidas, rápido** (menos de 1 s): ele vai para o **centro da tela principal**. Repetir com o travamento ligado. **Ctrl+C**, **Ctrl+V**, segurar o Ctrl e Ctrl com Alt **não contam**. Com o Holyrics ou o OBS na frente, nada muda: nenhuma janela abre e o foco não sai deles. Com a chave "Ctrl 3 vezes" desligada, nada acontece.
+- [ ] **Desligar e religar um monitor** (cabo do LED ou do retorno) com o travamento ligado: em até 1 s o mouse continua preso à tela principal. No Diagnóstico, uma linha "Travamento do mouse refeito" é normal.
+- [ ] **Trocar o monitor principal** no Windows (Configurações > Sistema > Tela > escolher o monitor > "Tornar este meu vídeo principal"): em até 1 s o mouse fica preso ao **novo** principal, e Ctrl 3 vezes leva ao centro dele. Voltar o principal ao que era.
+- [ ] **UAC, bloqueio e área de trabalho remota**: com o travamento ligado, abrir um aviso do UAC (instalador), bloquear e desbloquear o Windows (Win+L) e conectar/desconectar por área de trabalho remota: depois de voltar, o mouse continua preso (ou volta a prender em até 1 s). **Ctrl+Alt+Del** solta o mouse por conta própria do Windows e ele volta a prender sozinho.
+- [ ] **Matar o processo**: com o travamento ligado, Gerenciador de Tarefas > Finalizar tarefa em "Alerta-IBT". O Windows deve soltar o mouse sozinho (ele passa a andar pelos 3 monitores). Se não soltar, anotar; Ctrl+Alt+Del solta, e reabrir o app e desligar a chave também.
+- [ ] **Atualização**: com o travamento ligado, quando o app reiniciar para se atualizar o mouse fica livre no reinício e volta preso ao abrir.
+- [ ] **Privacidade**: no Diagnóstico o único registro do Ctrl 3 vezes é `Ctrl x3: mouse centralizado`; nenhuma tecla aparece em lugar nenhum.
+
+## 17. Depois que tudo passou
 
 - [ ] **Desinstalar o Alerta-IBT antigo (Electron)**: Configurações do Windows > Aplicativos > "Avisos de Estacionamento - IBT" (Alerta-IBT).
 - [ ] Conferir que o `AlertaIBT` continua no início do Windows e que o antigo não aparece mais lá.
@@ -226,4 +241,5 @@ O botão **Limpar histórico** (Início, cabeçalho do Histórico) apaga **sem p
 | Barra não aparece | LED desligado ou sem 2560x768 (bolinha LED vermelha), app pausado (pílula "Pausada"), ou o aviso foi recusado (histórico). |
 | Bolinha Site vermelha ou "PC offline" no celular | Seção "Se der erro" de `docs/SITE-COMO-PUBLICAR.md` (login, regras, internet do PC). |
 | Atalho do painel não abre | Outro programa usa a combinação: trocar em Configurações > Sistema; o clique no ícone sempre funciona. |
+| O mouse não trava (ou escapa para o LED) | Ligar a chave em Configurações > Sistema (vem desligada); Diagnóstico: linhas "Mouse travado" e "Travamento do mouse refeito". Ctrl+Alt+M liga e desliga; Ctrl 3 vezes traz o mouse de volta. |
 | Qualquer erro estranho | Configurações > Diagnóstico > Copiar logs e me mandar. |

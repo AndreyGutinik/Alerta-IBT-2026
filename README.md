@@ -65,6 +65,8 @@ No PC, avisos sem placa são aceitos como **aviso livre** (só corrige o portugu
 
 O atalho pode ser trocado em Configurações > Sistema. Se outro programa já usa a combinação, o painel e a dica do ícone avisam, e o clique no ícone continua funcionando.
 
+**Bloqueador de mouse:** em Configurações > Sistema, a chave "Travar o mouse na tela principal" (ou o atalho **Ctrl+Alt+M**, ou o item do menu da bandeja) prende o cursor no monitor principal do Windows, para ele não parar no LED nem no retorno. Apertar **Ctrl três vezes** rápido leva o cursor ao centro da tela principal, com o travamento ligado ou não. O app só conta os Ctrl: não grava o que é digitado.
+
 **Limpar histórico:** o botão no cabeçalho do **Histórico** (Início) apaga, sem perguntar, o histórico do PC e do site e as mensagens do bot no Telegram com menos de 48 h (o bot precisa ser administrador do grupo com "Excluir mensagens"). Não mexe na fila nem no que está passando. Toda segunda-feira, 00:00, isso acontece sozinho (se o PC estava desligado, na próxima vez que ligar); dá para desligar em Configurações > Sistema.
 
 ## Pregação (Holyrics)

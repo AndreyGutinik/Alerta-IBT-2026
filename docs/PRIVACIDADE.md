@@ -6,6 +6,7 @@ O Alerta-IBT mostra avisos curtos de estacionamento no LED da igreja. Esta pági
 
 - **O texto dos avisos** (carro, cor, placa e motivo, ou um aviso livre) e **quem o enviou** (nome e e-mail da conta Google no site; nome e identificador do Telegram no grupo).
 - **Configurações do PC** (token do bot, chave do Gemini, dados da conta do PC no Firebase), guardadas só no computador da igreja, em `%AppData%\AlertaIBT`, com os segredos **criptografados** pelo Windows (DPAPI, só o mesmo usuário do Windows lê).
+- **O teclado, só para um gesto**: com "Ctrl 3 vezes traz o mouse ao centro" ligado (é o padrão), o app usa um gancho de teclado do Windows apenas para contar três toques seguidos na tecla Ctrl e levar o mouse ao centro da tela principal. Ele não grava, não guarda e não envia nenhuma tecla (nem no log). O travamento do mouse só prende o cursor ao monitor principal.
 - **Registros (logs)** do app, só no computador, apagados depois de 7 dias. Eles não guardam senhas, chaves nem tokens.
 
 ## Para onde os dados vão
