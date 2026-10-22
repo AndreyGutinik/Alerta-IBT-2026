@@ -113,13 +113,19 @@ internal static class ProfanityWords
     /// <summary>
     /// Slang that is blocked only next to a word that makes it body slang: the word before it (the very next word back,
     /// never past punctuation) is one of <c>Before</c>, and the word after it is not one of <c>NotNext</c>. Bare, these
-    /// words are ordinary: "Pinto Silva", "Seu Pinto", "pau de selfie", "pomba rola", "Rola Moca" (a street), "Bunda" (an
-    /// ethnic group and a city), "peito" and "tetas" in a nursing or health notice. Articles (a, o, uma) are not used as a
-    /// context: "o pinto" is a chick and "a rola" is a bird or a verb. "seu" is not a context for pinto (Seu Pinto is a
-    /// title and a surname), and esse/essa are not either ("esse Pinto").
+    /// words are ordinary: "Pinto Silva", "Joao Pinto", "pau de selfie", "pomba rola", "Rola Moca" (a street), "Bunda" (an
+    /// ethnic group and a city), "peito" and "tetas" in a nursing or health notice.
+    /// The owner decided (batch 13) that these never pass, whatever follows: any possessive before "pau" ("meu pau de selfie"),
+    /// "seu/esse/este/o pinto" besides "meu/teu pinto", and "a rola". The price is a few rare false positives ("Seu Pinto",
+    /// "o Pinto Silva"): the bare surname ("Pinto Silva", "Pinto Coelho") and the bare "pau" still pass.
     /// </summary>
     public static readonly (string[] Words, string[] Before, string[] NotNext)[] ContextRules =
     [
+        // Any possessive before pau is blocked, even "meu pau de selfie" (the owner's decision).
+        (
+            ["pau", "paus"],
+            ["meu", "minha", "teu", "tua", "seu", "sua", "meus", "minhas", "teus", "tuas", "seus", "suas"],
+            []),
         (
             ["pau", "paus", "rola", "rolas", "piru", "pirus", "bunda", "bundas"],
             [
@@ -128,10 +134,20 @@ internal static class ProfanityWords
                 "lambe", "lamber", "lambendo", "lambeu",
             ],
             ["de", "brasil", "a"]),
+
+        // "a rola" / "as rolas" (the owner's decision); "a Rola Moca" is still the street.
+        (["rola", "rolas"], ["a", "as"], ["moca"]),
         (
             ["pinto", "pintos"],
-            ["meu", "minha", "teu", "tua", "meus", "minhas", "teus", "tuas", "chupa", "chupar", "chupando", "chupou", "mama", "mamar", "mamando", "lambe", "lamber", "lambendo", "lambeu"],
+            [
+                "meu", "minha", "teu", "tua", "meus", "minhas", "teus", "tuas", "seu", "sua", "seus", "suas",
+                "esse", "essa", "esses", "essas", "este", "esta", "estes", "estas",
+                "chupa", "chupar", "chupando", "chupou", "mama", "mamar", "mamando", "lambe", "lamber", "lambendo", "lambeu",
+            ],
             []),
+
+        // "o pinto" (the owner's decision); the plural "os pintos" (chicks on a farm) is not asked for and passes.
+        (["pinto"], ["o"], []),
         (
             ["teta", "tetas", "tetinha", "tetinhas", "peitos", "peitinhos"],
             [
@@ -141,6 +157,12 @@ internal static class ProfanityWords
             ],
             []),
     ];
+
+    /// <summary>
+    /// Listed words that are never rebuilt out of two pieces ("pi-ca" is, "cor-no" and "via do" are ordinary text): see
+    /// <c>ProfanityFilter</c>, split words.
+    /// </summary>
+    public static readonly string[] NeverJoined = ["corno", "viado", "veado"];
 
     /// <summary>
     /// A listed word that is let through when one of the words on the right comes right after it: "pica-pau" is a

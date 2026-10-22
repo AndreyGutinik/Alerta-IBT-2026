@@ -22,19 +22,25 @@ public class ProfanityFilterSlangTests
         "meu pau", "chupa pau", "chupa meu pau", "seu pau", "essa rola", "minha rola", "chupa rola", "meu pinto", "minha pinto",
         "chupa pinto", "minha bunda", "sua bunda", "meus peitos", "minhas tetas", "seus peitos", "minha teta", "meu piru",
         "meu p4u", "m1nha r0la", "chupa o meu pau", "Meu Pau.",
+        "seu pinto", "esse pinto", "este pinto", "o pinto", "meu pinto", "teu pinto", "Seu Pinto", "o Pinto Silva", "esse p1nto", "s3u pinto",
+        "meu pau de selfie", "meu pau de sebo", "meu pau brasil", "minha pau", "seu pau de selfie", "sua pau", "tua pau", "teu pau", "meus paus", "m3u pau de selfie",
+        "a rola", "minha rola", "sua rola", "as rolas", "a r0la", "o carro e a rola",
+        "pi.ca", "pi-ca", "pi_ca", "p*ca", "pi ca", "pi  ca", "PI CA", "pi.ka", "pi-kaa", "pu ta", "pu.ta", "fo-da", "bi-cha", "mer-da", "por-ra", "carro prata abc1d23 pi.ca", "pi-ca grande", "pi\U000000A0ca",
     ];
 
     public static readonly string[] MustPass =
     [
-        "Pinto Silva", "pinto", "Seu Pinto", "Seu Pinto Silva chegou", "esse Pinto Silva", "o pinto amarelinho", "Pinto",
-        "Joao Pinto", "Bunda", "bunda", "Rola Moca", "Rola Mo\U000000E7a", "Rua Rola Moca", "a rola", "uma rola no telhado",
-        "o que rola hoje", "isso rola amanha", "pau", "pau de selfie", "meu pau de selfie", "meu pau de sebo",
-        "pau-brasil", "meu pau brasil", "pica-pau", "pica pau", "Pica-Pau amarelo", "picape branca", "picape", "pick-up branca",
+        "Pinto Silva", "pinto", "Pinto Coelho", "Pinto Silva chegou", "Dr Pinto Coelho", "Pinto",
+        "Joao Pinto", "Bunda", "bunda", "Rola Moca", "Rola Mo\U000000E7a", "Rua Rola Moca", "a Rola Moca", "uma rola no telhado",
+        "o que rola hoje", "isso rola amanha", "pau", "pau de selfie", "pau de sebo",
+        "pau-brasil", "pica-pau", "pica pau", "Pica-Pau amarelo", "picape branca", "picape", "pick-up branca",
         "pickup prata abc1d23", "picar o papel", "picada na trilha", "Pico do Jaragua", "pico de luz", "picanha na cantina",
         "pikachu", "Picasso", "Picazo", "Pica Pau", "Costa e Silva", "Costa e Silva favor comparecer", "peito", "dor no peito",
         "peitos de frango", "tetas", "teta", "bundas", "sala de amamentacao", "colher de pau", "pomba rola", "rolar", "rolamento",
         "pinto de ouro", "jebediah", "bilhete", "colheita", "colhedor", "cocktail", "coca", "cockpit", "peacock", "tit",
         "milfolhas", "pornhubs", "tarde", "retardo", "retarda",
+        "os pintos da granja", "um pinto amarelinho", "pintos e galinhas", "cor no carro", "cor-no carro", "via do portao", "via-do portao",
+        "pi cado", "pi cas", "pi-cas-pau", "po ra", "vai do", "com ela", "pi", "ca", "pi-ca-pau", "pica-pau pi ca pau",
     ];
 
     public static TheoryData<string> NewWordsPlain() => new(NewWords);

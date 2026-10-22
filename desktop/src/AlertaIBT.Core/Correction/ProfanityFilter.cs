@@ -39,6 +39,8 @@ public sealed partial class ProfanityFilter
 
     private const char PlateMark = (char)1;
 
+    private static readonly FrozenSet<string> WrittenSet = ProfanityWords.Exact.ToFrozenSet(StringComparer.Ordinal);
+
     private static readonly FrozenSet<string> ExactSet = ProfanityWords.Exact.Select(Collapse).ToFrozenSet(StringComparer.Ordinal);
 
     // The same words as written, for the one-letter-hidden form ("p*rra") before repeated letters are folded.
@@ -58,11 +60,15 @@ public sealed partial class ProfanityFilter
         .SelectMany(rule => rule.Words.Select(word => (Word: Collapse(word), Next: rule.Next.Select(Collapse).ToFrozenSet(StringComparer.Ordinal))))
         .ToFrozenDictionary(pair => pair.Word, pair => pair.Next, StringComparer.Ordinal);
 
-    private static readonly FrozenDictionary<string, ContextRule> ContextRules = ProfanityWords.ContextRules
+    // A word may have several rules (any possessive before "pau" has no exception; the other contexts keep theirs): one is enough.
+    private static readonly FrozenDictionary<string, ContextRule[]> ContextRules = ProfanityWords.ContextRules
         .SelectMany(rule => rule.Words.Select(word => (Word: Collapse(word), Rule: new ContextRule(
             rule.Before.Select(Collapse).ToFrozenSet(StringComparer.Ordinal),
             rule.NotNext.Select(Collapse).ToFrozenSet(StringComparer.Ordinal)))))
-        .ToFrozenDictionary(pair => pair.Word, pair => pair.Rule, StringComparer.Ordinal);
+        .GroupBy(pair => pair.Word, StringComparer.Ordinal)
+        .ToFrozenDictionary(group => group.Key, group => group.Select(pair => pair.Rule).ToArray(), StringComparer.Ordinal);
+
+    private static readonly FrozenSet<string> NeverJoined = ProfanityWords.NeverJoined.Select(Collapse).ToFrozenSet(StringComparer.Ordinal);
 
     private readonly string? _extraFile;
     private readonly ILogger? _logger;
@@ -102,8 +108,9 @@ public sealed partial class ProfanityFilter
 
     // ---- reading the text ----
 
-    // A word of the text: every way it could have been written (leetspeak) and the plain letters and digits.
-    private sealed record Tok(string[] Variants, string Plain)
+    // A word of the text: every way it could have been written (leetspeak) and the plain letters and digits. Sep is what stood
+    // between the previous word and this one (spaces, punctuation); Synthetic marks a word the scan built from a run of letters.
+    private sealed record Tok(string[] Variants, string Plain, string Sep = "", bool Synthetic = false)
     {
         public static readonly Tok Boundary = new([], string.Empty);
 
@@ -115,23 +122,39 @@ public sealed partial class ProfanityFilter
         var folded = PlateLike().Replace(Fold(text), " " + PlateMark + " ");
         var tokens = new List<Tok>();
         var current = new StringBuilder();
+        var between = new StringBuilder();
+        var tokenSep = string.Empty;
         foreach (var c in folded)
         {
             if (char.IsLetterOrDigit(c) || c is '@' or '$' or '*' or '!')
             {
+                if (current.Length == 0)
+                {
+                    tokenSep = between.ToString();
+                    between.Clear();
+                }
+
                 current.Append(c);
                 continue;
             }
 
-            AddToken(tokens, current, c == PlateMark);
+            AddToken(tokens, current, c == PlateMark, tokenSep);
+            if (c == PlateMark)
+            {
+                between.Clear();
+            }
+            else
+            {
+                between.Append(c);
+            }
         }
 
-        AddToken(tokens, current, false);
+        AddToken(tokens, current, false, tokenSep);
         AddJoinedRuns(tokens);
         return tokens;
     }
 
-    private static void AddToken(List<Tok> tokens, StringBuilder current, bool boundary)
+    private static void AddToken(List<Tok> tokens, StringBuilder current, bool boundary, string sep)
     {
         if (current.Length > 0)
         {
@@ -139,7 +162,7 @@ public sealed partial class ProfanityFilter
             current.Clear();
             if (core.Length > 0)
             {
-                tokens.Add(MakeToken(core));
+                tokens.Add(MakeToken(core, sep));
             }
         }
 
@@ -149,7 +172,7 @@ public sealed partial class ProfanityFilter
         }
     }
 
-    private static Tok MakeToken(string core)
+    private static Tok MakeToken(string core, string sep = "", bool synthetic = false)
     {
         var plain = new string(core.Where(char.IsLetterOrDigit).ToArray());
         List<string> forms = [core];
@@ -168,7 +191,7 @@ public sealed partial class ProfanityFilter
             }
         }
 
-        return new Tok([.. variants.Distinct(StringComparer.Ordinal)], plain);
+        return new Tok([.. variants.Distinct(StringComparer.Ordinal)], plain, sep, synthetic);
     }
 
     // p.o.r.r.a and p o r r a: three or more one-character words in a row are one word.
@@ -181,7 +204,7 @@ public sealed partial class ProfanityFilter
         {
             if (runLength >= MinJoinedRun)
             {
-                joined.Add(MakeToken(run.ToString()));
+                joined.Add(MakeToken(run.ToString(), synthetic: true));
             }
 
             run.Clear();
@@ -265,6 +288,11 @@ public sealed partial class ProfanityFilter
 
     private static bool HasBuiltInWord(List<Tok> tokens)
     {
+        if (HasSplitWord(tokens))
+        {
+            return true;
+        }
+
         for (var i = 0; i < tokens.Count; i++)
         {
             foreach (var variant in tokens[i].Variants)
@@ -368,18 +396,68 @@ public sealed partial class ProfanityFilter
     // "meu pinto", "chupa pau": slang that is ordinary alone is blocked next to a possessive or a verb of the list.
     private static bool IsBodySlangInContext(List<Tok> tokens, int index, string folded)
     {
-        if (!ContextRules.TryGetValue(folded, out var rule) || index == 0 || tokens[index - 1].IsBoundary)
+        if (!ContextRules.TryGetValue(folded, out var rules) || index == 0 || tokens[index - 1].IsBoundary)
         {
             return false;
         }
 
-        if (!rule.Before.Contains(Collapse(tokens[index - 1].Variants[0])))
+        var before = Collapse(tokens[index - 1].Variants[0]);
+        foreach (var rule in rules)
         {
-            return false;
+            if (rule.Before.Contains(before)
+                && !(index + 1 < tokens.Count && !tokens[index + 1].IsBoundary && rule.NotNext.Contains(Collapse(tokens[index + 1].Variants[0]))))
+            {
+                return true;
+            }
         }
 
-        return !(index + 1 < tokens.Count && !tokens[index + 1].IsBoundary && rule.NotNext.Contains(Collapse(tokens[index + 1].Variants[0])));
+        return false;
     }
+
+    // Two pieces of one word, split by a punctuation mark or a space: "pi.ca", "pi-ca", "pi_ca", "pi ca". Only letters, only
+    // original words (not the joined runs the scan adds), and only when the two pieces spell a listed word exactly:
+    //  - one ".", "-" or "_" between them: each piece has 2 letters or more and the word has 4 to 6 letters;
+    //  - only spaces between them: each piece has exactly 2 letters (the word has 4), so "pi ca" and "pu ta" are caught, and
+    //    ordinary pairs such as "vai do" or "com ela" are never joined;
+    //  - corno, viado and veado are never rebuilt ("cor no", "via do" are ordinary text).
+    private static bool HasSplitWord(List<Tok> tokens)
+    {
+        for (var i = 0; i + 1 < tokens.Count; i++)
+        {
+            var first = tokens[i];
+            var second = tokens[i + 1];
+            if (first.IsBoundary || second.IsBoundary || first.Synthetic || second.Synthetic || !IsLettersOnly(first) || !IsLettersOnly(second))
+            {
+                continue;
+            }
+
+            var a = first.Plain;
+            var b = second.Plain;
+            var punctuation = second.Sep.Length == 1 && second.Sep[0] is '.' or '-' or '_';
+            var spaces = second.Sep.Length > 0 && second.Sep.All(char.IsWhiteSpace);
+            var fits = punctuation
+                ? a.Length >= 2 && b.Length >= 2 && a.Length + b.Length is >= 4 and <= 6
+                : spaces && a.Length == 2 && b.Length == 2;
+            if (!fits)
+            {
+                continue;
+            }
+
+            // "po ra" is not "porra": the word must be spelled as listed, or with a letter repeated ("pi-caa").
+            var written = a + b;
+            var joined = Collapse(written);
+            if ((WrittenSet.Contains(written) || (joined != written && ExactSet.Contains(joined)))
+                && !NeverJoined.Contains(joined) && !IsFollowExempt(tokens, i + 1, joined))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsLettersOnly(Tok token) =>
+        token.Plain.Length > 0 && token.Plain.All(c => c is >= 'a' and <= 'z') && token.Variants.Length > 0 && token.Variants[0] == token.Plain;
 
     // The next word makes the listed word part of an ordinary compound.
     private static bool IsFollowExempt(List<Tok> tokens, int index, string folded)
