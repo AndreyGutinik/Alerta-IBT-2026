@@ -86,6 +86,33 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Gemini_without_a_key_is_a_gray_Sem_chave_line_with_its_tooltip()
+    {
+        _rig.Hub.SetCorrectionMode(CorrectionMode.Gemini);
+        _rig.Hub.SetGeminiKeyMissing(true);
+
+        Assert.Equal(("Gemini", StatusLight.Gray), (_vm.Status[4].Label, _vm.Status[4].Light));
+        Assert.Equal("Gemini: Sem chave\nChave do Gemini n\U000000E3o configurada", _vm.Status[4].Tip);
+    }
+
+    [Fact]
+    public void Gemini_is_yellow_while_the_first_probe_runs_then_the_probe_decides_with_its_reason_and_age()
+    {
+        _rig.Hub.SetCorrectionMode(CorrectionMode.Gemini);
+        _rig.Hub.SetGeminiChecking(true);
+        Assert.Equal(("Gemini", StatusLight.Yellow), (_vm.Status[4].Label, _vm.Status[4].Light));
+        Assert.StartsWith("Gemini: Verificando", _vm.Status[4].Tip, StringComparison.Ordinal);
+
+        _rig.Hub.SetGeminiProbe(online: true, reason: null, DateTimeOffset.UtcNow);
+        Assert.Equal(StatusLight.Green, _vm.Status[4].Light);
+        Assert.Equal("Gemini: Online\nGemini conectado agora", _vm.Status[4].Tip);
+
+        _rig.Hub.SetGeminiProbe(online: false, "tempo esgotado", DateTimeOffset.UtcNow);
+        Assert.Equal(("Offline", StatusLight.Blue), (_vm.Status[4].Label, _vm.Status[4].Light));
+        Assert.StartsWith("Gemini: Offline\nOffline: tempo esgotado (verificado agora)", _vm.Status[4].Tip, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Each_line_has_a_tooltip_with_the_state_and_the_detail()
     {
         _rig.Hub.SetLedPresent(false);

@@ -96,9 +96,18 @@ public enum HttpApiState
 public sealed class StatusHub : INotifyPropertyChanged
 {
     private readonly object _gate = new();
+    private readonly TimeProvider _clock;
     private Inputs _in = new();
+    private StatusIndicator _geminiShown;
     private string? _lastError;
     private DateTimeOffset? _lastErrorAt;
+
+    /// <param name="clock">Time source of the ages the Gemini tooltip shows ("há 3 min"); the system clock when omitted.</param>
+    public StatusHub(TimeProvider? clock = null)
+    {
+        _clock = clock ?? TimeProvider.System;
+        _geminiShown = GeminiDot(_in, _clock.GetUtcNow());
+    }
 
     /// <inheritdoc />
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -116,7 +125,7 @@ public sealed class StatusHub : INotifyPropertyChanged
     public StatusIndicator Bar => Snapshot(BarDot);
 
     /// <summary>The Gemini dot (blue <c>Offline</c> when the offline corrector is in use).</summary>
-    public StatusIndicator Gemini => Snapshot(GeminiDot);
+    public StatusIndicator Gemini => Snapshot(i => GeminiDot(i, _clock.GetUtcNow()));
 
     /// <summary>The local control API dot.</summary>
     public StatusIndicator Http => Snapshot(HttpDot);
@@ -183,8 +192,61 @@ public sealed class StatusHub : INotifyPropertyChanged
     /// <summary>Sets whether the bar window is hidden from screen capture; <c>null</c> while the window does not exist yet.</summary>
     public void SetCaptureExcluded(bool? excluded) => Change(i => i with { CaptureExcluded = excluded });
 
-    /// <summary>Sets whether Gemini answered the last time it was asked.</summary>
-    public void SetGemini(bool online) => Change(i => i with { Gemini = online ? GeminiState.Online : GeminiState.Offline });
+    /// <summary>
+    /// Sets whether Gemini answered the last time it was asked (a real correction); it counts as a check made now, with no
+    /// reason for an offline answer.
+    /// </summary>
+    public void SetGemini(bool online)
+    {
+        var now = _clock.GetUtcNow();
+        Change(i => i with
+        {
+            Gemini = online ? GeminiState.Online : GeminiState.Offline,
+            GeminiReason = null,
+            GeminiCheckedAt = now,
+            GeminiChecking = false,
+        });
+    }
+
+    /// <summary>Sets what a health probe found: whether Gemini works, why not (short, pt-BR, never a secret) and when.</summary>
+    public void SetGeminiProbe(bool online, string? reason, DateTimeOffset at) =>
+        Change(i => i with
+        {
+            Gemini = online ? GeminiState.Online : GeminiState.Offline,
+            GeminiReason = online ? null : reason,
+            GeminiCheckedAt = at,
+            GeminiChecking = false,
+        });
+
+    /// <summary>Marks that the first probe is in flight: the dot reads "Verificando" while Gemini is still unknown.</summary>
+    public void SetGeminiChecking(bool checking) => Change(i => i with { GeminiChecking = checking });
+
+    /// <summary>Sets whether there is no Gemini API key (the dot reads "Sem chave" in the Gemini mode).</summary>
+    public void SetGeminiKeyMissing(bool missing) => Change(i => i with { GeminiKeyMissing = missing });
+
+    /// <summary>Moves the time of the last Gemini check forward (a real call newer than the last probe); never back.</summary>
+    public void SetGeminiCheckedAt(DateTimeOffset at) =>
+        Change(i => i.GeminiCheckedAt is { } before && before >= at ? i : i with { GeminiCheckedAt = at });
+
+    /// <summary>
+    /// Raises <see cref="Gemini"/> when only its age text ("há 3 min") has changed since it was last announced, so
+    /// an open window does not keep an old age.
+    /// </summary>
+    public void RefreshGeminiAge()
+    {
+        bool changed;
+        lock (_gate)
+        {
+            var now = GeminiDot(_in, _clock.GetUtcNow());
+            changed = now != _geminiShown;
+            _geminiShown = now;
+        }
+
+        if (changed)
+        {
+            Raise([nameof(Gemini)]);
+        }
+    }
 
     /// <summary>Sets what the settings say about the correction.</summary>
     public void SetCorrectionMode(CorrectionMode mode) => Change(i => i with { Correction = mode });
@@ -269,20 +331,57 @@ public sealed class StatusHub : INotifyPropertyChanged
             : new(StatusLight.Green, "Pronta", "Pronta para mostrar avisos.");
     }
 
-    private static StatusIndicator GeminiDot(Inputs i) => i.Correction switch
+    private static StatusIndicator GeminiDot(Inputs i, DateTimeOffset now)
     {
-        CorrectionMode.Disabled => new(StatusLight.Gray, "Desligada", "A corre\U000000E7\U000000E3o autom\U000000E1tica est\U000000E1 desligada."),
-        CorrectionMode.OfflineOnly => new(StatusLight.Blue, "Offline", "Corre\U000000E7\U000000E3o s\U000000F3 offline (escolha nas configura\U000000E7\U000000F5es)."),
-        _ => i.Gemini switch
+        switch (i.Correction)
         {
-            GeminiState.Online => new(StatusLight.Green, "Online", "O Gemini est\U000000E1 corrigindo os avisos."),
+            case CorrectionMode.Disabled:
+                return new(StatusLight.Gray, "Desligada", "A correção automática está desligada.");
+            case CorrectionMode.OfflineOnly:
+                return new(StatusLight.Blue, "Offline", "Correção só offline (escolha nas configurações).");
+        }
+
+        if (i.GeminiKeyMissing)
+        {
+            return new(StatusLight.Gray, "Sem chave", "Chave do Gemini não configurada");
+        }
+
+        var ago = i.GeminiCheckedAt is { } at ? AgeText(now - at) : null;
+        return i.Gemini switch
+        {
+            GeminiState.Online => new(
+                StatusLight.Green,
+                "Online",
+                ago is null ? "O Gemini está corrigindo os avisos." : $"Gemini conectado {ago}"),
+            GeminiState.Offline when i.GeminiReason is { Length: > 0 } reason => new(
+                StatusLight.Blue,
+                "Offline",
+                $"Offline: {reason}" + (ago is null ? string.Empty : $" (verificado {ago})")
+                + ". O corretor offline está em uso e o Gemini volta sozinho."),
             GeminiState.Offline => new(
                 StatusLight.Blue,
                 "Offline",
-                "O Gemini n\U000000E3o respondeu (sem chave, sem internet ou cota). O corretor offline est\U000000E1 em uso e o Gemini volta sozinho."),
-            _ => new(StatusLight.Gray, "Aguardando", "O Gemini ainda n\U000000E3o foi usado."),
-        },
-    };
+                "O Gemini não respondeu (sem chave, sem internet ou cota). O corretor offline está em uso e o Gemini volta sozinho."),
+            _ when i.GeminiChecking => new(StatusLight.Yellow, "Verificando", "Verificando a conexão com o Gemini..."),
+            _ => new(StatusLight.Gray, "Aguardando", "O Gemini ainda não foi usado."),
+        };
+    }
+
+    // "agora", "há 3 min", "há 2 h", "há mais de um dia": whole minutes, so the text changes once a minute.
+    private static string AgeText(TimeSpan age)
+    {
+        if (age < TimeSpan.FromMinutes(1))
+        {
+            return "agora";
+        }
+
+        if (age < TimeSpan.FromHours(1))
+        {
+            return $"há {(int)age.TotalMinutes} min";
+        }
+
+        return age < TimeSpan.FromDays(1) ? $"há {(int)age.TotalHours} h" : "há mais de um dia";
+    }
 
     private static StatusIndicator HttpDot(Inputs i) => i.Http switch
     {
@@ -319,6 +418,7 @@ public sealed class StatusHub : INotifyPropertyChanged
         List<string> names = [];
         lock (_gate)
         {
+            var now = _clock.GetUtcNow();
             var before = _in;
             var after = change(before);
             if (after == before)
@@ -332,7 +432,9 @@ public sealed class StatusHub : INotifyPropertyChanged
             AddIfChanged(names, nameof(SiteState), before.Site, after.Site);
             AddIfChanged(names, nameof(Led), LedDot(before), LedDot(after));
             AddIfChanged(names, nameof(Bar), BarDot(before), BarDot(after));
-            AddIfChanged(names, nameof(Gemini), GeminiDot(before), GeminiDot(after));
+            var geminiAfter = GeminiDot(after, now);
+            AddIfChanged(names, nameof(Gemini), _geminiShown, geminiAfter);
+            _geminiShown = geminiAfter;
             AddIfChanged(names, nameof(Http), HttpDot(before), HttpDot(after));
             AddIfChanged(names, nameof(TelegramState), before.Telegram, after.Telegram);
             AddIfChanged(names, nameof(GeminiState), before.Gemini, after.Gemini);
@@ -394,6 +496,14 @@ public sealed class StatusHub : INotifyPropertyChanged
         public bool? CaptureExcluded { get; init; }
 
         public GeminiState Gemini { get; init; } = GeminiState.Unknown;
+
+        public string? GeminiReason { get; init; }
+
+        public DateTimeOffset? GeminiCheckedAt { get; init; }
+
+        public bool GeminiChecking { get; init; }
+
+        public bool GeminiKeyMissing { get; init; }
 
         public CorrectionMode Correction { get; init; } = CorrectionMode.Gemini;
 

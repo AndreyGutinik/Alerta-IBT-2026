@@ -148,6 +148,99 @@ public class StatusHubTests
         Assert.Equal(StatusLight.Green, _hub.Gemini.Light);
     }
 
+    // ---- Gemini probe states ----
+
+    private static readonly DateTimeOffset T0 = new(2026, 10, 22, 9, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void Gemini_without_a_key_is_gray_sem_chave_whatever_it_answered_before()
+    {
+        _hub.SetGemini(false);
+        _hub.SetGeminiKeyMissing(true);
+
+        Assert.Equal((StatusLight.Gray, "Sem chave"), (_hub.Gemini.Light, _hub.Gemini.Text));
+        Assert.Equal("Chave do Gemini n\U000000E3o configurada", _hub.Gemini.Detail);
+        Assert.Equal(GeminiState.Offline, _hub.GeminiState); // the site payload keeps its three values
+
+        _hub.SetGeminiKeyMissing(false);
+        Assert.Equal(StatusLight.Blue, _hub.Gemini.Light);
+
+        _hub.SetGeminiKeyMissing(true);
+        _hub.SetCorrectionMode(CorrectionMode.OfflineOnly);
+        Assert.Equal("Offline", _hub.Gemini.Text); // the user's own choice wins over "no key"
+    }
+
+    [Fact]
+    public void Gemini_is_yellow_verificando_only_while_unknown_and_checking()
+    {
+        _hub.SetGeminiChecking(true);
+        Assert.Equal((StatusLight.Yellow, "Verificando"), (_hub.Gemini.Light, _hub.Gemini.Text));
+
+        _hub.SetGeminiChecking(false);
+        Assert.Equal((StatusLight.Gray, "Aguardando"), (_hub.Gemini.Light, _hub.Gemini.Text));
+
+        _hub.SetGemini(true);
+        _hub.SetGeminiChecking(true);
+        Assert.Equal(StatusLight.Green, _hub.Gemini.Light);
+    }
+
+    [Fact]
+    public void A_probe_result_sets_the_state_the_reason_and_the_age_in_the_tooltip()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(T0);
+        var hub = new StatusHub(clock);
+
+        hub.SetGeminiProbe(online: true, reason: null, T0);
+        Assert.Equal("Gemini conectado agora", hub.Gemini.Detail);
+        clock.Advance(TimeSpan.FromMinutes(3));
+        Assert.Equal("Gemini conectado h\U000000E1 3 min", hub.Gemini.Detail);
+        clock.Advance(TimeSpan.FromMinutes(120));
+        Assert.Equal("Gemini conectado h\U000000E1 2 h", hub.Gemini.Detail);
+
+        hub.SetGeminiProbe(online: false, "tempo esgotado", clock.GetUtcNow() - TimeSpan.FromMinutes(2));
+        Assert.Equal(StatusLight.Blue, hub.Gemini.Light);
+        Assert.StartsWith("Offline: tempo esgotado (verificado h\U000000E1 2 min). ", hub.Gemini.Detail, StringComparison.Ordinal);
+
+        hub.SetGemini(false);
+        Assert.StartsWith("O Gemini n\U000000E3o respondeu", hub.Gemini.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RefreshGeminiAge_announces_the_dot_only_when_its_age_text_moved()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(T0);
+        var hub = new StatusHub(clock);
+        var changes = new List<string>();
+        hub.PropertyChanged += (_, e) => changes.Add(e.PropertyName!);
+        hub.SetGeminiProbe(true, null, T0);
+        changes.Clear();
+
+        hub.RefreshGeminiAge();
+        Assert.Empty(changes);
+
+        clock.Advance(TimeSpan.FromSeconds(61));
+        hub.RefreshGeminiAge();
+        Assert.Equal(["Gemini"], changes);
+
+        hub.RefreshGeminiAge();
+        Assert.Single(changes);
+    }
+
+    [Fact]
+    public void SetGeminiCheckedAt_only_moves_the_time_forward()
+    {
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider(T0);
+        var hub = new StatusHub(clock);
+        hub.SetGeminiProbe(true, null, T0);
+        clock.Advance(TimeSpan.FromMinutes(10));
+
+        hub.SetGeminiCheckedAt(T0 - TimeSpan.FromMinutes(5));
+        Assert.Equal("Gemini conectado h\U000000E1 10 min", hub.Gemini.Detail);
+
+        hub.SetGeminiCheckedAt(T0 + TimeSpan.FromMinutes(8));
+        Assert.Equal("Gemini conectado h\U000000E1 2 min", hub.Gemini.Detail);
+    }
+
     // ---- local API ----
 
     [Fact]

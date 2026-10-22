@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -20,12 +19,10 @@ namespace AlertaIBT.Core.Correction;
 /// </remarks>
 public sealed class GeminiCorrector : ICorrector
 {
-    private const string Endpoint = "https://generativelanguage.googleapis.com/v1beta/models/";
-
     private static readonly ParsedAlert Refusal = new("", "", null, "", "");
 
     // Finish reasons that mean Gemini did not want to answer, as opposed to STOP, MAX_TOKENS and the like.
-    private static readonly HashSet<string> BlockingFinishReasons = new(StringComparer.Ordinal)
+    internal static readonly HashSet<string> BlockingFinishReasons = new(StringComparer.Ordinal)
     {
         "SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII",
     };
@@ -118,49 +115,14 @@ public sealed class GeminiCorrector : ICorrector
         }
     }
 
-    private static string ModelId(string? model) =>
-        string.IsNullOrWhiteSpace(model) ? GeminiPrompt.DefaultModel : model.Trim();
+    private static string ModelId(string? model) => GeminiHttp.ModelId(model);
 
-    // Type names only: the message of an exception can carry addresses.
-    private static string TypeNames(Exception ex) =>
-        ex.InnerException is { } inner ? $"{ex.GetType().Name}/{inner.GetType().Name}" : ex.GetType().Name;
+    private static string TypeNames(Exception ex) => GeminiHttp.TypeNames(ex);
 
-    // "HTTP 403 PERMISSION_DENIED: API key not valid." : the code, and Google's own status and message when the body has them.
     private async Task LogHttpFailureAsync(HttpResponseMessage response, string key, string modelId, CancellationToken ct)
     {
-        var code = (int)response.StatusCode;
-        var reason = $"HTTP {code}";
-        try
-        {
-            var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            using var document = JsonDocument.Parse(body);
-            if (document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty("error", out var error)
-                && error.ValueKind == JsonValueKind.Object)
-            {
-                if (error.TryGetProperty("status", out var status) && status.ValueKind == JsonValueKind.String
-                    && GeminiLog.Clean(status.GetString()!, key, 40) is { Length: > 0 } statusText)
-                {
-                    reason += " " + statusText;
-                }
-
-                if (error.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String
-                    && GeminiLog.Clean(message.GetString()!, key) is { Length: > 0 } messageText)
-                {
-                    reason += ": " + messageText;
-                }
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception)
-        {
-            // No readable error body: the code alone says enough.
-        }
-
-        _log.Failure("http-" + code, reason, modelId);
+        var reason = await GeminiHttp.DescribeFailureAsync(response, key, ct).ConfigureAwait(false);
+        _log.Failure("http-" + (int)response.StatusCode, reason, modelId);
     }
 
     private void LogProblem(Problem problem, string modelId)
@@ -210,12 +172,7 @@ public sealed class GeminiCorrector : ICorrector
             ["generationConfig"] = generationConfig,
         };
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{Endpoint}{Uri.EscapeDataString(model.Trim())}:generateContent")
-        {
-            Content = new StringContent(body.ToJsonString(), Encoding.UTF8, MediaTypeHeaderValue.Parse("application/json")),
-        };
-        request.Headers.Add("x-goog-api-key", key);
-        return request;
+        return GeminiHttp.CreateRequest(model, key, body);
     }
 
     // The alert in Gemini's answer, the refusal alert when it declined, or null when there is nothing usable.

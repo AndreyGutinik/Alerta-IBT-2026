@@ -816,6 +816,30 @@ public sealed class MainWindowTests
     }
 
     [Fact]
+    public void Without_a_key_the_gemini_pill_and_the_side_bar_say_Sem_chave_and_a_failed_probe_shows_its_reason()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Hub.SetCorrectionMode(CorrectionMode.Gemini);
+            rig.Hub.SetGeminiKeyMissing(true);
+            rig.Select(MainTab.Correction);
+
+            Assert.Contains("Gemini \U000000B7 Sem chave", rig.AllTexts());
+            Assert.Contains("Chave do Gemini n\U000000E3o configurada", (string)rig.Window.Correction.GeminiPill.ToolTip, StringComparison.Ordinal);
+            var rows = rig.Find<StackPanel>().Where(p => p.ToolTip is string).Select(p => (string)p.ToolTip).ToList();
+            Assert.Contains(rows, tip => tip.StartsWith("Gemini: Sem chave", StringComparison.Ordinal));
+
+            rig.Hub.SetGeminiKeyMissing(false);
+            rig.Hub.SetGeminiProbe(online: false, "HTTP 429", DateTimeOffset.UtcNow);
+            rig.Layout();
+
+            Assert.Contains("Gemini \U000000B7 Offline", rig.AllTexts());
+            Assert.Contains("Offline: HTTP 429", (string)rig.Window.Correction.GeminiPill.ToolTip, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
     public void Choosing_Solo_offline_selects_its_card_and_saves()
     {
         WpfTestHost.Run(() =>

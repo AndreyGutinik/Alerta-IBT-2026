@@ -117,6 +117,30 @@ public sealed class AlertRuntimeTests : IDisposable
     }
 
     [Fact]
+    public void Starting_with_no_gemini_key_shows_Sem_chave_at_once_and_sends_no_probe()
+    {
+        WpfTestHost.RunAsync(async () =>
+        {
+            using var host = Host();
+            var runtime = host.Services.GetRequiredService<AlertRuntime>();
+            runtime.Start();
+            try
+            {
+                Assert.NotNull(host.Services.GetRequiredService<AlertaIBT.Core.Correction.GeminiHealthProbe>());
+                Assert.Equal((StatusLight.Gray, "Sem chave"), (runtime.Status.Gemini.Light, runtime.Status.Gemini.Text));
+                Assert.Equal(GeminiState.Unknown, runtime.Status.GeminiState);
+                await Task.CompletedTask;
+            }
+            finally
+            {
+                runtime.Dispose();
+            }
+
+            return 0;
+        });
+    }
+
+    [Fact]
     public void A_pc_alert_submitted_with_no_led_waits_in_the_queue_and_is_saved_to_disk()
     {
         WpfTestHost.RunAsync(async () =>

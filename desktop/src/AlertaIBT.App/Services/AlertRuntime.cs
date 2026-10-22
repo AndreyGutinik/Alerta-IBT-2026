@@ -33,6 +33,7 @@ public sealed class AlertRuntime : IDisposable
     private readonly SettingsService _settings;
     private readonly HistoryCleaner _history;
     private readonly HistoryClearScheduler _weekly;
+    private readonly GeminiHealthMonitor _gemini;
     private readonly ILogger<AlertRuntime> _logger;
     private int _started;
     private int _stopped;
@@ -54,6 +55,7 @@ public sealed class AlertRuntime : IDisposable
         SettingsService settings,
         HistoryCleaner history,
         HistoryClearScheduler weekly,
+        GeminiHealthMonitor gemini,
         ILogger<AlertRuntime> logger)
     {
         _alerts = alerts;
@@ -71,6 +73,7 @@ public sealed class AlertRuntime : IDisposable
         _settings = settings;
         _history = history;
         _weekly = weekly;
+        _gemini = gemini;
         _logger = logger;
     }
 
@@ -106,6 +109,9 @@ public sealed class AlertRuntime : IDisposable
         Guarded("o Telegram", _telegram.Start);
         Guarded("a API local", () => _http.Start());
         Guarded("o site", () => _site.Apply(_settings.Current));
+
+        // The first Gemini probe comes a few seconds later, so it does not compete with the work above.
+        Guarded("o monitor do Gemini", _gemini.Start);
 
         // The Monday 00:00 clear (and the one the PC owes after being off) looks now; the site part waits for the site to be online.
         _hub.PropertyChanged += OnHubChanged;
@@ -144,6 +150,7 @@ public sealed class AlertRuntime : IDisposable
         try
         {
             _weekly.Dispose();
+            _gemini.Dispose();
             _telegram.Dispose();
             _site.Dispose();
             _http.Dispose();
@@ -173,6 +180,9 @@ public sealed class AlertRuntime : IDisposable
     {
         _hub.SetCorrectionMode(ModeOf(settings));
         Guarded("o site", () => _site.Apply(settings));
+
+        // A new key, model or correction switch is checked right away (debounced inside the monitor).
+        Guarded("o monitor do Gemini", _gemini.OnSettingsChanged);
     }
 
     // The site came online: what the last clear left for it is done now, and a Monday that passed while it was offline is made up for.

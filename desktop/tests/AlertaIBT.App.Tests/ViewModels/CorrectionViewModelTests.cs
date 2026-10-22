@@ -343,6 +343,25 @@ public sealed class CorrectionViewModelTests : IDisposable
     }
 
     [Fact]
+    public void The_gemini_pill_reads_Sem_chave_without_a_key_and_Verificando_while_the_first_probe_runs()
+    {
+        var vm = Create();
+        _rig.Hub.SetCorrectionMode(CorrectionMode.Gemini);
+
+        _rig.Hub.SetGeminiChecking(true);
+        Assert.Equal((StatusLight.Yellow, "Verificando"), (vm.GeminiLight, vm.GeminiText));
+
+        _rig.Hub.SetGeminiKeyMissing(true);
+        Assert.Equal((StatusLight.Gray, "Sem chave"), (vm.GeminiLight, vm.GeminiText));
+        Assert.Equal("Gemini: Sem chave\nChave do Gemini n\U000000E3o configurada", vm.GeminiTip);
+
+        _rig.Hub.SetGeminiKeyMissing(false);
+        _rig.Hub.SetGeminiProbe(online: false, "HTTP 403 PERMISSION_DENIED", DateTimeOffset.UtcNow);
+        Assert.Equal((StatusLight.Blue, "Offline"), (vm.GeminiLight, vm.GeminiText));
+        Assert.Contains("Offline: HTTP 403 PERMISSION_DENIED", vm.GeminiTip, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_gemini_dot_is_blue_when_only_offline_is_chosen_and_gray_when_the_correction_is_off()
     {
         var vm = Create();

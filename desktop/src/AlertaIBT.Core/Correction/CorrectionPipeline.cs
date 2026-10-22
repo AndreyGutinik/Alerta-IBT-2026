@@ -62,6 +62,7 @@ public sealed partial class CorrectionPipeline
 
     private readonly Lock _healthGate = new();
     private bool? _health;
+    private DateTimeOffset? _lastCallAt;
 
     /// <param name="gemini">The online corrector.</param>
     /// <param name="offline">The offline corrector, used when Gemini cannot answer or is not trusted.</param>
@@ -106,6 +107,28 @@ public sealed partial class CorrectionPipeline
     /// should return quickly and not call back into the pipeline from another thread.
     /// </summary>
     public event Action<bool>? GeminiHealthChanged;
+
+    /// <summary>
+    /// When the last real call to Gemini ended (it worked or it failed; a cache hit, a run without Gemini and a
+    /// <see cref="ReportProbe"/> do not count), or <c>null</c> if there was none. The health monitor skips its idle probe
+    /// while this is recent: a real call is a probe.
+    /// </summary>
+    public DateTimeOffset? LastGeminiCallAt
+    {
+        get
+        {
+            lock (_healthGate)
+            {
+                return _lastCallAt;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reports what a health probe found, as a real call would (same <see cref="GeminiHealthChanged"/> event, so a later real
+    /// call that disagrees is announced), without counting as a real call for <see cref="LastGeminiCallAt"/>.
+    /// </summary>
+    public void ReportProbe(bool online) => ReportHealth(online, realCall: false);
 
     /// <summary>
     /// Corrects <paramref name="raw"/>.
@@ -166,7 +189,7 @@ public sealed partial class CorrectionPipeline
         }
 
         var answer = await CallGeminiAsync(raw, ct).ConfigureAwait(false);
-        ReportHealth(answer is not null);
+        ReportHealth(answer is not null, realCall: true);
         if (answer is null)
         {
             return null;
@@ -262,10 +285,15 @@ public sealed partial class CorrectionPipeline
         && string.IsNullOrWhiteSpace(alert.Reason)
         && string.IsNullOrWhiteSpace(alert.Plate);
 
-    private void ReportHealth(bool online)
+    private void ReportHealth(bool online, bool realCall)
     {
         lock (_healthGate)
         {
+            if (realCall)
+            {
+                _lastCallAt = _clock.GetUtcNow();
+            }
+
             if (_health == online)
             {
                 return;

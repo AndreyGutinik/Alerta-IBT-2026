@@ -25,6 +25,8 @@ namespace AlertaIBT.App.Hosting;
 /// <summary>Builds the dependency-injection host: logging to <c>%AppData%\AlertaIBT\logs</c> (7 days) and the app's services.</summary>
 public static class AppHost
 {
+    private const string GeminiClientKey = "gemini";
+
     /// <summary>Creates the host (not started). Also configures the global Serilog logger.</summary>
     /// <param name="paths">Where the app keeps its files.</param>
     /// <param name="arguments">The command line.</param>
@@ -305,15 +307,47 @@ public static class AppHost
                 directory,
                 ex => hub.ReportError("Dicionario offline", ex));
         });
+
+        // One client for the corrector and the health probe: the probe proves the very path a correction takes.
+        services.AddKeyedSingleton(GeminiClientKey, (_, _) => GeminiHttp.CreateClient());
         services.AddSingleton(provider =>
         {
             var settings = provider.GetRequiredService<SettingsService>();
             var protector = provider.GetRequiredService<ISecretProtector>();
             return new GeminiCorrector(
-                GeminiHttp.CreateClient(),
+                provider.GetRequiredKeyedService<HttpClient>(GeminiClientKey),
                 () => settings.Current.GetGeminiKey(protector),
                 () => settings.Current.Correction.GeminiModel,
                 provider.GetRequiredService<ILogger<GeminiCorrector>>());
+        });
+        services.AddSingleton(provider =>
+        {
+            var settings = provider.GetRequiredService<SettingsService>();
+            var protector = provider.GetRequiredService<ISecretProtector>();
+            return new GeminiHealthProbe(
+                provider.GetRequiredKeyedService<HttpClient>(GeminiClientKey),
+                () => settings.Current.GetGeminiKey(protector),
+                () => settings.Current.Correction.GeminiModel,
+                provider.GetRequiredService<ILogger<GeminiHealthProbe>>());
+        });
+        services.AddSingleton(provider =>
+        {
+            var settings = provider.GetRequiredService<SettingsService>();
+            var protector = provider.GetRequiredService<ISecretProtector>();
+            return new GeminiHealthMonitor(
+                provider.GetRequiredService<GeminiHealthProbe>(),
+                provider.GetRequiredService<CorrectionPipeline>(),
+                provider.GetRequiredService<StatusHub>(),
+                () =>
+                {
+                    var current = settings.Current;
+                    return new GeminiProbeSettings(
+                        current.Correction.Enabled,
+                        !string.Equals(current.Correction.Mode, "offline", StringComparison.Ordinal),
+                        current.GetGeminiKey(protector),
+                        current.Correction.GeminiModel);
+                },
+                logger: provider.GetRequiredService<ILogger<GeminiHealthMonitor>>());
         });
         services.AddSingleton(provider =>
         {

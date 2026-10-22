@@ -30,11 +30,15 @@ internal sealed class GeminiLog
     public void Failure(string kind, string reason, string model) =>
         Write(LogLevel.Warning, kind, "Gemini falhou: {Reason} (modelo {Model})", reason, model);
 
+    /// <summary>The health probe worked (Information): <c>Gemini: conectado (modelo {model}, {ms} ms)</c>.</summary>
+    public void Connected(string model, long milliseconds) =>
+        Write(LogLevel.Information, "connected", "Gemini: conectado (modelo {Model}, {Ms} ms)", model, milliseconds);
+
     /// <summary>Gemini answered but declined, or its answer was not used (Information): <c>Gemini: {what} (modelo {model})</c>.</summary>
     public void Note(string kind, string what, string model) =>
         Write(LogLevel.Information, kind, "Gemini: {What} (modelo {Model})", what, model);
 
-    private void Write(LogLevel level, string kind, string template, string text, string model)
+    private void Write(LogLevel level, string kind, string template, params object[] args)
     {
         var now = _clock.GetUtcNow();
         lock (_gate)
@@ -57,7 +61,7 @@ internal sealed class GeminiLog
 
         try
         {
-            _logger.Log(level, template, text, model);
+            _logger.Log(level, template, args);
         }
         catch (Exception)
         {
