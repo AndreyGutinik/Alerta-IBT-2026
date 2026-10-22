@@ -64,6 +64,23 @@ $env:ALERTAIBT_DATA_DIR = "$env:TEMP\alertaibt-dev"
 dotnet run --project desktop/src/AlertaIBT.App -- --tray --test-led
 ```
 
+### Variáveis de ambiente (só desenvolvimento e testes)
+
+| Variável | Efeito |
+| --- | --- |
+| `ALERTAIBT_DATA_DIR` | Move a pasta de dados (`settings.json`, fila, logs) para outro lugar. |
+| `ALERTAIBT_INSTANCE_NAME` | Troca o nome da instância única (mutex `Local<nome>.SingleInstance` e evento `Local<nome>.ShowWindow`; padrão `AlertaIBT`), lido em um só lugar: `SingleInstance.ResolveName()`. Quem abre o app (ou os testes) com outro nome não trava nem acorda a janela do app real da igreja. O app instalado nunca a define. |
+
+Os testes do App (`TestIsolation`, módulo inicial) definem as duas com nomes únicos por execução, e o `WpfTestHost` desliga o `OnStartup` real (`App.RunsApplication = false`): o WPF dispara o `OnStartup` sozinho assim que o dispatcher roda, e antes isso abria o app de verdade durante os testes (tomava o mutex, acordava a janela do app aberto, mexia no `%AppData%`). Nenhum teste pode usar a porta 8787 (use uma porta livre), o atalho global real (os testes usam Ctrl+Alt+Shift+F22/F23) nem o `%AppData%AlertaIBT`.
+
+### Início do app
+
+O app **sempre** abre escondido na bandeja (`StartupPlan.Decide`): a janela só aparece na primeira abertura após instalar (não existia `settings.json`) e quando uma segunda abertura acorda a instância que já roda. Abertura manual (sem `--tray`) mostra um aviso "Alerta-IBT está na bandeja"; `--tray` continua aceito e o valor do Run do Windows não mudou. Nada no caminho da bandeja chama `Show`/`Activate`.
+
+### Ícones
+
+`desktop/build/make-icons.mjs` (`cd desktop/build; npm install; npm run icons`, ou `npm run icons` em `web/`) gera todos os ícones a partir de `assets/icons/logo.svg` (a mesma marca de `Logo_IBT/Creme Claro_3_Brand-Mark.svg`): `assets/icons/app.ico` (PNG em 16, 20, 24, 32, 40, 48, 64, 96, 128 e 256), `app-256.png`, `app-512.png` e os ícones do site em `web/public`. A cor do quadrado vem de `--bg` em `web/src/styles/tokens.css`.
+
 ## Regras de trabalho
 
 - Mudanças pequenas e testadas (escreva o teste que falha primeiro). Build com **0 avisos**.

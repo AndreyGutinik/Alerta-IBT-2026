@@ -10,6 +10,20 @@ public sealed class SingleInstance : IDisposable
     /// <summary>The name the app uses for its mutex and activation event.</summary>
     public const string DefaultName = "AlertaIBT";
 
+    /// <summary>
+    /// Environment variable that replaces <see cref="DefaultName"/>. For tests and development only: a test run that starts the app
+    /// sets a unique name, so it never takes the lock of, nor wakes the window of, the copy the church really uses. The installed
+    /// app never sets it.
+    /// </summary>
+    public const string InstanceNameVariable = "ALERTAIBT_INSTANCE_NAME";
+
+    /// <summary>The name in use: the value of <see cref="InstanceNameVariable"/> when it is set, else <see cref="DefaultName"/>. The one place that reads the variable.</summary>
+    public static string ResolveName()
+    {
+        var overridden = Environment.GetEnvironmentVariable(InstanceNameVariable);
+        return string.IsNullOrWhiteSpace(overridden) ? DefaultName : overridden.Trim();
+    }
+
     private readonly Mutex _mutex;
     private readonly EventWaitHandle _activation;
     private RegisteredWaitHandle? _registration;
@@ -25,9 +39,10 @@ public sealed class SingleInstance : IDisposable
     /// first start; a few seconds after an automatic restart, while the old process is still leaving).
     /// </summary>
     /// <param name="wait">How long to wait for a running copy to let go.</param>
-    /// <param name="name">The shared name; only tests use anything but <see cref="DefaultName"/>.</param>
-    public static SingleInstance? TryAcquire(TimeSpan wait, string name = DefaultName)
+    /// <param name="name">The shared name; <see cref="ResolveName"/> (normally <see cref="DefaultName"/>) when omitted.</param>
+    public static SingleInstance? TryAcquire(TimeSpan wait, string? name = null)
     {
+        name ??= ResolveName();
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var mutex = new Mutex(initiallyOwned: false, MutexName(name));
@@ -51,8 +66,9 @@ public sealed class SingleInstance : IDisposable
     }
 
     /// <summary>Asks the running copy to show its window. False when no copy is listening.</summary>
-    public static bool SignalExisting(string name = DefaultName)
+    public static bool SignalExisting(string? name = null)
     {
+        name ??= ResolveName();
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         if (!EventWaitHandle.TryOpenExisting(EventName(name), out var activation))

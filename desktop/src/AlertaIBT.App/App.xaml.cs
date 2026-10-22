@@ -21,11 +21,23 @@ public partial class App : Application
     private IHost? _host;
     private bool _restartingForUpdate;
 
+    /// <summary>
+    /// Whether <see cref="OnStartup"/> runs the real application (single-instance lock, settings, tray, hotkey, API, window). Always true in
+    /// the app. The test host sets it to false before it creates its <see cref="App"/>: WPF posts <c>OnStartup</c> to the dispatcher by itself,
+    /// so without this a test run would start, and fight over the PC with, the copy of the app the church really uses.
+    /// </summary>
+    internal static bool RunsApplication { get; set; } = true;
+
     /// <inheritdoc />
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         ApplicationAccentColorManager.Apply(Color.FromRgb(0x1D, 0xA3, 0x5F), ApplicationTheme.Dark, false, false);
+        if (!RunsApplication)
+        {
+            return;
+        }
+
         var arguments = StartupArguments.Parse(e.Args);
 
         var paths = AppPaths.Default;

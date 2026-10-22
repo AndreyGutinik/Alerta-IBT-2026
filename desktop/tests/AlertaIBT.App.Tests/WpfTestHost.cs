@@ -30,6 +30,7 @@ internal static class WpfTestHost
         {
             try
             {
+                App.RunsApplication = false; // before the App exists: it posts its own OnStartup to this dispatcher
                 var app = new App { ShutdownMode = ShutdownMode.OnExplicitShutdown };
                 app.InitializeComponent();
                 ready.SetResult(Dispatcher.CurrentDispatcher);
