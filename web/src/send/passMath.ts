@@ -18,6 +18,28 @@ export function passTotalMs(speed: number, textWidth: number, screenWidth = LED_
 
 /** O quanto da passagem já foi, de 0 a 1, `elapsedMs` depois do `startedAt` do PC (hora do servidor). */
 export function passProgress(elapsedMs: number, speed: number, textWidth: number, screenWidth = LED_WIDTH): number {
-  const total = passTotalMs(speed, textWidth, screenWidth)
-  return Math.min(1, Math.max(0, elapsedMs / total))
+  return clampRatio(elapsedMs / passTotalMs(speed, textWidth, screenWidth))
+}
+
+function clampRatio(ratio: number): number {
+  return Math.min(1, Math.max(0, ratio))
+}
+
+/** A duração exata publicada pelo PC só vale se for um número finito maior que zero. */
+export function isExactDuration(durationMs: unknown): durationMs is number {
+  return typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs > 0
+}
+
+/**
+ * O andamento da passagem que está no LED. Com a duração exata do PC (`now.durationMs`) conta direto por ela e não
+ * mede o texto; sem ela (PC antigo, valor inválido) estima por velocidade + largura do texto (`measureTextWidth`).
+ */
+export function nowProgress(
+  elapsedMs: number,
+  durationMs: number | undefined,
+  speed: number,
+  measureTextWidth: () => number,
+): number {
+  if (isExactDuration(durationMs)) return clampRatio(elapsedMs / durationMs)
+  return passProgress(elapsedMs, speed, measureTextWidth())
 }

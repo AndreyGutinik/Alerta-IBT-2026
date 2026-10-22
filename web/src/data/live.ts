@@ -75,6 +75,8 @@ function normalizeNow(value: unknown): LiveNow | null {
     source: source(value.source),
     startedAt: num(value.startedAt) ?? 0,
   }
+  const durationMs = positive(value.durationMs)
+  if (durationMs !== undefined) now.durationMs = durationMs
   return withPlate(now, value)
 }
 

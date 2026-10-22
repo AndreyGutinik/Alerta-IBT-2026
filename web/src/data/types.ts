@@ -65,6 +65,8 @@ export interface LiveNow {
   text: string
   source: LiveSource
   startedAt: number
+  /** Duração real da passagem inteira (entra + rola + sai), em ms, publicada pelo PC; ausente nas versões antigas. */
+  durationMs?: number
   plate?: string
 }
 

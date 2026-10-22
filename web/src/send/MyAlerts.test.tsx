@@ -88,6 +88,32 @@ describe('MyAlerts', () => {
       expect(within(row('TEXTO n')).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
     })
 
+    describe('com now.durationMs (duração exata do PC)', () => {
+      const valueOf = () => Number(within(row('TEXTO n')).getByRole('progressbar').getAttribute('aria-valuenow'))
+      const nowWith = (over: { startedAt?: number; durationMs?: number }) =>
+        liveState({ now: { id: 'n', text: NOW_TEXT, source: 'site', startedAt: T0 - 10_000, ...over } }, T0)
+
+      it('usa elapsed / durationMs (10 s de 40 s = 25%), sem a estimativa do texto', () => {
+        setup([req('n', { state: 'showing', at: T0 })], { live: nowWith({ durationMs: 40_000 }) })
+        expect(valueOf()).toBe(25)
+      })
+
+      it('sem durationMs, ou com valor inválido, volta para a estimativa', () => {
+        const estimate = (10_000 / passTotalMs(90, measureTextPx(NOW_TEXT, Math.round(56 * 0.64)))) * 100
+        setup([req('n', { state: 'showing', at: T0 })], { live: nowWith({}) })
+        expect(valueOf()).toBe(Math.round(estimate))
+      })
+
+      it('recomeça quando o startedAt muda (outra passagem do mesmo aviso)', () => {
+        const view = setup([req('n', { state: 'showing', at: T0 })], { live: nowWith({ durationMs: 40_000 }) })
+        expect(valueOf()).toBe(25)
+        act(() => view.backend.emitLive(nowWith({ durationMs: 40_000, startedAt: T0 - 30_000 })))
+        expect(valueOf()).toBe(75)
+        act(() => view.backend.emitLive(nowWith({ durationMs: 40_000, startedAt: T0 })))
+        expect(valueOf()).toBe(0)
+      })
+    })
+
     it('avisos na fila, exibidos ou de outra pessoa não têm a linha', () => {
       const live = liveState({ now: { id: 'outro', text: NOW_TEXT, source: 'site', startedAt: T0 } }, T0)
       setup([req('q', { state: 'queued', position: 1, at: T0 }), req('o', { state: 'shown', at: T0 })], { live })

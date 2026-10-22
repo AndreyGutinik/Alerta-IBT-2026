@@ -95,6 +95,15 @@ describe('normalizeLive', () => {
     })
   })
 
+  it('now.durationMs: número positivo passa; ausente ou inválido vira undefined', () => {
+    const durationOf = (durationMs: unknown) =>
+      normalizeLive({ now: { id: 'n', text: 'X', source: 'pc', startedAt: 3, durationMs } })?.now?.durationMs
+
+    expect(durationOf(41_250)).toBe(41_250)
+    for (const bad of [undefined, 0, -1, '41000', null, true, {}]) expect(durationOf(bad)).toBeUndefined()
+    expect(normalizeLive({ now: { id: 'n', text: 'X', source: 'pc', startedAt: 3 } })?.now).not.toHaveProperty('durationMs')
+  })
+
   it('origem desconhecida vira pc', () => {
     expect(normalizeLive({ queue: [{ id: 'q', text: 'X', source: 'fax' }] })?.queue[0].source).toBe('pc')
   })
