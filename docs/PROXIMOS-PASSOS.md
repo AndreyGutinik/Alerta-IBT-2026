@@ -4,7 +4,7 @@ Estado em 2026-10-21. Este documento só diz o que existe e o que falta; as deci
 
 ## Pronto (Plano 1: app do PC, versão 8.0.0)
 
-Barra no LED fora da captura, fila, Telegram, correção (Gemini + offline), painel da bandeja, janela, API local 8787, instalador e atualização automática (Velopack). Está no branch `v8-csharp`, **ainda sem teste na igreja**: o roteiro é o [CHECKLIST-IGREJA.md](CHECKLIST-IGREJA.md).
+Barra no LED fora da captura, fila, Telegram, correção (Gemini + offline), painel da bandeja, janela, API local 8787, instalador e atualização automática (Velopack: abre, procura, instala e reinicia sozinho quando ocioso; vê pré-lançamentos). Está no branch `v8-csharp`, **ainda sem teste na igreja**: o roteiro é o [CHECKLIST-IGREJA.md](CHECKLIST-IGREJA.md).
 
 Antes de mesclar na `main`: testar na igreja, corrigir o que o teste mostrar e fazer a revisão final do branch inteiro. Nada foi enviado ao GitHub (sem push, sem Release).
 
@@ -20,9 +20,12 @@ Antes de mesclar na `main`: testar na igreja, corrigir o que o teste mostrar e f
 
 Capacitor empacotando o `web/dist`, login Google nativo, voz e vibração nativos, APK assinado nas Releases do GitHub com aviso de versão nova. Só começa depois do PC e do site estarem testados na igreja (spec 11). A chave de assinatura do APK precisa de cópia de segurança.
 
+## Atualização automática: a primeira instalação é à mão (bootstrap)
+
+As versões instaladas **antes** da 8.0.1 (as 8.0.0-pre.N) só enxergam lançamentos estáveis e só instalam na abertura seguinte, então **não conseguem se atualizar sozinhas para a 8.0.1**. O dono instala a primeira versão com atualização automática **uma vez, à mão** (rodar o `AlertaIBT-win-Setup.exe` dela por cima; as configurações em `%AppData%\AlertaIBT` ficam). Daí em diante todas chegam sozinhas, pré-lançamentos incluídos. Para um canal só estável no futuro, basta trocar `VelopackUpdateClient.IncludePreReleases` para `false`.
+
 ## Pequenos itens do app do PC que ficaram de fora
 
-- Botão "Reiniciar para atualizar" no Diagnóstico (a atualização hoje se instala sozinha no próximo início do app).
 - Instalador sem assinatura digital: o Windows mostra o aviso "O Windows protegeu o computador" na primeira instalação. O caminho grátis (SignPath Foundation) e o que só o dono pode fazer estão em [ASSINATURA.md](ASSINATURA.md); ele exige uma licença de código aberto, que ainda não foi escolhida.
 - Os ícones Lucide foram escritos à mão a partir da memória; conferir se estão bonitos (item no checklist).
 

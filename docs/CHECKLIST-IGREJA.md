@@ -164,9 +164,17 @@ Pedir a outra pessoa para mandar do grupo (e conferir as respostas do bot).
 - [ ] Depois do reinício a bolinha do Telegram volta a verde sozinha e `curl http://127.0.0.1:8787/overlay/status` responde.
 - [ ] Fechar o app pelo **Sair** da bandeja (confirmar) e verificar no Gerenciador de Tarefas que o processo acabou.
 
-## 13. Atualização automática (só dá para ver numa versão seguinte)
+## 13. Atualização automática (precisa de duas versões: a instalada N e uma publicada N+1)
 
-- [ ] Quando existir uma versão posterior (por exemplo 8.0.1) nas Releases: com o app aberto e com internet, ele baixa em silêncio (log "Atualização ... baixada") e **não reinicia sozinho**. Sair e abrir de novo pelo Menu Iniciar: abre já na versão nova. Sem internet, nada acontece e não aparece erro.
+O app procura versão nova 5 s depois de abrir e a cada 30 minutos; **vê também os pré-lançamentos** (8.0.1-pre.2 conta como nova para 8.0.1-pre.1). Achando, baixa, e **instala e reinicia sozinho quando está ocioso** (nada na fila, nada na barra, sem pregação pausada, nenhum envio em andamento).
+
+- [ ] **Versão certa**: instalar a versão N (o `Setup.exe`), abrir e ver em **Configurações → Sistema** a linha "Versão N", o interruptor **Atualizar automaticamente ao abrir** ligado e a linha do resultado ("Atualizado (N) às HH:MM").
+- [ ] **Atualiza ao abrir**: publicar a versão N+1 nas Releases (pode ser pré-lançamento), fechar o app (Sair) e abrir de novo. Em até uns 10 s aparece no alto da janela "Baixando a atualização N+1…" (e na dica do ícone da bandeja), depois "Instalando e reiniciando…"; o app fecha e abre sozinho **na mesma forma de antes** (na bandeja se tinha aberto com `--tray`) já na versão N+1 (conferir em Configurações → Sistema).
+- [ ] **Verificar agora**: com o app aberto, publicar a N+2 e apertar **Verificar agora**: a linha do resultado mostra o andamento e o app atualiza. Sem versão nova a linha diz "Atualizado (N) às HH:MM". Sem internet diz "Sem conexão com o GitHub" e **não aparece erro**.
+- [ ] **Ocupado não reinicia**: com um aviso na fila ou passando na barra (ou com a pregação **pausada**), publicar uma versão nova e apertar **Verificar agora**: ela baixa, a linha diz "Nova versão X baixada, instalando quando ficar ocioso" e o app **não reinicia**. Quando a fila esvaziar (ou retomar a pregação) ele instala e reinicia sozinho em até 15 s. A fila salva volta depois do reinício.
+- [ ] **Interruptor desligado**: desligar "Atualizar automaticamente ao abrir", publicar versão nova, fechar e abrir: nada acontece sozinho. **Verificar agora** continua funcionando.
+- [ ] **Sem laço**: se a atualização falhar, o app tenta no máximo 2 vezes por versão em 24 h (no log: "sem novas tentativas até amanhã") e segue funcionando na versão antiga.
+- [ ] Versões instaladas **antes** desta (8.0.0) não atualizam sozinhas para ela: instalar a primeira versão com atualização automática à mão (veja `docs/PROXIMOS-PASSOS.md`).
 
 ## 14. Site (avisos pelo celular)
 

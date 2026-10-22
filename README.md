@@ -18,7 +18,7 @@ Escrito em C# (.NET 10 + WPF). Substitui o app Electron da versão 7 (o código 
 
 A primeira vez que o app abre (sem o `--tray`) mostra a janela. Nas vezes seguintes ele fica só na bandeja.
 
-**Atualizações:** o app procura sozinho versões novas nas Releases do GitHub, baixa em silêncio e **instala na próxima vez que abrir** (ao ligar o PC, ou depois de Sair e abrir de novo). Nunca reinicia sozinho no meio do culto. Sem internet, nada acontece e nada dá erro.
+**Atualizações:** ao abrir, o app espera 5 s, procura uma versão nova nas Releases do GitHub (**pré-lançamentos incluídos**: vale sempre a mais alta) e, achando, baixa e **instala e reinicia sozinho quando está ocioso**: nada na fila, nada na barra, sem pregação pausada e sem envio em andamento. Se estiver ocupado, deixa a versão baixada e instala assim que ficar ocioso (e, de qualquer jeito, na próxima abertura). Procura de novo a cada 30 minutos, então um PC que fica ligado por dias também atualiza. Reinicia com os mesmos argumentos (na bandeja, se estava na bandeja) e salva a fila antes. Em **Configurações → Sistema** há o interruptor "Atualizar automaticamente ao abrir", a versão, o botão **Verificar agora** e a linha com o resultado da última verificação. Sem internet, nada acontece e nada dá erro; uma atualização que falha não é repetida mais de 2 vezes em 24 h. Versões instaladas antes da 8.0.1 não se atualizam sozinhas para ela (veja `docs/PROXIMOS-PASSOS.md`).
 
 **Desinstalar:** Configurações do Windows > Aplicativos > Alerta-IBT. Isso também tira o app do início do Windows. Suas configurações em `%AppData%\AlertaIBT` ficam guardadas (apague essa pasta para começar do zero).
 
@@ -101,7 +101,7 @@ Tudo em `%AppData%\AlertaIBT` (cole isso na barra do Explorador):
 | `queue.json` | A fila e o histórico. Sobrevive a um reinício; a pausa não é lembrada. |
 | `telegram-journal.json` | Os números das mensagens do grupo que o app viu (respostas do bot e avisos com `#`), por 48 h: só essas o **Limpar histórico** apaga do Telegram. |
 | `logs\` | Registro do dia a dia (7 dias). Também aparece em Configurações > Diagnóstico, com copiar, exportar e limpar. |
-| `legacy-notice-shown.txt`, `update-attempt.txt` | Marcas internas (o aviso do app antigo já apareceu; versão cuja instalação já foi tentada). Podem ser apagadas. |
+| `legacy-notice-shown.txt`, `update-restart.txt` | Marcas internas (o aviso do app antigo já apareceu; o app acabou de ser reiniciado por uma atualização). Podem ser apagadas. A contagem de tentativas de instalar uma versão fica em `settings.json`. |
 
 O programa em si fica em `%LocalAppData%\AlertaIBT`.
 
