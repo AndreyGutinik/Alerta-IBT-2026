@@ -720,13 +720,17 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
             return false;
         }
 
-        if (user is not JsonObject record || (record["blocked"] is JsonValue blocked && blocked.TryGetValue<bool>(out var isBlocked) && isBlocked))
+        // The owner (SiteContract.ProtectedAdmins) is an administrator and never blocked, even if the database says otherwise.
+        var protectedAdmin = user is JsonObject owner
+            && owner["email"] is JsonValue emailValue && emailValue.TryGetValue<string>(out var email) && SiteContract.IsProtectedAdmin(email);
+        if (user is not JsonObject record
+            || (!protectedAdmin && record["blocked"] is JsonValue blocked && blocked.TryGetValue<bool>(out var isBlocked) && isBlocked))
         {
             await WriteStatusAsync(request.Id, new StatusValue(SiteContract.Rejected, Reason: SiteContract.AccessRemoved), ct).ConfigureAwait(false);
             return true;
         }
 
-        var role = record["role"] is JsonValue r && r.TryGetValue<string>(out var roleName) && roleName == "admin" ? SenderRole.Admin : SenderRole.Member;
+        var role = protectedAdmin || (record["role"] is JsonValue r && r.TryGetValue<string>(out var roleName) && roleName == "admin") ? SenderRole.Admin : SenderRole.Member;
         if (role == SenderRole.Member && !_limiter.TryAcquire(request.Uid, now))
         {
             _logger.LogInformation("Pedido {Id} recusado: limite por hora", request.Id);

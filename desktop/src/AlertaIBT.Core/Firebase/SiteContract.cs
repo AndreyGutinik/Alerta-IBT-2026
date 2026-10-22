@@ -39,6 +39,21 @@ public static class SiteContract
     /// <summary>Something went wrong at the PC while handling the request.</summary>
     public const string PcError = "erro no PC, tente de novo";
 
+    /// <summary>
+    /// The e-mails of the people who are always administrators and never blocked or limited, whatever <c>/users/{uid}</c> says: the
+    /// owner and maintainer of the project. This is the ONLY place the address is written; the database rules protect it too, and
+    /// this is the second line (defense in depth). Compared without case and without surrounding spaces, see <see cref="IsProtectedAdmin"/>.
+    /// </summary>
+    public static readonly IReadOnlyList<string> ProtectedAdmins = ["gutnikandrey01@protonmail.com"];
+
+    /// <summary>Whether <paramref name="email"/> (from the <c>/users</c> record) is one of <see cref="ProtectedAdmins"/>.</summary>
+    public static bool IsProtectedAdmin(string? email)
+    {
+        var wanted = email?.Trim();
+        return !string.IsNullOrEmpty(wanted)
+            && ProtectedAdmins.Any(admin => string.Equals(admin, wanted, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>The state name of a history entry.</summary>
     public static string StateOf(HistoryState state) => state switch
     {
