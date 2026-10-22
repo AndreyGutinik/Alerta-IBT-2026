@@ -8,7 +8,8 @@ using System.Text.RegularExpressions;
 namespace AlertaIBT.Core.Telegram;
 
 /// <summary>
-/// The two Telegram Bot API calls the app needs: <c>getUpdates</c> (long polling) and <c>sendMessage</c>. The token
+/// The Telegram Bot API calls the app needs: <c>getUpdates</c> (long polling), <c>sendMessage</c>, and, for "Limpar histórico",
+/// <c>deleteMessage</c> and <c>getChat</c> (to find the pinned message). The token
 /// travels in the URL path, as Telegram requires, so it is checked for shape before use and scrubbed from every error
 /// message: nothing thrown from here ever contains it.
 /// </summary>
@@ -17,7 +18,7 @@ namespace AlertaIBT.Core.Telegram;
 /// out by itself (the long-poll time plus a slack), so the <see cref="HttpClient"/> it gets must not have a shorter
 /// <see cref="HttpClient.Timeout"/> than that: give it its own instance, not the one used for Gemini.
 /// </remarks>
-public sealed partial class TelegramClient
+public sealed partial class TelegramClient : ITelegramMessages
 {
     private const string ApiRoot = "https://api.telegram.org/bot";
     private const int MaxTextLength = 4096;
@@ -94,10 +95,11 @@ public sealed partial class TelegramClient
     /// <param name="chatId">The chat to write to.</param>
     /// <param name="text">The text; blank is refused.</param>
     /// <param name="ct">Cancels the call.</param>
+    /// <returns>The id Telegram gave the new message, or <c>null</c> when the answer did not carry one.</returns>
     /// <exception cref="ArgumentException"><paramref name="text"/> is blank.</exception>
     /// <exception cref="TelegramException">No token, no internet, a timeout, an HTTP error or an unreadable answer.</exception>
     /// <exception cref="OperationCanceledException">The caller cancelled <paramref name="ct"/>.</exception>
-    public async Task SendMessageAsync(long chatId, string text, CancellationToken ct)
+    public async Task<long?> SendMessageAsync(long chatId, string text, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(text);
         if (string.IsNullOrWhiteSpace(text))
@@ -120,7 +122,7 @@ public sealed partial class TelegramClient
             ["link_preview_options"] = new JsonObject { ["is_disabled"] = true },
         }.ToJsonString();
 
-        await SendAsync<JsonNode>(
+        var sent = await SendAsync<JsonNode>(
             token,
             () => new HttpRequestMessage(HttpMethod.Post, ApiRoot + token + "/sendMessage")
             {
@@ -128,7 +130,58 @@ public sealed partial class TelegramClient
             },
             _slack,
             ct).ConfigureAwait(false);
+        return MessageIdOf(sent);
     }
+
+    /// <summary>
+    /// Deletes a message of the chat. Telegram lets a bot delete its own messages less than 48 hours old, and others' messages only
+    /// when it is an admin with the right to delete.
+    /// </summary>
+    /// <param name="chatId">The chat the message is in.</param>
+    /// <param name="messageId">The message to delete.</param>
+    /// <param name="ct">Cancels the call.</param>
+    /// <exception cref="TelegramException">No token, no internet, a timeout, or Telegram refused (400: too old or already gone; 403: no right).</exception>
+    /// <exception cref="OperationCanceledException">The caller cancelled <paramref name="ct"/>.</exception>
+    public async Task DeleteMessageAsync(long chatId, long messageId, CancellationToken ct)
+    {
+        var token = RequireToken();
+        var body = new JsonObject { ["chat_id"] = chatId, ["message_id"] = messageId }.ToJsonString();
+
+        await SendAsync<JsonNode>(
+            token,
+            () => new HttpRequestMessage(HttpMethod.Post, ApiRoot + token + "/deleteMessage")
+            {
+                Content = new StringContent(body, Encoding.UTF8, MediaTypeHeaderValue.Parse("application/json")),
+            },
+            _slack,
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>The id of the message pinned in the chat, which "Limpar histórico" never deletes.</summary>
+    /// <param name="chatId">The chat.</param>
+    /// <param name="ct">Cancels the call.</param>
+    /// <returns>The id, or <c>null</c> when nothing is pinned.</returns>
+    /// <exception cref="TelegramException">No token, no internet, a timeout, an HTTP error or an unreadable answer.</exception>
+    /// <exception cref="OperationCanceledException">The caller cancelled <paramref name="ct"/>.</exception>
+    public async Task<long?> GetPinnedMessageIdAsync(long chatId, CancellationToken ct)
+    {
+        var token = RequireToken();
+        var body = new JsonObject { ["chat_id"] = chatId }.ToJsonString();
+
+        var chat = await SendAsync<JsonNode>(
+            token,
+            () => new HttpRequestMessage(HttpMethod.Post, ApiRoot + token + "/getChat")
+            {
+                Content = new StringContent(body, Encoding.UTF8, MediaTypeHeaderValue.Parse("application/json")),
+            },
+            _slack,
+            ct).ConfigureAwait(false);
+        return chat is JsonObject obj ? MessageIdOf(obj["pinned_message"]) : null;
+    }
+
+    // "message_id" of a Message object, or null for anything else (the answer is not trusted to have the shape).
+    private static long? MessageIdOf(JsonNode? message) =>
+        message is JsonObject obj && obj["message_id"] is JsonValue id && id.TryGetValue<long>(out var value) ? value : null;
 
     private string RequireToken()
     {

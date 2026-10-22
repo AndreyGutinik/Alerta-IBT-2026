@@ -27,6 +27,7 @@ public sealed class TelegramEngine : IDisposable
     private readonly StatusHub _hub;
     private readonly ILogger _logger;
     private readonly TimeProvider _clock;
+    private readonly TelegramJournal? _journal;
     private readonly Channel<(string Text, TgMessage Message)> _inbox = Channel.CreateUnbounded<(string, TgMessage)>(
         new UnboundedChannelOptions { SingleReader = true });
 
@@ -41,13 +42,15 @@ public sealed class TelegramEngine : IDisposable
     /// <param name="hub">Receives the Telegram state.</param>
     /// <param name="logger">Receives errors and dropped messages.</param>
     /// <param name="clock">The source of the current time, to age the messages.</param>
+    /// <param name="journal">Where the id of every alert message is noted, so "Limpar histórico" can delete it; none when <c>null</c>.</param>
     public TelegramEngine(
         TelegramPoller poller,
         AlertService alerts,
         IGroupNotifier notifier,
         StatusHub hub,
         ILogger logger,
-        TimeProvider? clock = null)
+        TimeProvider? clock = null,
+        TelegramJournal? journal = null)
     {
         ArgumentNullException.ThrowIfNull(poller);
         ArgumentNullException.ThrowIfNull(alerts);
@@ -61,6 +64,7 @@ public sealed class TelegramEngine : IDisposable
         _hub = hub;
         _logger = logger;
         _clock = clock ?? TimeProvider.System;
+        _journal = journal;
     }
 
     /// <summary>Starts polling and handling messages.</summary>
@@ -204,6 +208,9 @@ public sealed class TelegramEngine : IDisposable
 
     private async Task HandleAsync(string text, TgMessage message, CancellationToken stop)
     {
+        // Accepted, refused or too old: the message is in the group either way, and "Limpar histórico" may delete it.
+        Note(message);
+
         if (AgeOf(message) is { } age && age > MaxMessageAge)
         {
             _logger.LogInformation("Mensagem do Telegram descartada: {Age:F0} min de idade", age.TotalMinutes);
@@ -224,6 +231,29 @@ public sealed class TelegramEngine : IDisposable
             sender?.ToString(CultureInfo.InvariantCulture),
             stop).ConfigureAwait(false);
         _logger.LogInformation("Mensagem do Telegram: {Outcome}", outcome.Kind);
+    }
+
+    private void Note(TgMessage message)
+    {
+        if (_journal is null)
+        {
+            return;
+        }
+
+        var sentAt = _clock.GetUtcNow();
+        if (message.Date > 0)
+        {
+            try
+            {
+                sentAt = DateTimeOffset.FromUnixTimeSeconds(message.Date);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // No usable date: now is the best guess.
+            }
+        }
+
+        _journal.Add(message.Chat.Id, message.MessageId, sentAt);
     }
 
     // How old the message is, or null when Telegram gave no usable date.

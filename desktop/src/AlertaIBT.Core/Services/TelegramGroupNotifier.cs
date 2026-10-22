@@ -19,6 +19,8 @@ public sealed class TelegramGroupNotifier : IGroupNotifier, IDisposable
     private readonly Func<long> _chatId;
     private readonly ILogger _logger;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
+    private readonly TelegramJournal? _journal;
+    private readonly TimeProvider _clock;
     private readonly Channel<string> _outbox = Channel.CreateBounded<string>(
         new BoundedChannelOptions(Capacity) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
 
@@ -32,11 +34,15 @@ public sealed class TelegramGroupNotifier : IGroupNotifier, IDisposable
     /// <param name="chatId">Gives the group's chat id, read for every message; 0 means none.</param>
     /// <param name="logger">Receives the failures.</param>
     /// <param name="delay">Waits before the second attempt; a seam for tests.</param>
+    /// <param name="journal">Where the id of every reply sent is noted, so "Limpar histórico" can delete it; none when <c>null</c>.</param>
+    /// <param name="clock">Dates the journal entries; the system clock by default.</param>
     public TelegramGroupNotifier(
         TelegramClient client,
         Func<long> chatId,
         ILogger logger,
-        Func<TimeSpan, CancellationToken, Task>? delay = null)
+        Func<TimeSpan, CancellationToken, Task>? delay = null,
+        TelegramJournal? journal = null,
+        TimeProvider? clock = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         ArgumentNullException.ThrowIfNull(chatId);
@@ -46,6 +52,8 @@ public sealed class TelegramGroupNotifier : IGroupNotifier, IDisposable
         _chatId = chatId;
         _logger = logger;
         _delay = delay ?? Task.Delay;
+        _journal = journal;
+        _clock = clock ?? TimeProvider.System;
     }
 
     /// <inheritdoc />
@@ -123,8 +131,13 @@ public sealed class TelegramGroupNotifier : IGroupNotifier, IDisposable
 
             try
             {
-                await _client.SendMessageAsync(chat, text, ct).ConfigureAwait(false);
+                var id = await _client.SendMessageAsync(chat, text, ct).ConfigureAwait(false);
                 _lastLoggedError = null;
+                if (id is { } messageId)
+                {
+                    _journal?.Add(chat, messageId, _clock.GetUtcNow());
+                }
+
                 return;
             }
             catch (TelegramException ex)
