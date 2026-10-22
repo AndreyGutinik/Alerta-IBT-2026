@@ -82,6 +82,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _siteEnabled;
 
     [ObservableProperty]
+    private bool _clearHistoryWeekly;
+
+    [ObservableProperty]
     private StatusLight _siteLight = StatusLight.Gray;
 
     [ObservableProperty]
@@ -359,6 +362,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    // "Limpar historico toda segunda-feira, 00:00": saved like the other switches (the scheduler reads the setting every time it looks).
+    partial void OnClearHistoryWeeklyChanged(bool value)
+    {
+        if (!_quiet)
+        {
+            _saver.Queue("system.clearHistoryWeekly", s => s with { System = s.System with { ClearHistoryWeekly = value } });
+        }
+    }
+
     partial void OnChatIdHintChanged(string? value) => OnPropertyChanged(nameof(HasChatIdHint));
 
     partial void OnHotkeyHintChanged(string? value) => OnPropertyChanged(nameof(HasHotkeyHint));
@@ -468,6 +480,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             Background.Set(bar.Background);
             Foreground.Set(bar.Foreground);
             SiteEnabled = settings.Site.Enabled;
+            ClearHistoryWeekly = settings.System.ClearHistoryWeekly;
             SiteUrl.Set(settings.Site.DatabaseUrl);
             SiteApiKey.Set(settings.Site.ApiKey);
             SiteEmail.Set(settings.Site.DeviceEmail);

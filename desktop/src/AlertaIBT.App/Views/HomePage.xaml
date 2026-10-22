@@ -535,10 +535,60 @@
 
                     <Border Margin="0,12,0,0" Style="{StaticResource IbtCard}">
                         <StackPanel>
+                            <Grid MinHeight="24">
+                                <TextBlock
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource IbtCaption}"
+                                    Text="HISTÓRICO" />
+                                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                                    <Border
+                                        x:Name="ClearHistoryInfo"
+                                        Margin="0,0,6,0"
+                                        VerticalAlignment="Center"
+                                        AutomationProperties.Name="Dicas"
+                                        Style="{StaticResource IbtInfoIcon}"
+                                        ToolTipService.InitialShowDelay="150"
+                                        ToolTipService.ShowDuration="30000"
+                                        ToolTip="Apaga o histórico do PC e do site, e as mensagens do bot no Telegram com menos de 48 h. Não mexe na fila nem no que está passando.">
+                                        <Path
+                                            Width="15"
+                                            Height="15"
+                                            Data="{StaticResource LucideInfo}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Border>
+                                    <Button
+                                        x:Name="ClearHistoryButton"
+                                        AutomationProperties.Name="Limpar histórico"
+                                        Command="{Binding ClearHistoryCommand}">
+                                        <Button.Style>
+                                            <Style BasedOn="{StaticResource IbtLockButton}" TargetType="Button">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter Property="Opacity" Value="0.4" />
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path
+                                                Width="13"
+                                                Height="13"
+                                                Data="{StaticResource LucideTrash2}"
+                                                Style="{StaticResource LucideIcon}" />
+                                            <TextBlock Margin="5,0,0,0" Text="Limpar histórico" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
                             <TextBlock
-                                MinHeight="20"
-                                Style="{StaticResource IbtCaption}"
-                                Text="HISTÓRICO" />
+                                x:Name="HistoryNotice"
+                                Margin="0,6,0,0"
+                                FontSize="11.5"
+                                Foreground="{Binding HistoryNoticeTone, Converter={StaticResource FeedbackToneBrush}}"
+                                Text="{Binding HistoryNoticeText}"
+                                TextWrapping="Wrap"
+                                Visibility="{Binding HasHistoryNotice, Converter={StaticResource BoolToVisibility}}" />
                             <ScrollViewer
                                 MaxHeight="260"
                                 Margin="0,8,0,0"

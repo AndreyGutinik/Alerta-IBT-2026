@@ -189,7 +189,18 @@ Antes: o app do PC com **Configurações → Site** preenchido e ligado (`docs/S
 - [ ] **Sem internet no PC**: tirar o cabo de rede: Site amarelo e depois vermelho ("Sem conexão"); o painel e o Telegram continuam funcionando com o que já estava na fila. Recolocar: volta a verde sozinho e o que foi mandado nesse meio tempo é tratado.
 - [ ] **Trocar a senha da conta do PC** (console do Firebase) e conferir que a bolinha vai a vermelha "Erro de login"; colocar a senha nova em Configurações → Site: volta a verde sem reiniciar o app.
 
-## 15. Depois que tudo passou
+## 15. Limpar histórico (botão e segunda-feira 00:00)
+
+O botão **Limpar histórico** (Início, cabeçalho do Histórico) apaga **sem perguntar**: o histórico do PC, os pedidos já encerrados do site (e a lista "recentes" do Status) e as mensagens do bot no Telegram com **menos de 48 h**. Não mexe na fila, no que está passando, nem na memória de "essa placa passou há N min".
+
+- [ ] **Botão**: com alguns avisos no histórico (e o site verde), clicar em **Limpar histórico**. Aparece por uns 7 s `Histórico limpo: N no PC, N no site, N no Telegram`; o histórico do PC fica vazio, no celular a aba **Seus avisos** perde os avisos já encerrados e **Status** mostra "recentes" vazio. Um aviso que está na fila ou passando continua lá.
+- [ ] **Telegram**: o bot precisa ser **administrador do grupo com o direito "Excluir mensagens"** (Grupo > Administradores > o bot > Excluir mensagens). Com isso somem as respostas do bot (`✅ Mensagem exibida...`) e as mensagens `#...` que o app viu. A **mensagem fixada** (instruções do grupo) e qualquer mensagem que o app não viu **nunca** são apagadas. Sem o direito, ou com mensagens de mais de 48 h, o botão avisa `N mensagens do Telegram ficaram (mais de 48 h ou sem permissão)`.
+- [ ] **Site offline**: tirar a rede do PC, clicar em **Limpar histórico**: a linha diz `o site será limpo quando voltar`; recolocar a rede e, quando a bolinha Site ficar verde, os pedidos encerrados do site somem (o PC não é limpo de novo).
+- [ ] **Segunda-feira 00:00**: em **Configurações > Sistema** a chave "Limpar histórico toda segunda-feira, 00:00" vem **ligada**. Com o app aberto na virada de domingo para segunda, o histórico é limpo às 00:00.
+- [ ] **PC desligado na segunda (teste em casa, sem esperar)**: feche o app, copie `%AppData%\AlertaIBT` para uma pasta temporária, edite o `settings.json` dessa cópia e ponha em `system` o valor `"lastHistoryClearAt": "2026-01-05T12:00:00Z"` (uma data de uma semana ou mais atrás), abra o app com `ALERTAIBT_DATA_DIR` apontando para a cópia: o histórico é limpo **na hora**, e `lastHistoryClearAt` passa a ser o momento atual. Sem esse campo (primeira vez depois de instalar) nada é apagado: o app só passa a contar a partir dali.
+- [ ] **Chave desligada**: desligar a chave e repetir o teste acima: nada é apagado.
+
+## 16. Depois que tudo passou
 
 - [ ] **Desinstalar o Alerta-IBT antigo (Electron)**: Configurações do Windows > Aplicativos > "Avisos de Estacionamento - IBT" (Alerta-IBT).
 - [ ] Conferir que o `AlertaIBT` continua no início do Windows e que o antigo não aparece mais lá.

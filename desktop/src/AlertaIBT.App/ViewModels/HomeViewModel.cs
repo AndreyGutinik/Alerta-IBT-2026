@@ -167,12 +167,16 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     /// <summary>How long the short message about a button stays.</summary>
     public static readonly TimeSpan NoticeTime = TimeSpan.FromSeconds(4);
 
+    /// <summary>How long the result line of "Limpar historico" stays (it has more to say than the other short messages).</summary>
+    public static readonly TimeSpan HistoryNoticeTime = TimeSpan.FromSeconds(7);
+
     private readonly IAlertGateway _gateway;
     private readonly Action<Action> _post;
     private readonly TimeProvider _clock;
     private readonly ILogger _logger;
     private readonly object _gate = new();
     private ITimer? _noticeTimer;
+    private ITimer? _historyNoticeTimer;
     private bool _disposed;
 
     [ObservableProperty]
@@ -192,6 +196,12 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _historyIsEmpty = true;
+
+    [ObservableProperty]
+    private string _historyNoticeText = string.Empty;
+
+    [ObservableProperty]
+    private FeedbackTone _historyNoticeTone;
 
     /// <param name="gateway">The alert service as the operator uses it.</param>
     /// <param name="composer">The message field with its preview, send buttons and pause button (the quick panel's view-model).</param>
@@ -216,6 +226,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
         SkipCommand = new RelayCommand(Skip);
         ClearQueueCommand = new RelayCommand(ClearQueue);
+        ClearHistoryCommand = new AsyncRelayCommand(ClearHistoryAsync);
 
         _gateway.Queue.Changed += OnQueueChanged;
         Refresh();
@@ -235,6 +246,15 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
     /// <summary>The trash button of the queue: removes every waiting alert, asking nothing.</summary>
     public IRelayCommand ClearQueueCommand { get; }
+
+    /// <summary>
+    /// The "Limpar historico" button of the history: clears the history of the PC, the site and the Telegram group, asking
+    /// nothing, and tells what it did in <see cref="HistoryNoticeText"/> for a few seconds. Not offered again while it runs.
+    /// </summary>
+    public IAsyncRelayCommand ClearHistoryCommand { get; }
+
+    /// <summary>Whether the result line of the history is shown.</summary>
+    public bool HasHistoryNotice => HistoryNoticeText.Length > 0;
 
     /// <summary>Whether the "Corrigido. Original: ..." line is shown.</summary>
     public bool HasOriginal => OriginalLine.Length > 0;
@@ -311,6 +331,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
             _disposed = true;
             _noticeTimer?.Dispose();
+            _historyNoticeTimer?.Dispose();
         }
 
         _gateway.Queue.Changed -= OnQueueChanged;
@@ -333,6 +354,75 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     partial void OnOriginalLineChanged(string value) => OnPropertyChanged(nameof(HasOriginal));
 
     partial void OnNoticeTextChanged(string value) => OnPropertyChanged(nameof(HasNotice));
+
+    partial void OnHistoryNoticeTextChanged(string value) => OnPropertyChanged(nameof(HasHistoryNotice));
+
+    /// <summary>The line that tells what "Limpar historico" did, and how it is colored (green; yellow when something stays).</summary>
+    internal static (string Text, FeedbackTone Tone) HistoryClearMessage(HistoryClearResult result)
+    {
+        var parts = new List<string> { $"{result.PcEntries} no PC" };
+        if (result.Site == SiteClearOutcome.Cleared)
+        {
+            parts.Add($"{result.SiteRequests} no site");
+        }
+
+        parts.Add($"{result.TelegramDeleted} no Telegram");
+        var text = "Hist\U000000F3rico limpo: " + string.Join(", ", parts);
+        var tone = FeedbackTone.Ok;
+        if (result.Site == SiteClearOutcome.Pending)
+        {
+            text += "; o site ser\U000000E1 limpo quando voltar";
+            tone = FeedbackTone.Warn;
+        }
+
+        text += ".";
+        if (result.TelegramFailed > 0)
+        {
+            text += result.TelegramFailed == 1
+                ? " 1 mensagem do Telegram ficou (mais de 48 h ou sem permiss\U000000E3o)."
+                : $" {result.TelegramFailed} mensagens do Telegram ficaram (mais de 48 h ou sem permiss\U000000E3o).";
+            tone = FeedbackTone.Warn;
+        }
+
+        return (text, tone);
+    }
+
+    private async Task ClearHistoryAsync()
+    {
+        try
+        {
+            var result = await _gateway.ClearHistoryAsync(CancellationToken.None);
+            var (text, tone) = HistoryClearMessage(result);
+            SetHistoryNotice(text, tone);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao limpar o historico");
+            SetHistoryNotice("N\U000000E3o foi poss\U000000EDvel limpar o hist\U000000F3rico. Veja o registro (log).", FeedbackTone.Error);
+        }
+    }
+
+    private void SetHistoryNotice(string text, FeedbackTone tone)
+    {
+        HistoryNoticeText = text;
+        HistoryNoticeTone = tone;
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _historyNoticeTimer?.Dispose();
+            _historyNoticeTimer = _clock.CreateTimer(_ => _post(ClearHistoryNotice), null, HistoryNoticeTime, Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    private void ClearHistoryNotice()
+    {
+        HistoryNoticeText = string.Empty;
+        HistoryNoticeTone = FeedbackTone.None;
+    }
 
     private void Skip()
     {

@@ -65,6 +65,8 @@ No PC, avisos sem placa são aceitos como **aviso livre** (só corrige o portugu
 
 O atalho pode ser trocado em Configurações > Sistema. Se outro programa já usa a combinação, o painel e a dica do ícone avisam, e o clique no ícone continua funcionando.
 
+**Limpar histórico:** o botão no cabeçalho do **Histórico** (Início) apaga, sem perguntar, o histórico do PC e do site e as mensagens do bot no Telegram com menos de 48 h (o bot precisa ser administrador do grupo com "Excluir mensagens"). Não mexe na fila nem no que está passando. Toda segunda-feira, 00:00, isso acontece sozinho (se o PC estava desligado, na próxima vez que ligar); dá para desligar em Configurações > Sistema.
+
 ## Pregação (Holyrics)
 
 O Holyrics chama a API local do app quando entra o slide da pregação:
@@ -97,6 +99,7 @@ Tudo em `%AppData%\AlertaIBT` (cole isso na barra do Explorador):
 |---|---|
 | `settings.json` | Suas configurações. Token e chave estão criptografados (só este usuário do Windows lê). Se o arquivo estragar, o app volta ao padrão e guarda uma cópia `settings.bad-...json`. |
 | `queue.json` | A fila e o histórico. Sobrevive a um reinício; a pausa não é lembrada. |
+| `telegram-journal.json` | Os números das mensagens do grupo que o app viu (respostas do bot e avisos com `#`), por 48 h: só essas o **Limpar histórico** apaga do Telegram. |
 | `logs\` | Registro do dia a dia (7 dias). Também aparece em Configurações > Diagnóstico, com copiar, exportar e limpar. |
 | `legacy-notice-shown.txt`, `update-attempt.txt` | Marcas internas (o aviso do app antigo já apareceu; versão cuja instalação já foi tentada). Podem ser apagadas. |
 

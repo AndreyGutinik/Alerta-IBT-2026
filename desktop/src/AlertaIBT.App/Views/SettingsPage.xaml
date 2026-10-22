@@ -582,6 +582,31 @@
                                 Visibility="{Binding HasHotkeyProblem, Converter={StaticResource BoolToVisibility}}" />
 
                             <Grid Margin="0,12,0,0">
+                                <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+                                    <TextBlock
+                                        VerticalAlignment="Center"
+                                        FontSize="12.5"
+                                        Text="Limpar histórico toda segunda-feira, 00:00" />
+                                    <Border
+                                        AutomationProperties.Name="Dicas"
+                                        Style="{StaticResource SectionInfo}"
+                                        ToolTip="Apaga o histórico do PC e do site, e as mensagens do bot no Telegram com menos de 48 h.&#10;Se o PC estiver desligado nessa hora, a limpeza acontece quando ele ligar.">
+                                        <Path
+                                            Width="15"
+                                            Height="15"
+                                            Data="{StaticResource LucideInfo}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Border>
+                                </StackPanel>
+                                <ToggleButton
+                                    x:Name="ClearHistorySwitch"
+                                    HorizontalAlignment="Right"
+                                    AutomationProperties.Name="Limpar histórico toda segunda-feira"
+                                    IsChecked="{Binding ClearHistoryWeekly, Mode=TwoWay}"
+                                    Style="{StaticResource IbtSwitch}" />
+                            </Grid>
+
+                            <Grid Margin="0,12,0,0">
                                 <TextBlock
                                     HorizontalAlignment="Left"
                                     VerticalAlignment="Center"

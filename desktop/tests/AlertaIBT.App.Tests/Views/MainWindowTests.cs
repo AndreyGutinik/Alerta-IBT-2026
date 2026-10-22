@@ -446,6 +446,99 @@ public sealed class MainWindowTests
     }
 
     [Fact]
+    public void The_history_header_has_the_clear_button_with_its_icon_text_and_tip_and_it_clears_without_asking()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Gateway.Queue.AddRejected(Item("a", "GOL BRANCO | PLACA: FFO-4745"), HistoryReasons.TooLong);
+            rig.Gateway.Queue.AddRejected(Item("b", "COROLLA PRATA | PLACA: BRA-2E19"), HistoryReasons.TooLong);
+            rig.Layout();
+            var home = rig.Window.Home;
+            Assert.Equal(2, home.HistoryList.Items.Count);
+
+            // The button: small, with the trash icon and the words, to the right of the caption and above the list.
+            Assert.True(Shown(home.ClearHistoryButton));
+            Assert.Equal("Limpar hist\U000000F3rico", AutomationProperties.GetName(home.ClearHistoryButton));
+            Assert.Contains("Limpar hist\U000000F3rico", rig.AllTexts());
+            Assert.Contains(rig.Find<System.Windows.Shapes.Path>().Where(Shown), p => ReferenceEquals(p.Data, home.FindResource("LucideTrash2")) && p.Width == 13 && IsInside(p, home.ClearHistoryButton));
+            var caption = rig.Find<TextBlock>().Single(t => Shown(t) && t.Text == "HIST\U000000D3RICO");
+            Assert.True(rig.BoundsOf(home.ClearHistoryButton).Left > rig.BoundsOf(caption).Right);
+            Assert.True(rig.BoundsOf(home.ClearHistoryButton).Bottom <= rig.BoundsOf(home.HistoryList).Top);
+            Assert.True(rig.BoundsOf(home.ClearHistoryButton).Width < 200);
+
+            // The (i) tip says what it clears and what it leaves alone.
+            Assert.True(Shown(home.ClearHistoryInfo));
+            Assert.Equal(
+                "Apaga o hist\U000000F3rico do PC e do site, e as mensagens do bot no Telegram com menos de 48 h. N\U000000E3o mexe na fila nem no que est\U000000E1 passando.",
+                home.ClearHistoryInfo.ToolTip);
+            Assert.True(rig.BoundsOf(home.ClearHistoryInfo).Right <= rig.BoundsOf(home.ClearHistoryButton).Left);
+            Assert.False(Shown(home.HistoryNotice));
+
+            home.ClearHistoryButton.Command.Execute(null);
+            rig.Layout();
+
+            Assert.Equal(1, rig.Gateway.HistoryClears);
+            Assert.Empty(home.HistoryList.Items);
+            Assert.Empty(rig.Find<Window>()); // no confirmation dialog anywhere
+            Assert.True(Shown(home.HistoryNotice));
+            Assert.Equal("Hist\U000000F3rico limpo: 2 no PC, 9 no site, 7 no Telegram.", home.HistoryNotice.Text);
+            rig.Snapshot("main-home-history-cleared");
+
+            rig.Settings.Clock.Advance(HomeViewModel.HistoryNoticeTime);
+            rig.Layout();
+            Assert.False(Shown(home.HistoryNotice));
+        });
+    }
+
+    [Fact]
+    public void The_sistema_card_has_the_monday_switch_on_by_default_and_it_saves()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Select(MainTab.Settings);
+            var page = rig.Window.Settings;
+
+            Assert.Contains("Limpar hist\U000000F3rico toda segunda-feira, 00:00", rig.AllTexts());
+            Assert.True(Shown(page.ClearHistorySwitch));
+            Assert.True(page.ClearHistorySwitch.IsChecked);
+            Assert.True(rig.BoundsOf(page.ClearHistorySwitch).Top > rig.BoundsOf(page.HotkeyBox).Bottom);
+
+            page.ClearHistorySwitch.IsChecked = false;
+            rig.Layout();
+            rig.Settings.Rest();
+
+            Assert.False(rig.Settings.OnDisk().System.ClearHistoryWeekly);
+        });
+    }
+
+    [Fact]
+    public void A_saved_off_monday_switch_is_shown_off()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(new AppSettings { System = new SystemSettings { ClearHistoryWeekly = false } });
+            rig.Select(MainTab.Settings);
+
+            Assert.False(rig.Window.Settings.ClearHistorySwitch.IsChecked);
+        });
+    }
+
+    private static bool IsInside(DependencyObject child, DependencyObject ancestor)
+    {
+        for (var node = child; node is not null; node = VisualTreeHelper.GetParent(node))
+        {
+            if (ReferenceEquals(node, ancestor))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    [Fact]
     public void The_history_shows_the_green_check_the_red_x_with_why_and_the_replay_arrow_only_for_shown_ones()
     {
         WpfTestHost.Run(() =>
