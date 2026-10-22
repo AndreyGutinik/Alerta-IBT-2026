@@ -231,7 +231,7 @@ public class GeminiHealthProbeTests
     }
 
     [Fact]
-    public async Task SlowAnswer_TimesOutAfterEightSecondsAsFailedTimeout()
+    public async Task SlowAnswer_TimesOutAfterTwentySecondsAsFailedTimeout()
     {
         var (probe, _) = Make(async ct =>
         {
@@ -240,7 +240,7 @@ public class GeminiHealthProbeTests
         });
 
         var task = probe.ProbeAsync(CancellationToken.None);
-        _clock.Advance(TimeSpan.FromSeconds(7));
+        _clock.Advance(TimeSpan.FromSeconds(19));
         Assert.False(task.IsCompleted);
         _clock.Advance(TimeSpan.FromSeconds(2));
         var result = await task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);

@@ -70,8 +70,8 @@ public interface IGeminiHealthProbe
 /// </summary>
 public sealed class GeminiHealthProbe : IGeminiHealthProbe
 {
-    /// <summary>How long the probe waits: the same limit corrections get.</summary>
-    public static readonly TimeSpan ProbeTimeout = CorrectionPipeline.DefaultGeminiTimeout;
+    /// <summary>How long the probe waits. Longer than a correction may take: right after the app opens the first connection is slow, and nobody waits for the probe (a false "Offline" for 30 s is worse than a slow check).</summary>
+    public static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(20);
 
     private const int MaxOutputTokens = 8;
 
