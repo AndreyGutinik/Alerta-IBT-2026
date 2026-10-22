@@ -9,6 +9,7 @@ using AlertaIBT.App.ViewModels;
 using AlertaIBT.App.Views;
 using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Diagnostics;
+using AlertaIBT.Core.Firebase;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Services;
@@ -322,6 +323,29 @@ public static class AppHost
             provider.GetRequiredService<IGroupNotifier>(),
             provider.GetRequiredService<StatusHub>(),
             provider.GetRequiredService<ILogger<TelegramEngine>>()));
+
+        // The site: a new engine (its own HTTP client, which never times out because the stream lasts for hours and never follows a
+        // redirect by itself) for each set of credentials; the connector replaces it when the settings change.
+        services.AddSingleton(provider =>
+        {
+            var version = typeof(AppHost).Assembly.GetName().Version?.ToString(3) ?? string.Empty;
+            return new SiteConnector(
+                config => new SiteEngine(
+                    config,
+                    new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false, PooledConnectionLifetime = TimeSpan.FromMinutes(10) })
+                    {
+                        Timeout = Timeout.InfiniteTimeSpan,
+                    },
+                    provider.GetRequiredService<AlertService>(),
+                    provider.GetRequiredService<StatusHub>(),
+                    () => provider.GetRequiredService<SettingsService>().Current,
+                    version,
+                    provider.GetRequiredService<ILogger<SiteEngine>>(),
+                    ownsHttp: true),
+                provider.GetRequiredService<StatusHub>(),
+                provider.GetRequiredService<ISecretProtector>(),
+                provider.GetRequiredService<ILogger<SiteConnector>>());
+        });
         services.AddSingleton(provider => new HttpControlServer(
             provider.GetRequiredService<IOverlayControl>(),
             provider.GetRequiredService<StatusHub>(),

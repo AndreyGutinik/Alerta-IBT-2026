@@ -20,9 +20,15 @@ public partial class SettingsPage : UserControl
         Preview.SampleWidthMeasured += width => (DataContext as SettingsViewModel)?.ReportSampleWidth(width);
         DataContextChanged += (_, e) =>
         {
+            if (e.OldValue is SettingsViewModel old)
+            {
+                old.SitePassword.PropertyChanged -= OnSitePasswordEntryChanged;
+            }
+
             if (e.NewValue is SettingsViewModel settings)
             {
                 settings.ReportSampleWidth(Preview.TextWidth);
+                settings.SitePassword.PropertyChanged += OnSitePasswordEntryChanged;
             }
         };
     }
@@ -37,6 +43,9 @@ public partial class SettingsPage : UserControl
                 break;
             case ColorField color:
                 color.Normalize();
+                break;
+            case TextField text:
+                text.Normalize();
                 break;
         }
     }
@@ -53,6 +62,46 @@ public partial class SettingsPage : UserControl
                 {
                     TokenEntryBox.Focus();
                     Keyboard.Focus(TokenEntryBox);
+                }
+            });
+    }
+
+    // The password box has no binding: what is typed goes to the field, and the box is emptied when the field is (a stored password
+    // shows as dots, never as letters).
+    private void OnSitePasswordChanged(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not SettingsViewModel settings || sender is not PasswordBox box)
+        {
+            return;
+        }
+
+        box.Tag = box.Password.Length > 0 ? "filled" : null;
+        if (!string.Equals(settings.SitePassword.Entry, box.Password, StringComparison.Ordinal))
+        {
+            settings.SitePassword.Entry = box.Password;
+        }
+    }
+
+    private void OnSitePasswordEntryChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SecretFieldViewModel.Entry) && sender is SecretFieldViewModel { Entry.Length: 0 }
+            && SitePasswordBox.Password.Length > 0)
+        {
+            SitePasswordBox.Password = string.Empty;
+        }
+    }
+
+    // "Trocar" opens the password box: the keyboard goes into it.
+    private void OnSitePasswordLockClick(object sender, RoutedEventArgs e)
+    {
+        Dispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.Input,
+            () =>
+            {
+                if (DataContext is SettingsViewModel { SitePassword.IsEditing: true })
+                {
+                    SitePasswordBox.Focus();
+                    Keyboard.Focus(SitePasswordBox);
                 }
             });
     }

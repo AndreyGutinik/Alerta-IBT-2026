@@ -50,6 +50,29 @@
         </Style>
 
         <Style
+            x:Key="SitePasswordPlaceholder"
+            BasedOn="{StaticResource Placeholder}"
+            TargetType="TextBlock">
+            <Setter Property="Visibility" Value="Visible" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Tag, ElementName=SitePasswordBox}" Value="filled">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style
+            x:Key="SiteUrlPlaceholder"
+            BasedOn="{StaticResource Placeholder}"
+            TargetType="TextBlock">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Text.Length, ElementName=SiteUrlBox}" Value="0">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style
             x:Key="ChatPlaceholder"
             BasedOn="{StaticResource Placeholder}"
             TargetType="TextBlock">
@@ -364,6 +387,117 @@
                                 Style="{StaticResource IbtHint}"
                                 Text="{Binding ChatIdHint}"
                                 Visibility="{Binding HasChatIdHint, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Margin="0,12,0,0" Style="{StaticResource IbtCard}">
+                        <StackPanel>
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource SectionTitle}" Text="Site" />
+                                    <Border
+                                        AutomationProperties.Name="Dicas"
+                                        Style="{StaticResource SectionInfo}"
+                                        ToolTip="Liga o PC ao site alertaibt.web.app: os avisos enviados pelo celular chegam aqui.&#10;Preencha com os dados que o script scripts\publicar-site.ps1 mostrou&#10;(estão em artifacts\credenciais-pc.txt) e ligue a chave.">
+                                        <Path
+                                            Width="15"
+                                            Height="15"
+                                            Data="{StaticResource LucideInfo}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Border>
+                                </StackPanel>
+                                <ToggleButton
+                                    x:Name="SiteSwitch"
+                                    HorizontalAlignment="Right"
+                                    AutomationProperties.Name="Site ligado"
+                                    IsChecked="{Binding SiteEnabled, Mode=TwoWay}"
+                                    Style="{StaticResource IbtSwitch}" />
+                            </Grid>
+
+                            <TextBlock Margin="0,10,0,5" Style="{StaticResource FieldLabel}" Text="URL do banco" />
+                            <Grid>
+                                <TextBox
+                                    x:Name="SiteUrlBox"
+                                    AutomationProperties.Name="URL do banco"
+                                    LostFocus="OnFieldLostFocus"
+                                    Style="{StaticResource IbtInput}"
+                                    Tag="{Binding SiteUrl}"
+                                    Text="{Binding SiteUrl.Text, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock Style="{StaticResource SiteUrlPlaceholder}" Text="https://alertaibt-default-rtdb.firebaseio.com" />
+                            </Grid>
+                            <TextBlock
+                                Style="{StaticResource IbtHint}"
+                                Text="{Binding SiteUrl.Hint}"
+                                Visibility="{Binding SiteUrl.HasHint, Converter={StaticResource BoolToVisibility}}" />
+
+                            <TextBlock Margin="0,12,0,5" Style="{StaticResource FieldLabel}" Text="Chave da API (web)" />
+                            <TextBox
+                                x:Name="SiteApiKeyBox"
+                                AutomationProperties.Name="Chave da API (web)"
+                                LostFocus="OnFieldLostFocus"
+                                Style="{StaticResource IbtInput}"
+                                Tag="{Binding SiteApiKey}"
+                                Text="{Binding SiteApiKey.Text, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock
+                                Style="{StaticResource IbtHint}"
+                                Text="{Binding SiteApiKey.Hint}"
+                                Visibility="{Binding SiteApiKey.HasHint, Converter={StaticResource BoolToVisibility}}" />
+
+                            <TextBlock Margin="0,12,0,5" Style="{StaticResource FieldLabel}" Text="E-mail do PC" />
+                            <TextBox
+                                x:Name="SiteEmailBox"
+                                AutomationProperties.Name="E-mail do PC"
+                                LostFocus="OnFieldLostFocus"
+                                Style="{StaticResource IbtInput}"
+                                Tag="{Binding SiteEmail}"
+                                Text="{Binding SiteEmail.Text, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock
+                                Style="{StaticResource IbtHint}"
+                                Text="{Binding SiteEmail.Hint}"
+                                Visibility="{Binding SiteEmail.HasHint, Converter={StaticResource BoolToVisibility}}" />
+
+                            <Grid Margin="0,12,0,0" MinHeight="22">
+                                <TextBlock HorizontalAlignment="Left" Style="{StaticResource FieldLabel}" Text="Senha do PC" />
+                                <Button
+                                    x:Name="SitePasswordLockButton"
+                                    HorizontalAlignment="Right"
+                                    AutomationProperties.Name="{Binding SitePassword.LockButtonText}"
+                                    Click="OnSitePasswordLockClick"
+                                    Command="{Binding SitePassword.ToggleLockCommand}"
+                                    Style="{StaticResource IbtLockButton}"
+                                    Visibility="{Binding SitePassword.CanLock, Converter={StaticResource BoolToVisibility}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path
+                                            Width="14"
+                                            Height="14"
+                                            Data="{Binding SitePassword.LockIconKey, Converter={StaticResource GeometryKey}}"
+                                            StrokeThickness="1.5"
+                                            Style="{StaticResource LucideIcon}" />
+                                        <TextBlock Margin="5,0,0,0" Text="{Binding SitePassword.LockButtonText}" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                            <TextBox
+                                x:Name="SitePasswordLockedBox"
+                                Margin="0,6,0,0"
+                                AutomationProperties.Name="Senha do PC (guardada)"
+                                IsEnabled="False"
+                                IsReadOnly="True"
+                                Style="{StaticResource IbtInput}"
+                                Text="{x:Static vm:SecretFieldViewModel.Mask}"
+                                Visibility="{Binding SitePassword.IsLocked, Converter={StaticResource BoolToVisibility}}" />
+                            <Grid Margin="0,6,0,0" Visibility="{Binding SitePassword.IsEditing, Converter={StaticResource BoolToVisibility}}">
+                                <PasswordBox
+                                    x:Name="SitePasswordBox"
+                                    AutomationProperties.Name="Nova senha do PC"
+                                    PasswordChanged="OnSitePasswordChanged"
+                                    Style="{StaticResource IbtPasswordInput}" />
+                                <TextBlock Style="{StaticResource SitePasswordPlaceholder}" Text="Cole a senha aqui" />
+                            </Grid>
+                            <TextBlock
+                                Style="{StaticResource IbtHint}"
+                                Text="{Binding SitePassword.Hint}"
+                                Visibility="{Binding SitePassword.HasHint, Converter={StaticResource BoolToVisibility}}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

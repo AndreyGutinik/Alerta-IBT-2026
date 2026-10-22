@@ -1,6 +1,7 @@
 using AlertaIBT.App.Overlay;
 using AlertaIBT.App.Platform;
 using AlertaIBT.Core.Correction;
+using AlertaIBT.Core.Firebase;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Services;
@@ -11,7 +12,7 @@ namespace AlertaIBT.App.Services;
 
 /// <summary>
 /// Starts and stops the working parts of the app together: the saved queue, the alert service that plays it on the bar, the
-/// Telegram engine and the local API, and keeps the <see cref="StatusHub"/> up to date with what the platform knows (the LED, the
+/// Telegram engine, the connection to the site (started and stopped as the settings change) and the local API, and keeps the <see cref="StatusHub"/> up to date with what the platform knows (the LED, the
 /// capture exclusion, the correction mode). Everything with logic of its own lives in Core; this is the glue.
 /// </summary>
 public sealed class AlertRuntime : IDisposable
@@ -19,6 +20,7 @@ public sealed class AlertRuntime : IDisposable
     private readonly AlertService _alerts;
     private readonly TelegramEngine _telegram;
     private readonly HttpControlServer _http;
+    private readonly SiteConnector _site;
     private readonly QueueStore _store;
     private readonly AlertQueue _queue;
     private readonly TelegramGroupNotifier _notifier;
@@ -37,6 +39,7 @@ public sealed class AlertRuntime : IDisposable
         AlertService alerts,
         TelegramEngine telegram,
         HttpControlServer http,
+        SiteConnector site,
         QueueStore store,
         AlertQueue queue,
         TelegramGroupNotifier notifier,
@@ -51,6 +54,7 @@ public sealed class AlertRuntime : IDisposable
         _alerts = alerts;
         _telegram = telegram;
         _http = http;
+        _site = site;
         _store = store;
         _queue = queue;
         _notifier = notifier;
@@ -94,6 +98,7 @@ public sealed class AlertRuntime : IDisposable
         Guarded("o servico de avisos", _alerts.Start);
         Guarded("o Telegram", _telegram.Start);
         Guarded("a API local", () => _http.Start());
+        Guarded("o site", () => _site.Apply(_settings.Current));
         _logger.LogInformation("Servico de avisos iniciado: {Pending} aviso(s) na fila salva", _queue.Pending.Count);
     }
 
@@ -127,6 +132,7 @@ public sealed class AlertRuntime : IDisposable
         try
         {
             _telegram.Dispose();
+            _site.Dispose();
             _http.Dispose();
             _alerts.Dispose();
             _notifier.Dispose();
@@ -149,7 +155,12 @@ public sealed class AlertRuntime : IDisposable
         return string.Equals(settings.Correction.Mode, "offline", StringComparison.Ordinal) ? CorrectionMode.OfflineOnly : CorrectionMode.Gemini;
     }
 
-    private void OnSettingsChanged(AppSettings settings) => _hub.SetCorrectionMode(ModeOf(settings));
+    // A changed address, key, e-mail or password makes the site connect again with the new ones (the connector compares them).
+    private void OnSettingsChanged(AppSettings settings)
+    {
+        _hub.SetCorrectionMode(ModeOf(settings));
+        Guarded("o site", () => _site.Apply(settings));
+    }
 
     private void OnCaptureExcludedChanged() => _hub.SetCaptureExcluded(_overlay.CaptureExcluded);
 

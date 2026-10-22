@@ -140,6 +140,95 @@ public sealed partial class IntegerField : ObservableObject
     }
 }
 
+/// <summary>
+/// A box that takes a line of text that must pass a check (the site address, the API key, an e-mail). Whatever is typed, only a
+/// usable value is ever handed on, trimmed; blank is usable and clears the value. Anything else is ignored with a hint and never
+/// saved. When the box loses the focus it shows the value that was kept.
+/// </summary>
+public sealed partial class TextField : ObservableObject
+{
+    private readonly Func<string, string?> _validate;
+    private readonly Action<string> _commit;
+    private readonly Action _cancel;
+    private bool _quiet;
+    private string _accepted = string.Empty;
+
+    [ObservableProperty]
+    private string _text = string.Empty;
+
+    [ObservableProperty]
+    private string? _hint;
+
+    /// <param name="validate">Says what is wrong with a typed value (already trimmed, not blank), or null when it can be used.</param>
+    /// <param name="commit">Receives the usable value (blank for none) after every usable edit.</param>
+    /// <param name="cancel">Called when the box holds something unusable, so a waiting save of an older value is dropped.</param>
+    public TextField(Func<string, string?> validate, Action<string> commit, Action cancel)
+    {
+        ArgumentNullException.ThrowIfNull(validate);
+        ArgumentNullException.ThrowIfNull(commit);
+        ArgumentNullException.ThrowIfNull(cancel);
+
+        _validate = validate;
+        _commit = commit;
+        _cancel = cancel;
+    }
+
+    /// <summary>The value last kept (what is saved).</summary>
+    public string Accepted => _accepted;
+
+    /// <summary>Whether the hint is visible.</summary>
+    public bool HasHint => Hint is not null;
+
+    /// <summary>Puts a value into the box without handing it on.</summary>
+    public void Set(string value)
+    {
+        _quiet = true;
+        try
+        {
+            _accepted = value;
+            Text = value;
+            Hint = null;
+        }
+        finally
+        {
+            _quiet = false;
+        }
+    }
+
+    /// <summary>The box lost the focus: show the value that was kept, never what could not be used.</summary>
+    public void Normalize()
+    {
+        if (Hint is null && string.Equals(Text.Trim(), _accepted, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Set(_accepted);
+    }
+
+    partial void OnHintChanged(string? value) => OnPropertyChanged(nameof(HasHint));
+
+    partial void OnTextChanged(string value)
+    {
+        if (_quiet)
+        {
+            return;
+        }
+
+        var typed = value.Trim();
+        var problem = typed.Length == 0 ? null : _validate(typed);
+        Hint = problem;
+        if (problem is not null)
+        {
+            _cancel();
+            return;
+        }
+
+        _accepted = typed;
+        _commit(typed);
+    }
+}
+
 /// <summary>A box that takes a color as <c>#RRGGBB</c>. Anything else is ignored with a hint and never saved.</summary>
 public sealed partial class ColorField : ObservableObject
 {

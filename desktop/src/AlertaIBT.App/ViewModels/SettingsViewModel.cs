@@ -79,6 +79,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _isBarTestRunning;
 
     [ObservableProperty]
+    private bool _siteEnabled;
+
+    [ObservableProperty]
     private StatusLight _siteLight = StatusLight.Gray;
 
     [ObservableProperty]
@@ -159,6 +162,24 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             }
         };
 
+        SiteUrl = new TextField(
+            ValidateSiteUrl,
+            url => _saver.Queue("site.url", s => s with { Site = s.Site with { DatabaseUrl = url } }),
+            () => _saver.Cancel("site.url"));
+        SiteApiKey = new TextField(
+            ValidateApiKey,
+            key => _saver.Queue("site.apiKey", s => s with { Site = s.Site with { ApiKey = key } }),
+            () => _saver.Cancel("site.apiKey"));
+        SiteEmail = new TextField(
+            ValidateEmail,
+            email => _saver.Queue("site.email", s => s with { Site = s.Site with { DeviceEmail = email } }),
+            () => _saver.Cancel("site.email"));
+        SitePassword = new SecretFieldViewModel(
+            () => _settings.Current.Site.PasswordProtected is not null,
+            ValidateSitePassword,
+            password => _saver.Queue("site.password", s => s.WithSitePassword(password, _protector), () => SitePassword!.Committed()),
+            () => _saver.Cancel("site.password"));
+
         ShowBarCommand = new AsyncRelayCommand(ShowBarAsync);
 
         _bar = _settings.Current.Bar;
@@ -185,6 +206,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>The Telegram token: locked with dots once stored.</summary>
     public SecretFieldViewModel Token { get; }
+
+    /// <summary>The address of the Realtime Database of the site.</summary>
+    public TextField SiteUrl { get; }
+
+    /// <summary>The web API key of the Firebase project.</summary>
+    public TextField SiteApiKey { get; }
+
+    /// <summary>The e-mail of the PC own account in the Firebase project.</summary>
+    public TextField SiteEmail { get; }
+
+    /// <summary>The password of that account: locked with dots once stored.</summary>
+    public SecretFieldViewModel SitePassword { get; }
 
     /// <summary>The Diagnóstico area (logs).</summary>
     public DiagnosticsViewModel Diagnostics { get; }
@@ -318,6 +351,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Diagnostics.Dispose();
     }
 
+    partial void OnSiteEnabledChanged(bool value)
+    {
+        if (!_quiet)
+        {
+            _saver.Queue("site.enabled", s => s with { Site = s.Site with { Enabled = value } });
+        }
+    }
+
     partial void OnChatIdHintChanged(string? value) => OnPropertyChanged(nameof(HasChatIdHint));
 
     partial void OnHotkeyHintChanged(string? value) => OnPropertyChanged(nameof(HasHotkeyHint));
@@ -383,6 +424,27 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         return valid ? null : "O token tem o formato 123456789:ABC... (cole inteiro, sem espa\U000000E7os).";
     }
 
+    private static string? ValidateSiteUrl(string url) =>
+        SiteSettings.IsValidDatabaseUrl(url)
+            ? null
+            : "Use o endereço do banco, como https://alertaibt-default-rtdb.firebaseio.com (https, terminando em firebaseio.com ou firebasedatabase.app).";
+
+    private static string? ValidateApiKey(string key) =>
+        key.Length >= 10 && key.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-')
+            ? null
+            : "A chave da API tem letras e números, sem espaços (começa com AIza).";
+
+    private static string? ValidateEmail(string email)
+    {
+        var at = email.IndexOf('@', StringComparison.Ordinal);
+        var valid = at > 0 && at == email.LastIndexOf('@') && at < email.Length - 3 && email.IndexOf('.', at) > at + 1
+            && !email.Any(char.IsWhiteSpace);
+        return valid ? null : "Digite o e-mail da conta do PC, como pc-telao@alertaibt.web.app.";
+    }
+
+    private static string? ValidateSitePassword(string password) =>
+        password.Length >= 6 ? null : "A senha tem pelo menos 6 caracteres.";
+
     private static string SizeLabelFor(int height)
     {
         var name = height <= 44 ? SizeNames[0] : height <= 64 ? SizeNames[1] : height <= 88 ? SizeNames[2] : SizeNames[3];
@@ -405,6 +467,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             SlideMs.Set(bar.SlideMs);
             Background.Set(bar.Background);
             Foreground.Set(bar.Foreground);
+            SiteEnabled = settings.Site.Enabled;
+            SiteUrl.Set(settings.Site.DatabaseUrl);
+            SiteApiKey.Set(settings.Site.ApiKey);
+            SiteEmail.Set(settings.Site.DeviceEmail);
             ChatIdText = settings.Telegram.ChatId == 0 ? string.Empty : settings.Telegram.ChatId.ToString(CultureInfo.InvariantCulture);
             var hotkeyText = settings.System.Hotkey;
 

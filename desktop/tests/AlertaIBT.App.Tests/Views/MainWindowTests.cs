@@ -12,6 +12,7 @@ using AlertaIBT.App.Views;
 using AlertaIBT.Core.Alerts;
 using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Diagnostics;
+using AlertaIBT.Core.Firebase;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Services;
@@ -816,6 +817,83 @@ public sealed class MainWindowTests
             Assert.True(Shown(page.TokenEntryBox));
             Assert.Equal(string.Empty, page.TokenEntryBox.Text);
             rig.Snapshot("main-settings-telegram-unlocked");
+        });
+    }
+
+    [Fact]
+    public void The_site_block_sits_below_telegram_with_its_four_fields_the_switch_and_a_masked_password()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Select(MainTab.Settings);
+            var page = rig.Window.Settings;
+            var texts = rig.AllTexts().ToList();
+
+            Assert.Contains("Site", texts);
+            Assert.Contains("URL do banco", texts);
+            Assert.Contains("Chave da API (web)", texts);
+            Assert.Contains("E-mail do PC", texts);
+            Assert.Contains("Senha do PC", texts);
+            Assert.True(Shown(page.SiteSwitch));
+            Assert.True(Shown(page.SiteUrlBox));
+            Assert.True(Shown(page.SiteApiKeyBox));
+            Assert.True(Shown(page.SiteEmailBox));
+            Assert.True(Shown(page.SitePasswordBox));
+            Assert.False(Shown(page.SitePasswordLockedBox));
+            Assert.True(rig.BoundsOf(page.SiteUrlBox).Top > rig.BoundsOf(page.ChatBox).Bottom);
+            Assert.Contains(rig.Find<Border>().Where(b => AutomationProperties.GetName(b) == "Dicas" && Shown(b)).Select(b => (string)b.ToolTip),
+                tip => tip.Contains("alertaibt.web.app", StringComparison.Ordinal) && tip.Contains("publicar-site.ps1", StringComparison.Ordinal));
+
+            page.SiteSwitch.IsChecked = true;
+            page.SiteUrlBox.Text = "https://alertaibt-default-rtdb.firebaseio.com";
+            page.SiteApiKeyBox.Text = "AIzaSyTestKey123";
+            page.SiteEmailBox.Text = "pc@alertaibt.web.app";
+            page.SitePasswordBox.Password = "Xk3-pQ9z-Lm7vRt2";
+            rig.Layout();
+            rig.Settings.Rest();
+
+            var saved = rig.Settings.OnDisk();
+            Assert.True(saved.Site.IsConfigured);
+            Assert.True(saved.Site.Enabled);
+            Assert.Equal("Xk3-pQ9z-Lm7vRt2", saved.GetSitePassword(rig.Settings.Protector));
+            Assert.DoesNotContain("Xk3-pQ9z", rig.Settings.FileText(), StringComparison.Ordinal);
+
+            // Saved: the password shows as dots only, and its box is emptied.
+            Assert.True(Shown(page.SitePasswordLockedBox));
+            Assert.Equal(SecretFieldViewModel.Mask, page.SitePasswordLockedBox.Text);
+            Assert.False(Shown(page.SitePasswordBox));
+            Assert.Equal(string.Empty, page.SitePasswordBox.Password);
+            rig.Snapshot("main-settings-site");
+        });
+    }
+
+    [Fact]
+    public void A_stored_site_password_is_locked_and_the_site_dot_shows_the_state()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var initial = new AppSettings { Site = new SiteSettings { Enabled = true, DatabaseUrl = "https://x-default-rtdb.firebaseio.com", ApiKey = "AIzaSyTestKey123", DeviceEmail = "pc@x.com" } }
+                .WithSitePassword("Xk3-pQ9z-Lm7vRt2", new ReversingProtector());
+            using var rig = new Rig(initial);
+            rig.Select(MainTab.Settings);
+            var page = rig.Window.Settings;
+
+            Assert.True(Shown(page.SitePasswordLockedBox));
+            Assert.False(Shown(page.SitePasswordBox));
+            Assert.Equal("pc@x.com", page.SiteEmailBox.Text);
+            Assert.Equal("https://x-default-rtdb.firebaseio.com", page.SiteUrlBox.Text);
+            Assert.True(page.SiteSwitch.IsChecked);
+            Assert.DoesNotContain(rig.AllTexts(), t => t.Contains("Xk3", StringComparison.Ordinal));
+
+            page.SitePasswordLockButton.Command.Execute(null);
+            rig.Layout();
+            Assert.True(Shown(page.SitePasswordBox));
+            Assert.Equal(string.Empty, page.SitePasswordBox.Password);
+
+            rig.Hub.SetSite(SiteState.AuthError, "login recusado");
+            rig.Layout();
+            Assert.Contains("Erro de login", rig.AllTexts());
         });
     }
 

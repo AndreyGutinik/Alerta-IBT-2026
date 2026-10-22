@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using AlertaIBT.App.Hosting;
 using AlertaIBT.App.Services;
 using AlertaIBT.Core.Alerts;
+using AlertaIBT.Core.Firebase;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Services;
 using AlertaIBT.Core.Settings;
@@ -245,6 +246,68 @@ public sealed class AlertRuntimeTests : IDisposable
 
             runtime.Dispose();
             runtime.Dispose();
+        });
+    }
+
+    [Fact]
+    public void The_site_starts_and_stops_with_the_settings_and_a_changed_password_connects_again()
+    {
+        WpfTestHost.RunAsync(async () =>
+        {
+            using var host = Host();
+            var runtime = host.Services.GetRequiredService<AlertRuntime>();
+            var settings = host.Services.GetRequiredService<SettingsService>();
+            var protector = host.Services.GetRequiredService<ISecretProtector>();
+            runtime.Start();
+            try
+            {
+                // Off and empty: the dot is gray and nothing connects.
+                Assert.Equal(SiteState.NotConfigured, runtime.Status.SiteState);
+
+                // Filled in and switched on (an address on this computer where nothing listens: no real service is called).
+                settings.Update(s => (s with { Site = new SiteSettings { Enabled = true, DatabaseUrl = "http://127.0.0.1:1", ApiKey = "AIzaSyTestKey123", DeviceEmail = "pc@x.com" } })
+                    .WithSitePassword("first-password-1", protector));
+                var connector = host.Services.GetRequiredService<SiteConnector>();
+                await connector.SettledAsync();
+                Assert.NotEqual(SiteState.NotConfigured, runtime.Status.SiteState);
+
+                // A new password is a new sign-in; the same settings again are not.
+                settings.Update(s => s.WithSitePassword("second-password-2", protector));
+                await connector.SettledAsync();
+                Assert.NotEqual(SiteState.NotConfigured, runtime.Status.SiteState);
+
+                // Switched off: the connection stops and the dot goes gray again.
+                settings.Update(s => s with { Site = s.Site with { Enabled = false } });
+                await connector.SettledAsync();
+                Assert.Equal(SiteState.NotConfigured, runtime.Status.SiteState);
+                Assert.Equal(StatusLight.Gray, runtime.Status.Site.Light);
+            }
+            finally
+            {
+                runtime.Dispose();
+            }
+
+            return 0;
+        });
+    }
+
+    [Fact]
+    public void Settings_saved_with_the_site_on_start_it_with_the_app_and_stop_it_on_exit()
+    {
+        WpfTestHost.RunAsync(async () =>
+        {
+            using var host = Host();
+            var runtime = host.Services.GetRequiredService<AlertRuntime>();
+            var settings = host.Services.GetRequiredService<SettingsService>();
+            settings.Update(s => (s with { Site = new SiteSettings { Enabled = true, DatabaseUrl = "http://127.0.0.1:1", ApiKey = "AIzaSyTestKey123", DeviceEmail = "pc@x.com" } })
+                .WithSitePassword("first-password-1", host.Services.GetRequiredService<ISecretProtector>()));
+
+            runtime.Start();
+            await host.Services.GetRequiredService<SiteConnector>().SettledAsync();
+
+            Assert.NotEqual(SiteState.NotConfigured, runtime.Status.SiteState);
+            runtime.Dispose(); // must return: the engine stops with it
+            return 0;
         });
     }
 }
