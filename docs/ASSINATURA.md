@@ -1,5 +1,7 @@
 # Assinatura do instalador (SignPath Foundation)
 
+> **Status em 2026-10-22:** a **licença MIT já foi adicionada** (`LICENSE`) e a **política de privacidade** está em [PRIVACIDADE.md](PRIVACIDADE.md). Falta, nesta ordem: (1) ativar o MFA no GitHub; (2) publicar uma versão **estável** (hoje só há pré-releases) e ter a página de download (o README serve); (3) acrescentar ao README a seção "Code signing policy" com o texto exato de https://signpath.org/terms (só depois de o pedido ser aprovado, porque ela cita o SignPath); (4) enviar o formulário em https://signpath.org/apply e confirmar o e-mail. A aprovação é decisão do SignPath, leva semanas e já recusou projetos pequenos por pouca visibilidade.
+
 Guia curto para o dono. Nada aqui foi feito ainda: nenhuma conta criada, nenhum formulário enviado, nenhuma etapa de assinatura no workflow de Release. As informações abaixo foram lidas nas páginas do SignPath em 2026-10-21; **as regras são deles e mudam**, então reconfira em https://signpath.org/terms antes de se inscrever.
 
 ## Por que o Windows mostra o aviso
@@ -12,7 +14,7 @@ A SignPath Foundation dá certificado de assinatura grátis para projetos de có
 
 ### Exigências (https://signpath.org/terms)
 
-- Licença de código aberto **aprovada pela OSI**, sem licença comercial dupla em nenhum componente. **O repositório hoje não tem arquivo LICENSE.**
+- Licença de código aberto **aprovada pela OSI**, sem licença comercial dupla em nenhum componente. **Feito: MIT.**
 - Nenhum componente proprietário (fora bibliotecas do sistema), e nenhum malware ou programa potencialmente indesejado.
 - Projeto **mantido** e **já lançado** na forma que será assinada (o instalador já publicado).
 - Funcionalidade descrita na página de download.
