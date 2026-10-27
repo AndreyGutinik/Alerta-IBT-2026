@@ -152,7 +152,8 @@ public static class AppHost
             provider.GetRequiredService<MouseLockService>(),
             provider.GetRequiredService<IKeyboardHook>(),
             PostToUi,
-            provider.GetRequiredService<ILogger<MouseLockController>>()));
+            provider.GetRequiredService<ILogger<MouseLockController>>(),
+            provider.GetRequiredService<MediaKeyRouter>()));
         ConfigurePlayer(services);
         services.AddSingleton<TrayService>();
         services.AddSingleton<AppShell>();
@@ -177,6 +178,11 @@ public static class AppHost
             provider.GetRequiredService<IAudioSystem>(),
             provider.GetRequiredService<ITrackMetadataReader>(),
             logger: provider.GetRequiredService<ILogger<MusicPlayer>>()));
+        services.AddSingleton(provider => new MediaKeyRouter(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<MusicPlayer>(),
+            PostToUi,
+            logger: provider.GetRequiredService<ILogger<MediaKeyRouter>>()));
         services.AddSingleton(provider => new AlarmScheduler(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<MusicPlayer>(),
@@ -481,7 +487,10 @@ public static class AppHost
             provider.GetRequiredService<IOverlayControl>(),
             provider.GetRequiredService<StatusHub>(),
             provider.GetRequiredService<ILogger<HttpControlServer>>(),
-            apiPort));
+            apiPort,
+            null,
+            provider.GetRequiredService<MusicPlayer>(),
+            () => provider.GetRequiredService<AlarmScheduler>().NextAlarmText));
         services.AddSingleton<AlertRuntime>();
     }
 }

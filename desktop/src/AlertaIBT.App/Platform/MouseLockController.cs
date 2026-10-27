@@ -7,7 +7,9 @@ namespace AlertaIBT.App.Platform;
 /// <summary>
 /// Joins the mouse lock to the rest of the app, on the UI thread: it follows <see cref="MouseLockSettings"/> (the lock, its
 /// shortcut, the Ctrl x3 recenter), toggles the lock when the shortcut or the tray item says so (and saves that, so the lock comes
-/// back after a restart), and lets go of the cursor, the keyboard hook and the shortcut on the way out. Nothing happens before
+/// back after a restart), and lets go of the cursor, the keyboard hook and the shortcut on the way out. The ONE passive keyboard hook is
+/// shared: it also feeds the media keys of the music player (<see cref="MediaKeyRouter"/>), and is installed while either Ctrl x3 or
+/// the media keys are wanted. Nothing happens before
 /// <see cref="Start"/>, so building the object graph (tests included) never touches the mouse or the keyboard.
 /// </summary>
 public sealed class MouseLockController : IDisposable
@@ -17,9 +19,11 @@ public sealed class MouseLockController : IDisposable
     private readonly IKeyboardHook _hook;
     private readonly Action<Action> _post;
     private readonly ILogger? _logger;
+    private readonly MediaKeyRouter? _media;
     private readonly TripleCtrlDetector _detector = new();
     private readonly KeyObserver _observer;
     private QuickPanelHotkey? _hotkey;
+    private bool _tripleCtrlOn;
     private bool _started;
     private bool _disposed;
 
@@ -28,12 +32,14 @@ public sealed class MouseLockController : IDisposable
     /// <param name="hook">The keyboard hook that sees Ctrl x3.</param>
     /// <param name="post">Runs an action on the UI thread.</param>
     /// <param name="logger">Receives what happens (never a key).</param>
+    /// <param name="media">The media keys of the music player; they ride on the same hook. Optional.</param>
     public MouseLockController(
         SettingsService settings,
         MouseLockService service,
         IKeyboardHook hook,
         Action<Action> post,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        MediaKeyRouter? media = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(service);
@@ -45,6 +51,7 @@ public sealed class MouseLockController : IDisposable
         _hook = hook;
         _post = post;
         _logger = logger;
+        _media = media;
         _observer = OnKey;
         _service.LockedChanged += OnLockedChanged;
     }
@@ -64,7 +71,7 @@ public sealed class MouseLockController : IDisposable
     /// <summary>The shortcut was applied again (start, or the setting changed).</summary>
     public event Action<HotkeyStatus>? HotkeyStatusChanged;
 
-    /// <summary>Whether the Ctrl x3 keyboard hook is installed.</summary>
+    /// <summary>Whether the keyboard hook is installed (Ctrl x3 and/or the media keys are wanted).</summary>
     public bool TripleCtrlActive => _hook.IsInstalled;
 
     /// <summary>
@@ -195,9 +202,12 @@ public sealed class MouseLockController : IDisposable
         _hook.Dispose();
     }
 
+    // One hook for both: installed while Ctrl x3 or the media keys are wanted, removed when neither is.
     private void ApplyTripleCtrl(bool on)
     {
-        if (!on)
+        _tripleCtrlOn = on;
+        var media = _media?.Wanted ?? false;
+        if (!on && !media)
         {
             _hook.Uninstall();
             return;
@@ -209,23 +219,26 @@ public sealed class MouseLockController : IDisposable
         }
 
         _detector.Reset();
+        _media?.Reset();
         if (_hook.Install(_observer))
         {
-            _logger?.LogInformation("Ctrl x3 (traz o mouse ao centro) ligado");
+            _logger?.LogInformation("Gancho do teclado ligado (Ctrl x3: {TripleCtrl}, teclas de midia: {Media})", on, media);
         }
         else
         {
-            _logger?.LogWarning("Ctrl x3: o Windows recusou o gancho do teclado");
+            _logger?.LogWarning("O Windows recusou o gancho do teclado (Ctrl x3 e teclas de midia)");
         }
     }
 
     // Runs inside the keyboard hook: only the timestamp state machine. The move itself is posted, off the hook.
     private void OnKey(int virtualKey, bool keyDown, bool altDown, uint timeMs)
     {
-        if (_detector.Feed(virtualKey, keyDown, altDown, timeMs))
+        if (_tripleCtrlOn && _detector.Feed(virtualKey, keyDown, altDown, timeMs))
         {
             _post(Recenter);
         }
+
+        _media?.Feed(virtualKey, keyDown);
     }
 
     private void OnLockedChanged(bool locked) => LockedChanged?.Invoke(locked);

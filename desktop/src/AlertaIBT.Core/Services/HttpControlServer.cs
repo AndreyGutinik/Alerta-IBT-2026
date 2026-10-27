@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using AlertaIBT.Core.Http;
+using AlertaIBT.Core.Player;
 using Microsoft.Extensions.Logging;
 
 namespace AlertaIBT.Core.Services;
@@ -39,6 +40,8 @@ public sealed class HttpControlServer : IDisposable
     private static readonly JsonSerializerOptions JsonOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     private readonly IOverlayControl _overlay;
+    private readonly IPlayerControl? _player;
+    private readonly Func<string?>? _nextAlarm;
     private readonly StatusHub? _hub;
     private readonly ILogger _logger;
     private readonly TimeProvider _clock;
@@ -54,7 +57,16 @@ public sealed class HttpControlServer : IDisposable
     /// <param name="logger">Receives the requests and the errors.</param>
     /// <param name="port">The port; 8787 in the app.</param>
     /// <param name="clock">Times the retries.</param>
-    public HttpControlServer(IOverlayControl overlay, StatusHub? hub, ILogger logger, int port = DefaultPort, TimeProvider? clock = null)
+    /// <param name="player">What the <c>/player/...</c> routes drive; without it they answer 404 like any unknown route.</param>
+    /// <param name="nextAlarm">The "next alarm" line for <c>/player/status</c>; may be <c>null</c>.</param>
+    public HttpControlServer(
+        IOverlayControl overlay,
+        StatusHub? hub,
+        ILogger logger,
+        int port = DefaultPort,
+        TimeProvider? clock = null,
+        IPlayerControl? player = null,
+        Func<string?>? nextAlarm = null)
     {
         ArgumentNullException.ThrowIfNull(overlay);
         ArgumentNullException.ThrowIfNull(logger);
@@ -62,6 +74,8 @@ public sealed class HttpControlServer : IDisposable
         ArgumentOutOfRangeException.ThrowIfGreaterThan(port, 65535);
 
         _overlay = overlay;
+        _player = player;
+        _nextAlarm = nextAlarm;
         _hub = hub;
         _logger = logger;
         _clock = clock ?? TimeProvider.System;
@@ -239,6 +253,13 @@ public sealed class HttpControlServer : IDisposable
                 return Task.CompletedTask;
             }
 
+            // The music player owns everything under /player (the exact routes of the owner's Holyrics trigger are /player/pause and friends).
+            if (_player is not null && PlayerIntent.IsPlayerPath(rawUrl))
+            {
+                HandlePlayer(context.Response, method, rawUrl, _player);
+                return Task.CompletedTask;
+            }
+
             var intent = OverlayIntent.Parse(method, rawUrl);
             var matched = IsFallback(rawUrl, intent) ? intent == OverlayIntentKind.Off ? "fallback-off" : "fallback-on" : null;
             switch (intent)
@@ -286,6 +307,37 @@ public sealed class HttpControlServer : IDisposable
         }
 
         return Task.CompletedTask;
+    }
+
+    private void HandlePlayer(HttpListenerResponse response, string method, string rawUrl, IPlayerControl player)
+    {
+        var intent = PlayerIntent.Parse(method, rawUrl);
+        if (intent == PlayerIntentKind.NotFound)
+        {
+            _logger.LogInformation("HTTP {Method} {Url}: rota desconhecida", method, rawUrl);
+            Respond(
+                response,
+                HttpStatusCode.NotFound,
+                new Dictionary<string, object?>
+                {
+                    ["success"] = false,
+                    ["error"] = "not_found",
+                    ["received"] = new Dictionary<string, object?> { ["method"] = method, ["url"] = rawUrl },
+                });
+            return;
+        }
+
+        if (intent == PlayerIntentKind.Status)
+        {
+            _logger.LogDebug("HTTP {Method} {Url}", method, rawUrl);
+        }
+        else
+        {
+            _logger.LogInformation("HTTP {Method} {Url}: player {Intent}", method, rawUrl, intent);
+        }
+
+        // 200 whether it worked or not: success:false with the reason is the answer (for example "player desligado").
+        Respond(response, HttpStatusCode.OK, PlayerIntent.Execute(intent, player, _nextAlarm));
     }
 
     // Only the PC itself may call the API (a second lock: the listener is already bound to 127.0.0.1).
