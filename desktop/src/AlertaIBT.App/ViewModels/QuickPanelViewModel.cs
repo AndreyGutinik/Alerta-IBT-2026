@@ -126,13 +126,15 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
     /// <param name="post">Runs an action on the UI thread; runs it at once when null (tests).</param>
     /// <param name="clock">Drives the preview delay and the message time.</param>
     /// <param name="logger">Receives failures.</param>
+    /// <param name="player">The music player, for the compact row at the bottom (shown only while the player is on); <c>null</c> for no row.</param>
     public QuickPanelViewModel(
         IAlertGateway gateway,
         StatusHub hub,
         Func<double?>? progress = null,
         Action<Action>? post = null,
         TimeProvider? clock = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        PlayerViewModel? player = null)
     {
         ArgumentNullException.ThrowIfNull(gateway);
         ArgumentNullException.ThrowIfNull(hub);
@@ -143,6 +145,11 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
         _post = post ?? (action => action());
         _clock = clock ?? TimeProvider.System;
         _logger = logger ?? NullLogger.Instance;
+        Player = player;
+        if (player is not null)
+        {
+            player.PropertyChanged += OnPlayerPropertyChanged;
+        }
 
         SendCommand = new AsyncRelayCommand(() => SendAsync(urgent: false));
         SendUrgentCommand = new AsyncRelayCommand(() => SendAsync(urgent: true));
@@ -156,6 +163,15 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
         RefreshQueue();
         UpdateInfoTip();
     }
+
+    /// <summary>The music player (the row of previous, play/pause, next and the track title), or <c>null</c>.</summary>
+    public PlayerViewModel? Player { get; }
+
+    /// <summary>Whether the player row is shown: the player is on ("Player ligado"). Never shown when there is no player.</summary>
+    public bool ShowPlayer => Player is { IsEnabled: true };
+
+    /// <summary>What the player row of the window shows: the player while it is on, else <c>null</c> (the row is then not in the window at all).</summary>
+    public PlayerViewModel? PlayerRow => ShowPlayer ? Player : null;
 
     /// <summary>The panel should close (Esc on an empty field, or the window button was used).</summary>
     public event Action? CloseRequested;
@@ -302,6 +318,19 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
 
         _hub.PropertyChanged -= OnHubChanged;
         _gateway.Queue.Changed -= OnQueueChanged;
+        if (Player is not null)
+        {
+            Player.PropertyChanged -= OnPlayerPropertyChanged;
+        }
+    }
+
+    private void OnPlayerPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PlayerViewModel.IsEnabled))
+        {
+            OnPropertyChanged(nameof(ShowPlayer));
+            OnPropertyChanged(nameof(PlayerRow));
+        }
     }
 
     // ---- property hooks ----

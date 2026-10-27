@@ -178,6 +178,13 @@ public static class AppHost
             provider.GetRequiredService<IAudioSystem>(),
             provider.GetRequiredService<ITrackMetadataReader>(),
             logger: provider.GetRequiredService<ILogger<MusicPlayer>>()));
+        services.AddSingleton(provider => new PlayerViewModel(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<MusicPlayer>(),
+            provider.GetRequiredService<AlarmScheduler>(),
+            provider.GetRequiredService<IAudioSystem>(),
+            PostToUi,
+            logger: provider.GetRequiredService<ILogger<PlayerViewModel>>()));
         services.AddSingleton(provider => new MediaKeyRouter(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<MusicPlayer>(),
@@ -204,7 +211,8 @@ public static class AppHost
                 provider.GetRequiredService<StatusHub>(),
                 () => overlay.PassProgress,
                 PostToUi,
-                logger: provider.GetRequiredService<ILogger<QuickPanelViewModel>>());
+                logger: provider.GetRequiredService<ILogger<QuickPanelViewModel>>(),
+                player: provider.GetRequiredService<PlayerViewModel>());
         });
         services.AddSingleton(provider =>
         {

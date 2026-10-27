@@ -55,6 +55,69 @@
             </Grid>
         </DataTemplate>
 
+        <!-- The music player row: previous, play/pause, next and the title of the track (ellipsized). Implicit template: with no content (player off) nothing is built. -->
+        <DataTemplate DataType="{x:Type vm:PlayerViewModel}">
+            <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button
+                    AutomationProperties.Name="Música anterior"
+                    Command="{Binding PreviousCommand}"
+                    Style="{StaticResource IbtIconButton}"
+                    ToolTip="Música anterior">
+                    <Path
+                        Width="15"
+                        Height="15"
+                        Data="{StaticResource LucideSkipForward}"
+                        RenderTransformOrigin="0.5,0.5"
+                        Style="{StaticResource LucideIcon}">
+                        <Path.RenderTransform>
+                            <ScaleTransform ScaleX="-1" />
+                        </Path.RenderTransform>
+                    </Path>
+                </Button>
+                <Button
+                    Grid.Column="1"
+                    Margin="8,0,0,0"
+                    AutomationProperties.Name="{Binding PlayPauseTip}"
+                    Command="{Binding PlayPauseCommand}"
+                    Style="{StaticResource IbtIconButton}"
+                    ToolTip="{Binding PlayPauseTip}">
+                    <Path
+                        Width="15"
+                        Height="15"
+                        Data="{Binding PlayPauseIconKey, Converter={StaticResource GeometryKey}}"
+                        Style="{StaticResource LucideIcon}" />
+                </Button>
+                <Button
+                    Grid.Column="2"
+                    Margin="8,0,0,0"
+                    AutomationProperties.Name="Próxima música"
+                    Command="{Binding NextCommand}"
+                    Style="{StaticResource IbtIconButton}"
+                    ToolTip="Próxima música">
+                    <Path
+                        Width="15"
+                        Height="15"
+                        Data="{StaticResource LucideSkipForward}"
+                        Style="{StaticResource LucideIcon}" />
+                </Button>
+                <TextBlock
+                    Grid.Column="3"
+                    Margin="12,0,0,0"
+                    VerticalAlignment="Center"
+                    FontSize="11.5"
+                    Foreground="{StaticResource IbtMutedBrush}"
+                    Text="{Binding QuickTitle}"
+                    TextTrimming="CharacterEllipsis"
+                    ToolTip="{Binding QuickTitle}" />
+            </Grid>
+        </DataTemplate>
+
         <Style x:Key="PauseButton" BasedOn="{StaticResource IbtIconButton}" TargetType="Button">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsPaused}" Value="True">
@@ -390,6 +453,11 @@
                         Style="{StaticResource LucideIcon}" />
                 </Button>
             </Grid>
+
+            <!-- The music player: one compact row, in the tree only while "Player ligado" is on (otherwise nothing is added, not even a margin). -->
+            <ContentControl
+                Content="{Binding PlayerRow}"
+                Focusable="False" />
         </StackPanel>
     </Border>
 </Window>
