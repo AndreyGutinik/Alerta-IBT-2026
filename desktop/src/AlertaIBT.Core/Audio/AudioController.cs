@@ -14,6 +14,7 @@ namespace AlertaIBT.Core.Audio;
 /// <param name="LastAppliedAt">When volumes were last set (local time), or <c>null</c> when none were.</param>
 /// <param name="AppliedSummary">What was set, such as <c>Volume geral 80%, Spotify 100%</c>; empty when nothing was.</param>
 /// <param name="Waiting">The programs whose session has not appeared yet, such as <c>Spotify: aguardando abrir</c>.</param>
+/// <param name="Known">Whether the outputs were looked at already (false only for <see cref="Empty"/>).</param>
 public sealed record AudioStatus(
     IReadOnlyList<AudioDevice> Devices,
     string? CurrentOutputName,
@@ -22,10 +23,11 @@ public sealed record AudioStatus(
     bool LockOn,
     DateTimeOffset? LastAppliedAt,
     string AppliedSummary,
-    IReadOnlyList<string> Waiting)
+    IReadOnlyList<string> Waiting,
+    bool Known = true)
 {
     /// <summary>No information yet (before the first look at the outputs).</summary>
-    public static AudioStatus Empty { get; } = new([], null, null, false, false, null, string.Empty, []);
+    public static AudioStatus Empty { get; } = new([], null, null, false, false, null, string.Empty, [], Known: false);
 
     /// <summary>The line under the output card: <c>Saida atual: WING USB</c>, or that the chosen output is not connected and the app waits.</summary>
     public string OutputLine

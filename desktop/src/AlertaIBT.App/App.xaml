@@ -12,6 +12,7 @@
                 <ResourceDictionary Source="Theme/AppTheme.xaml" />
                 <ResourceDictionary Source="Theme/LucideIcons.xaml" />
                 <ResourceDictionary Source="Theme/Controls.xaml" />
+                <ResourceDictionary Source="Theme/SettingsStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
