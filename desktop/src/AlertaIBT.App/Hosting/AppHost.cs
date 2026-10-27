@@ -177,6 +177,10 @@ public static class AppHost
             provider.GetRequiredService<IAudioSystem>(),
             provider.GetRequiredService<ITrackMetadataReader>(),
             logger: provider.GetRequiredService<ILogger<MusicPlayer>>()));
+        services.AddSingleton(provider => new AlarmScheduler(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<MusicPlayer>(),
+            logger: provider.GetRequiredService<ILogger<AlarmScheduler>>()));
     }
 
     // The quick panel: its logic, and the controller that opens and closes its window.

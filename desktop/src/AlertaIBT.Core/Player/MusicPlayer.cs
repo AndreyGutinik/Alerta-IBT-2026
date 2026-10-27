@@ -41,7 +41,7 @@ public interface IPlayerBackend
 /// Never call the commands from the UI thread when they can open a file or a device (they may take a few hundred milliseconds): the
 /// view-model and the media keys use the thread pool.
 /// </remarks>
-public sealed class MusicPlayer : IPlayerControl, IDisposable
+public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
 {
     /// <summary>How long an explicit skip (next, previous, restart) fades out and in, so a cut never clicks.</summary>
     public static readonly TimeSpan SkipFade = TimeSpan.FromMilliseconds(150);
