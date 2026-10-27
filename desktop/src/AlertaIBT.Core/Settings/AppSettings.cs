@@ -29,6 +29,9 @@ public sealed record AppSettings
 
     /// <summary>The sound: volumes set when the PC starts, and the lock of the Windows output on one device.</summary>
     public AudioSettings Audio { get; init; } = new();
+
+    /// <summary>The music player: playlists, alarms, fades, output and volume.</summary>
+    public PlayerSettings Player { get; init; } = new();
 }
 
 /// <summary>How the bar looks and moves.</summary>

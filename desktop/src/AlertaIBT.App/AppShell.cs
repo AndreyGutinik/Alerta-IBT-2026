@@ -5,6 +5,7 @@ using AlertaIBT.App.Platform;
 using AlertaIBT.App.Services;
 using AlertaIBT.App.Tray;
 using AlertaIBT.Core.Input;
+using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Services;
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,7 @@ public sealed class AppShell : IDisposable
     private readonly AlertRuntime _runtime;
     private readonly IUpdateStatus _updates;
     private readonly MouseLockController _mouse;
+    private readonly MusicPlayer _player;
 
     private MessageWindow? _messages;
     private HotkeyService? _hotkeys;
@@ -49,7 +51,8 @@ public sealed class AppShell : IDisposable
         OverlayController overlay,
         AlertRuntime runtime,
         IUpdateStatus updates,
-        MouseLockController mouse)
+        MouseLockController mouse,
+        MusicPlayer player)
     {
         _logger = logger;
         _settings = settings;
@@ -61,6 +64,7 @@ public sealed class AppShell : IDisposable
         _runtime = runtime;
         _updates = updates;
         _mouse = mouse;
+        _player = player;
     }
 
     /// <summary>The user wants the quick panel (tray click or the hotkey). Raised on the UI thread.</summary>
@@ -77,6 +81,9 @@ public sealed class AppShell : IDisposable
 
     /// <summary>The mouse lock (its shortcut state shows in Configuracoes).</summary>
     public MouseLockController MouseLock => _mouse;
+
+    /// <summary>The music player (started by <see cref="Start"/>).</summary>
+    public MusicPlayer Player => _player;
 
     /// <summary>The tray icon, so other parts can add menu items or notifications.</summary>
     public TrayService Tray => _tray;
@@ -136,6 +143,9 @@ public sealed class AppShell : IDisposable
         _mouseHotkeys.Pressed += _mouse.Toggle;
         _mouse.Start(_mouseHotkeys);
         _mouseSignals = new MouseLockSignals(_mouse, Application.Current.Dispatcher);
+
+        // The music player: the playlists are scanned and the output is looked at; nothing plays by itself here.
+        _player.Start();
 
         _settings.Changed += OnSettingsChanged;
 
@@ -231,6 +241,7 @@ public sealed class AppShell : IDisposable
         // First: the cursor, the keyboard hook and the lock shortcut go back to Windows before anything slow runs.
         _mouseSignals?.Dispose();
         _mouse.Dispose();
+        _player.Dispose(); // the sound stops at once, before the slow parts
         _mouseHotkeys?.Dispose();
         _overlay.Dispose(); // first: it ends the pass in progress, so stopping the alert service does not wait for the UI thread
         _runtime.Dispose();

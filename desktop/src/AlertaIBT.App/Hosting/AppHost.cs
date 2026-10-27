@@ -7,16 +7,19 @@ using AlertaIBT.App.Services;
 using AlertaIBT.App.Tray;
 using AlertaIBT.App.ViewModels;
 using AlertaIBT.App.Views;
+using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Firebase;
 using AlertaIBT.Core.Input;
+using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Services;
 using AlertaIBT.Core.Settings;
 using AlertaIBT.Core.Telegram;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -150,10 +153,30 @@ public static class AppHost
             provider.GetRequiredService<IKeyboardHook>(),
             PostToUi,
             provider.GetRequiredService<ILogger<MouseLockController>>()));
+        ConfigurePlayer(services);
         services.AddSingleton<TrayService>();
         services.AddSingleton<AppShell>();
         ConfigureQuickPanel(services);
         ConfigureMainWindow(services, paths);
+    }
+
+    // The music player: nothing here touches a device or a folder until the shell starts it (tests replace the backend and the audio system).
+    private static void ConfigurePlayer(IServiceCollection services)
+    {
+        services.TryAddSingleton<IAudioSystem, WindowsAudioSystem>(); // shared with the "Som" tab's audio controller
+        services.AddSingleton<IPlayerBackend, NAudioPlayerBackend>();
+        services.AddSingleton<ITrackMetadataReader, FileTrackMetadataReader>();
+        services.AddSingleton(provider => new PlaylistLibrary(
+            new PhysicalMediaFileSystem(),
+            PhysicalMediaFileSystem.Watch,
+            logger: provider.GetRequiredService<ILogger<PlaylistLibrary>>()));
+        services.AddSingleton(provider => new MusicPlayer(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<PlaylistLibrary>(),
+            provider.GetRequiredService<IPlayerBackend>(),
+            provider.GetRequiredService<IAudioSystem>(),
+            provider.GetRequiredService<ITrackMetadataReader>(),
+            logger: provider.GetRequiredService<ILogger<MusicPlayer>>()));
     }
 
     // The quick panel: its logic, and the controller that opens and closes its window.

@@ -72,6 +72,7 @@ public static partial class SettingsJson
             var site = Section(root, "site");
             var mouseLock = Section(root, "mouseLock");
             var audio = Section(root, "audio");
+            var player = Section(root, "player");
 
             var settings = new AppSettings
             {
@@ -138,6 +139,24 @@ public static partial class SettingsJson
                     LockOutput = ReadBool(audio, "lockOutput") ?? defaults.Audio.LockOutput,
                     OutputDeviceId = ReadString(audio, "outputDeviceId"),
                     OutputDeviceName = ReadString(audio, "outputDeviceName"),
+                },
+                Player = new PlayerSettings
+                {
+                    Enabled = ReadBool(player, "enabled") ?? defaults.Player.Enabled,
+                    OutputDeviceId = ReadString(player, "outputDeviceId"),
+                    OutputDeviceName = ReadString(player, "outputDeviceName"),
+                    OutputMatch = ReadStrings(player, "outputMatch") ?? defaults.Player.OutputMatch,
+                    Volume = ReadInt(player, "volume") ?? defaults.Player.Volume,
+                    StartMuted = ReadBool(player, "startMuted") ?? defaults.Player.StartMuted,
+                    Shuffle = ReadBool(player, "shuffle") ?? defaults.Player.Shuffle,
+                    Repeat = ReadString(player, "repeat") ?? defaults.Player.Repeat,
+                    MediaKeys = ReadBool(player, "mediaKeys") ?? defaults.Player.MediaKeys,
+                    StopFadeSeconds = ReadInt(player, "stopFadeSeconds") ?? defaults.Player.StopFadeSeconds,
+                    AlarmFadeSeconds = ReadInt(player, "alarmFadeSeconds") ?? defaults.Player.AlarmFadeSeconds,
+                    CurrentPlaylist = ReadString(player, "currentPlaylist") ?? defaults.Player.CurrentPlaylist,
+                    Playlists = ReadPlaylists(player) ?? defaults.Player.Playlists,
+                    AlarmsEnabled = ReadBool(player, "alarmsEnabled") ?? defaults.Player.AlarmsEnabled,
+                    Alarms = ReadAlarms(player) ?? defaults.Player.Alarms,
                 },
             };
             return (Normalize(settings), false);
@@ -223,6 +242,37 @@ public static partial class SettingsJson
                 ["outputDeviceId"] = n.Audio.OutputDeviceId,
                 ["outputDeviceName"] = n.Audio.OutputDeviceName,
             },
+            ["player"] = new JsonObject
+            {
+                ["enabled"] = n.Player.Enabled,
+                ["outputDeviceId"] = n.Player.OutputDeviceId,
+                ["outputDeviceName"] = n.Player.OutputDeviceName,
+                ["outputMatch"] = new JsonArray(n.Player.OutputMatch.Select(word => (JsonNode)JsonValue.Create(word)!).ToArray()),
+                ["volume"] = n.Player.Volume,
+                ["startMuted"] = n.Player.StartMuted,
+                ["shuffle"] = n.Player.Shuffle,
+                ["repeat"] = n.Player.Repeat,
+                ["mediaKeys"] = n.Player.MediaKeys,
+                ["stopFadeSeconds"] = n.Player.StopFadeSeconds,
+                ["alarmFadeSeconds"] = n.Player.AlarmFadeSeconds,
+                ["currentPlaylist"] = n.Player.CurrentPlaylist,
+                ["playlists"] = new JsonArray(n.Player.Playlists.Select(list => (JsonNode)new JsonObject
+                {
+                    ["name"] = list.Name,
+                    ["folder"] = list.Folder,
+                }).ToArray()),
+                ["alarmsEnabled"] = n.Player.AlarmsEnabled,
+                ["alarms"] = new JsonArray(n.Player.Alarms.Select(alarm => (JsonNode)new JsonObject
+                {
+                    ["id"] = alarm.Id,
+                    ["enabled"] = alarm.Enabled,
+                    ["start"] = alarm.Start,
+                    ["latest"] = alarm.Latest,
+                    ["days"] = alarm.Days,
+                    ["playlist"] = alarm.Playlist,
+                    ["lastFiredOn"] = alarm.LastFiredOn,
+                }).ToArray()),
+            },
         };
         return root.ToJsonString(WriteOptions);
     }
@@ -246,6 +296,7 @@ public static partial class SettingsJson
         var site = s.Site ?? d.Site;
         var mouseLock = s.MouseLock ?? d.MouseLock;
         var audio = s.Audio ?? d.Audio;
+        var player = s.Player ?? d.Player;
 
         return new AppSettings
         {
@@ -317,7 +368,155 @@ public static partial class SettingsJson
                 OutputDeviceId = NullIfBlank(audio.OutputDeviceId),
                 OutputDeviceName = NullIfBlank(audio.OutputDeviceName),
             },
+            Player = NormalizePlayer(player),
         };
+    }
+
+    // The player held usable. Empty lists are kept (the owner removed everything); only a missing (null) list gets the defaults.
+    private static PlayerSettings NormalizePlayer(PlayerSettings p)
+    {
+        var d = new PlayerSettings();
+        var playlists = NormalizePlaylists(p.Playlists) ?? d.Playlists;
+        var current = NullIfBlank(p.CurrentPlaylist) ?? d.CurrentPlaylist;
+        if (playlists.FirstOrDefault(l => string.Equals(l.Name, current, StringComparison.OrdinalIgnoreCase)) is { } found)
+        {
+            current = found.Name;
+        }
+        else if (playlists.Count > 0)
+        {
+            current = playlists[0].Name;
+        }
+
+        return new PlayerSettings
+        {
+            Enabled = p.Enabled,
+            OutputDeviceId = NullIfBlank(p.OutputDeviceId),
+            OutputDeviceName = NullIfBlank(p.OutputDeviceName),
+            OutputMatch = p.OutputMatch is null
+                ? d.OutputMatch
+                : p.OutputMatch.Select(NullIfBlank).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            Volume = ClampVolume(p.Volume),
+            StartMuted = p.StartMuted,
+            Shuffle = p.Shuffle,
+            Repeat = p.Repeat?.Trim().ToLowerInvariant() switch { "off" => "off", "one" => "one", _ => "all" },
+            MediaKeys = p.MediaKeys,
+            StopFadeSeconds = NearestFade(p.StopFadeSeconds),
+            AlarmFadeSeconds = NearestFade(p.AlarmFadeSeconds),
+            CurrentPlaylist = current,
+            Playlists = playlists,
+            AlarmsEnabled = p.AlarmsEnabled,
+            Alarms = NormalizeAlarms(p.Alarms) ?? d.Alarms,
+        };
+    }
+
+    // 0 (dry), 3 or 5 seconds: the nearest of the three.
+    private static int NearestFade(int seconds) => seconds <= 1 ? 0 : seconds <= 4 ? 3 : 5;
+
+    private static List<PlaylistEntry>? NormalizePlaylists(IReadOnlyList<PlaylistEntry>? playlists)
+    {
+        if (playlists is null)
+        {
+            return null;
+        }
+
+        var result = new List<PlaylistEntry>();
+        foreach (var list in playlists)
+        {
+            var name = NullIfBlank(list?.Name);
+            var folder = NullIfBlank(list?.Folder);
+            if (name is null || folder is null || result.Any(r => string.Equals(r.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            result.Add(new PlaylistEntry(name, folder));
+        }
+
+        return result;
+    }
+
+    private static List<AlarmEntry>? NormalizeAlarms(IReadOnlyList<AlarmEntry>? alarms)
+    {
+        if (alarms is null)
+        {
+            return null;
+        }
+
+        var result = new List<AlarmEntry>();
+        foreach (var alarm in alarms)
+        {
+            if (alarm is null)
+            {
+                continue;
+            }
+
+            var id = NullIfBlank(alarm.Id) ?? "alarme-" + (result.Count + 1).ToString(CultureInfo.InvariantCulture);
+            while (result.Any(r => string.Equals(r.Id, id, StringComparison.OrdinalIgnoreCase)))
+            {
+                id += "-2";
+            }
+
+            var start = PlayerSettings.ParseTime(alarm.Start) ?? PlayerSettings.DefaultStart;
+            var latest = PlayerSettings.ParseTime(alarm.Latest) ?? PlayerSettings.DefaultLatest;
+            if (latest < start)
+            {
+                // "Do not start after" before the start makes no sense: 25 minutes later, or the end of the day.
+                latest = start.AddMinutes(25) < start ? new TimeOnly(23, 59) : start.AddMinutes(25);
+            }
+
+            var fired = NullIfBlank(alarm.LastFiredOn);
+            result.Add(new AlarmEntry(
+                id,
+                alarm.Enabled,
+                start.ToString("HH:mm", CultureInfo.InvariantCulture),
+                latest.ToString("HH:mm", CultureInfo.InvariantCulture),
+                alarm.Days & AlarmEntry.AllDays,
+                NullIfBlank(alarm.Playlist) ?? PlayerSettings.DefaultPlaylistName,
+                fired is not null && DateOnly.TryParseExact(fired, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
+                    ? day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                    : null));
+        }
+
+        return result;
+    }
+
+    // A list of strings; null when it is missing or not a list (the default then applies).
+    private static List<string>? ReadStrings(JsonElement section, string name) =>
+        Find(section, name) is { ValueKind: JsonValueKind.Array } list
+            ? list.EnumerateArray().Where(n => n.ValueKind == JsonValueKind.String).Select(n => n.GetString() ?? string.Empty).ToList()
+            : null;
+
+    private static List<PlaylistEntry>? ReadPlaylists(JsonElement player)
+    {
+        if (Find(player, "playlists") is not { ValueKind: JsonValueKind.Array } list)
+        {
+            return null;
+        }
+
+        return list.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.Object)
+            .Select(item => new PlaylistEntry(ReadString(item, "name") ?? string.Empty, ReadString(item, "folder") ?? string.Empty))
+            .ToList();
+    }
+
+    private static List<AlarmEntry>? ReadAlarms(JsonElement player)
+    {
+        if (Find(player, "alarms") is not { ValueKind: JsonValueKind.Array } list)
+        {
+            return null;
+        }
+
+        return list.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.Object)
+            .Select(item => new AlarmEntry(
+                ReadString(item, "id") ?? string.Empty,
+                ReadBool(item, "enabled") ?? true,
+                ReadString(item, "start") ?? string.Empty,
+                ReadString(item, "latest") ?? string.Empty,
+                ReadInt(item, "days") ?? AlarmEntry.SundayOnly,
+                ReadString(item, "playlist") ?? string.Empty,
+                ReadString(item, "lastFiredOn")))
+            .ToList();
     }
 
     private static int ClampVolume(int volume) => Math.Clamp(volume, AudioSettings.MinVolume, AudioSettings.MaxVolume);
