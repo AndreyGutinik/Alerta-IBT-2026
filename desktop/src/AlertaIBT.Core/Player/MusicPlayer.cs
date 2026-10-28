@@ -82,6 +82,9 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     private bool _changed;
     private int _depth;
     private PlayerSettings? _applied;
+    private TimeSpan _pausedAt;
+    private TimeSpan _pausedDuration;
+    private bool _pausedSeeked;
 
     /// <param name="settings">The settings (the player section).</param>
     /// <param name="library">The playlists.</param>
@@ -232,6 +235,35 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         return path is null ? PlayerResult.Fail("n\U000000E3o h\U000000E1 faixa anterior") : SkipLocked(path);
     });
 
+    /// <summary>
+    /// Jumps to <paramref name="position"/> of the current track (the fade and the volume stay as they are; a 12 ms duck hides the jump). On a
+    /// paused player it only moves the resume point: "Play" then continues that track from there instead of starting another one.
+    /// </summary>
+    public PlayerResult Seek(TimeSpan position) => Locked(() =>
+    {
+        if (!Options.Enabled)
+        {
+            return PlayerResult.Disabled;
+        }
+
+        if (_state == PlayerState.Playing && _session is { } session)
+        {
+            return session.Mixer.Seek(position) ? PlayerResult.Ok : PlayerResult.Fail("nada tocando");
+        }
+
+        if (_state == PlayerState.Paused && _current is not null && _pausedDuration > TimeSpan.Zero)
+        {
+            var last = _pausedDuration - TimeSpan.FromMilliseconds(200);
+            var to = position > last ? last : position;
+            _pausedAt = to < TimeSpan.Zero ? TimeSpan.Zero : to;
+            _pausedSeeked = true;
+            _changed = true;
+            return PlayerResult.Ok;
+        }
+
+        return PlayerResult.Fail("nada tocando");
+    });
+
     /// <summary>Scans the current playlist again now ("Atualizar") and looks at the outputs again.</summary>
     public void Refresh()
     {
@@ -250,13 +282,14 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         {
             var options = Options;
             var mixer = _session?.Mixer;
+            var paused = _state == PlayerState.Paused && _current is not null && mixer is null;
             return new PlayerStatus(
                 options.Enabled,
                 _state,
                 _fading,
                 _current,
-                mixer?.Position ?? TimeSpan.Zero,
-                mixer?.Duration ?? TimeSpan.Zero,
+                paused ? _pausedAt : mixer?.Position ?? TimeSpan.Zero,
+                paused ? _pausedDuration : mixer?.Duration ?? TimeSpan.Zero,
                 _playlist,
                 _queue.Tracks.Count,
                 options.Volume,
@@ -313,6 +346,15 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
             return PlayerResult.Ok;
         }
 
+        if (_state == PlayerState.Paused && _pausedSeeked && _current is { } resumeTrack)
+        {
+            // The listener moved the slider while paused: continue that track from there.
+            var at = _pausedAt;
+            _retry?.Dispose();
+            _retry = null;
+            return OpenAndPlayLocked(resumeTrack.Path, fadeInSeconds, startAt: at);
+        }
+
         SyncQueueLocked();
         if (_queue.Tracks.Count == 0)
         {
@@ -353,6 +395,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
                 if (target == PlayerState.Stopped)
                 {
                     _current = null;
+                    _pausedSeeked = false;
                 }
 
                 _changed = true;
@@ -377,6 +420,9 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
             return PlayerResult.Ok; // a newer command took over
         }
 
+        _pausedAt = session.Mixer.Position;
+        _pausedDuration = session.Mixer.Duration;
+        _pausedSeeked = false;
         CloseSessionLocked();
         _fading = false;
         _state = target;
@@ -459,7 +505,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     // ---- opening ----
 
     // Opens `path` (skipping the files that cannot be read) and starts it, with the fade-in wanted.
-    private PlayerResult OpenAndPlayLocked(string? path, int fadeInSeconds, bool skipFade = false)
+    private PlayerResult OpenAndPlayLocked(string? path, int fadeInSeconds, bool skipFade = false, TimeSpan? startAt = null)
     {
         Session session;
         var choice = ResolveOutputLocked();
@@ -483,6 +529,11 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
             {
                 var pcm = _backend.OpenTrack(path, session.Mixer.SampleRate, session.Mixer.Channels);
                 var info = _metadata.Read(path);
+                if (startAt is { } from && from > TimeSpan.Zero)
+                {
+                    pcm.Seek(from);
+                }
+
                 if (_state == PlayerState.Playing && !skipFade)
                 {
                     // A track change inside a running output: the new track starts at full gain.
@@ -491,9 +542,10 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
                 }
                 else
                 {
-                    session.Mixer.SetTrack(pcm);
-                    session.Mixer.FadeFromSilence(FadeEnvelope.FramesFor(fadeInSeconds > 0 ? fadeInSeconds : skipFade ? SkipFade.TotalSeconds : 0, session.Mixer.SampleRate));
+                    session.Mixer.StartTrack(pcm, FadeEnvelope.FramesFor(fadeInSeconds > 0 ? fadeInSeconds : skipFade ? SkipFade.TotalSeconds : 0, session.Mixer.SampleRate));
                 }
+
+                _pausedSeeked = false;
 
                 _current = info;
                 _state = PlayerState.Playing;

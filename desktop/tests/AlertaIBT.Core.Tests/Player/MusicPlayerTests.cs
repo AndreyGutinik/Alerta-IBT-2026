@@ -499,6 +499,85 @@ public sealed class MusicPlayerTests : IDisposable
         Assert.Equal("player desligado", start.Error);
     }
 
+    // ---- seek ----
+
+    [Fact]
+    public void Seek_moves_the_position_of_a_playing_track()
+    {
+        Player.Play();
+        Backend.Output.PumpSeconds(0.5);
+
+        Assert.True(Player.Seek(TimeSpan.FromSeconds(6)).Success);
+        Assert.Equal(6.0, Player.GetStatus().Position.TotalSeconds, 2);
+        Backend.Output.PumpSeconds(0.1);
+
+        Assert.InRange(Player.GetStatus().Position.TotalSeconds, 6.0, 6.2);
+        Assert.Equal(PlayerState.Playing, Player.GetStatus().State);
+    }
+
+    [Fact]
+    public void Seek_during_a_fade_out_does_not_cancel_the_fade()
+    {
+        Player.Play();
+        Backend.Output.PumpSeconds(0.5);
+        Player.Pause();
+        Backend.Output.PumpSeconds(1);
+
+        Player.Seek(TimeSpan.FromSeconds(3));
+        Backend.Output.PumpSeconds(4.5);
+
+        Assert.Equal(PlayerState.Paused, Player.GetStatus().State);
+    }
+
+    [Fact]
+    public void Seek_when_nothing_plays_is_refused()
+    {
+        Assert.False(Player.Seek(TimeSpan.FromSeconds(3)).Success);
+    }
+
+    [Fact]
+    public void A_paused_player_keeps_the_track_and_position_and_a_seek_moves_the_resume_point()
+    {
+        _rig.Change(p => p with { StopFadeSeconds = 0 });
+        Player.Play();
+        var path = Player.GetStatus().Track!.Path;
+        Backend.Output.PumpSeconds(2);
+        Player.Pause();
+        Backend.Output.PumpSeconds(0.1);
+
+        var paused = Player.GetStatus();
+        Assert.Equal(PlayerState.Paused, paused.State);
+        Assert.Equal(path, paused.Track!.Path);
+        Assert.InRange(paused.Position.TotalSeconds, 2.0, 2.2);
+        Assert.Equal(10.0, paused.Duration.TotalSeconds, 2);
+
+        Assert.True(Player.Seek(TimeSpan.FromSeconds(7)).Success);
+        Assert.Equal(7.0, Player.GetStatus().Position.TotalSeconds, 2);
+        Assert.Equal(PlayerState.Paused, Player.GetStatus().State);
+
+        Player.Play();
+
+        var resumed = Player.GetStatus();
+        Assert.Equal(PlayerState.Playing, resumed.State);
+        Assert.Equal(path, resumed.Track!.Path);
+        Assert.InRange(resumed.Position.TotalSeconds, 6.9, 7.2);
+    }
+
+    [Fact]
+    public void Play_after_a_pause_without_a_seek_still_starts_the_next_track()
+    {
+        _rig.Change(p => p with { StopFadeSeconds = 0 });
+        Player.Play();
+        var path = Player.GetStatus().Track!.Path;
+        Backend.Output.PumpSeconds(1);
+        Player.Pause();
+        Backend.Output.PumpSeconds(0.1);
+
+        Player.Play();
+
+        Assert.NotEqual(path, Player.GetStatus().Track!.Path);
+    }
+
     [Fact]
     public void Status_changes_are_announced_once_per_command_outside_the_lock()
     {

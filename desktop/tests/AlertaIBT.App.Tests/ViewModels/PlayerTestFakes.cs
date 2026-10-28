@@ -21,6 +21,8 @@ internal sealed class FakeTrack(string path) : IPcmTrack
         return count;
     }
 
+    public void Seek(TimeSpan position) => _read = (int)(position.TotalSeconds * 96000);
+
     public void Dispose()
     {
     }

@@ -11,6 +11,9 @@ public interface IPcmTrack : IDisposable
 
     /// <summary>Reads up to <paramref name="count"/> samples; returns 0 at the end of the track.</summary>
     int Read(float[] buffer, int offset, int count);
+
+    /// <summary>Moves the read position (the decoder and the resampler restart from there).</summary>
+    void Seek(TimeSpan position);
 }
 
 /// <summary>The sound the output pulls: always fills the whole buffer (silence when nothing plays), so the output keeps running.</summary>
@@ -36,8 +39,13 @@ public sealed class PlayerMixer : IPcmSource
     /// <summary>How long a change of volume takes to settle.</summary>
     public const double VolumeSmoothingSeconds = 0.03;
 
+    /// <summary>How long the sound ducks to silence before a seek jumps, and rises again after it (so a jump never clicks).</summary>
+    public const double SeekRampSeconds = 0.012;
+
     private readonly object _gate = new();
     private readonly FadeEnvelope _fade = new();
+    private readonly FadeEnvelope _duck = new();
+    private readonly int _seekFrames;
     private readonly Action<Action> _post;
     private readonly float _volumeStep;
     private IPcmTrack? _track;
@@ -45,6 +53,7 @@ public sealed class PlayerMixer : IPcmSource
     private Action? _fadeDone;
     private float _volume = 1f;
     private float _volumeTarget = 1f;
+    private TimeSpan? _pendingSeek;
 
     /// <param name="sampleRate">The output's frames per second.</param>
     /// <param name="channels">The output's channels.</param>
@@ -58,6 +67,7 @@ public sealed class PlayerMixer : IPcmSource
         Channels = channels;
         _post = post ?? (action => ThreadPool.QueueUserWorkItem(_ => action()));
         _volumeStep = (float)(1.0 / (VolumeSmoothingSeconds * sampleRate));
+        _seekFrames = Math.Max(1, (int)(SeekRampSeconds * sampleRate));
     }
 
     /// <summary>Raised (through <c>post</c>) once when the current track ran out.</summary>
@@ -112,7 +122,7 @@ public sealed class PlayerMixer : IPcmSource
         {
             lock (_gate)
             {
-                return _track?.Position ?? TimeSpan.Zero;
+                return _pendingSeek ?? _track?.Position ?? TimeSpan.Zero;
             }
         }
     }
@@ -138,6 +148,8 @@ public sealed class PlayerMixer : IPcmSource
             old = _track;
             _track = track;
             _endRaised = false;
+            _pendingSeek = null;
+            _duck.Set(1f);
         }
 
         old?.Dispose();
@@ -156,6 +168,46 @@ public sealed class PlayerMixer : IPcmSource
             {
                 _volume = _volumeTarget;
             }
+        }
+    }
+
+    /// <summary>Puts a track on and starts it at silence, ramping up to full over <paramref name="frames"/> frames, in one step: the output can never hear the new track at full gain in between.</summary>
+    public void StartTrack(IPcmTrack track, int frames)
+    {
+        IPcmTrack? old;
+        lock (_gate)
+        {
+            old = _track;
+            _track = track;
+            _endRaised = false;
+            _pendingSeek = null;
+            _duck.Set(1f);
+            _fadeDone = null;
+            _fade.Set(0f);
+            _fade.FadeTo(1f, frames);
+        }
+
+        old?.Dispose();
+    }
+
+    /// <summary>
+    /// Jumps to <paramref name="position"/> of the current track without a click: the sound ducks to silence over 12 ms, the track jumps while it
+    /// is silent, and it rises again over 12 ms. The fade and the volume are untouched. Returns <c>false</c> when there is no track.
+    /// </summary>
+    public bool Seek(TimeSpan position)
+    {
+        lock (_gate)
+        {
+            if (_track is not { } track)
+            {
+                return false;
+            }
+
+            var last = track.Duration - TimeSpan.FromMilliseconds(200);
+            var to = position > last ? last : position;
+            _pendingSeek = to < TimeSpan.Zero ? TimeSpan.Zero : to;
+            _duck.FadeTo(0f, _seekFrames);
+            return true;
         }
     }
 
@@ -202,6 +254,15 @@ public sealed class PlayerMixer : IPcmSource
             var filled = 0;
             if (_track is { } track)
             {
+                if (_pendingSeek is { } seekTo && _duck.Gain <= 0f && !_duck.IsFading)
+                {
+                    // Silent now: jump, and rise again from the new place.
+                    track.Seek(seekTo);
+                    _pendingSeek = null;
+                    _endRaised = false;
+                    _duck.FadeTo(1f, _seekFrames);
+                }
+
                 while (filled < count)
                 {
                     var n = track.Read(buffer, offset + filled, count - filled);
@@ -260,7 +321,7 @@ public sealed class PlayerMixer : IPcmSource
                 _volume = Math.Abs(delta) <= _volumeStep ? _volumeTarget : _volume + Math.Sign(delta) * _volumeStep;
             }
 
-            var gain = _fade.Next() * _volume;
+            var gain = _fade.Next() * _volume * _duck.Next();
             for (var c = 0; c < channels; c++)
             {
                 buffer[i + c] *= gain;

@@ -169,7 +169,7 @@ public sealed class PlayerBasicsTests
     // ---- fades ----
 
     [Fact]
-    public void A_fade_reaches_its_target_exactly_after_the_frames_and_holds()
+    public void A_fade_follows_the_quadratic_curve_reaches_its_target_exactly_and_holds()
     {
         var envelope = new FadeEnvelope();
         envelope.Set(0f);
@@ -177,8 +177,31 @@ public sealed class PlayerBasicsTests
 
         var gains = Enumerable.Range(0, 6).Select(_ => envelope.Next()).ToArray();
 
-        Assert.Equal([0.25f, 0.5f, 0.75f, 1f, 1f, 1f], gains);
+        Assert.Equal([0.0625f, 0.25f, 0.5625f, 1f, 1f, 1f], gains);
         Assert.False(envelope.IsFading);
+    }
+
+    [Fact]
+    public void A_fade_out_falls_quickly_at_first_and_ends_gently_and_a_fade_in_mirrors_it()
+    {
+        var down = new FadeEnvelope();
+        down.FadeTo(0f, 4);
+        var downGains = Enumerable.Range(0, 5).Select(_ => down.Next()).ToArray();
+
+        Assert.Equal([0.5625f, 0.25f, 0.0625f, 0f, 0f], downGains);
+    }
+
+    [Fact]
+    public void A_fade_started_half_way_continues_from_where_the_gain_is_without_a_jump()
+    {
+        var envelope = new FadeEnvelope();
+        envelope.Set(0.4f);
+        envelope.FadeTo(1f, 1000);
+
+        var first = envelope.Next();
+
+        Assert.InRange(first, 0.4f, 0.4001f);
+        Assert.Equal(1f, Enumerable.Range(0, 999).Select(_ => envelope.Next()).ToArray()[^1]);
     }
 
     [Theory]

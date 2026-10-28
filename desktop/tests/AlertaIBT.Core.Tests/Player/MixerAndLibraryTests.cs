@@ -38,7 +38,7 @@ public sealed class MixerAndLibraryTests
         var buffer = new float[99];
         mixer.Read(buffer, 0, 99);
         Assert.Equal(0, done);
-        Assert.Equal(0.01f, buffer[^1], 4);
+        Assert.Equal(0.0001f, buffer[^1], 5); // quadratic curve: (1 frame left of 100) squared
 
         var last = new float[2];
         mixer.Read(last, 0, 2);
@@ -46,6 +46,64 @@ public sealed class MixerAndLibraryTests
         Assert.Equal(1, done);
         Assert.Equal(0f, last[0]);
         Assert.Equal(0f, last[1]);
+    }
+
+    [Fact]
+    public void Start_track_never_lets_the_new_track_out_at_full_gain()
+    {
+        var mixer = new PlayerMixer(1000, 1, action => action());
+        mixer.StartTrack(new FakeTrack("a", 1000, 1, totalFrames: 1000, level: 1f), frames: 100);
+
+        var first = new float[10];
+        mixer.Read(first, 0, 10);
+
+        Assert.All(first, sample => Assert.InRange(sample, 0f, 0.0101f));
+    }
+
+    [Fact]
+    public void A_seek_ducks_jumps_while_silent_and_rises_again_without_a_step()
+    {
+        var mixer = new PlayerMixer(48000, 1, action => action());
+        var track = new FakeTrack("a", 48000, 1, totalFrames: 48000 * 20, level: 1f);
+        mixer.SetTrack(track);
+        mixer.Read(new float[4800], 0, 4800);
+
+        Assert.True(mixer.Seek(TimeSpan.FromSeconds(12)));
+        Assert.Equal(12.0, mixer.Position.TotalSeconds, 3); // the screen sees the target at once
+        var block = new float[4800];
+        mixer.Read(block, 0, block.Length); // ducks to silence
+        mixer.Read(block, 0, block.Length); // jumps and rises
+
+        Assert.Equal(12.1, track.Position.TotalSeconds, 1);
+        var steps = Enumerable.Range(1, block.Length - 1).Select(i => Math.Abs(block[i] - block[i - 1])).Max();
+        Assert.True(steps < 0.01f, $"no click: the biggest step is {steps}");
+        Assert.Equal(1f, block[^1], 3);
+    }
+
+    [Fact]
+    public void A_seek_keeps_the_fade_and_the_volume_and_is_clamped_to_the_track()
+    {
+        var mixer = new PlayerMixer(1000, 1, action => action());
+        var track = new FakeTrack("a", 1000, 1, totalFrames: 100_000, level: 1f);
+        mixer.SetTrack(track);
+        mixer.SetVolume(0.5f, false, immediate: true);
+        mixer.Read(new float[100], 0, 100);
+
+        mixer.Seek(TimeSpan.FromSeconds(500));
+        mixer.Read(new float[100], 0, 100);
+        var settled = new float[100];
+        mixer.Read(settled, 0, 100);
+
+        Assert.InRange(track.Position.TotalSeconds, 99.7, 100);
+        Assert.Equal(0.5f, settled[^1], 3); // the volume is intact
+    }
+
+    [Fact]
+    public void Seeking_with_no_track_does_nothing()
+    {
+        var mixer = new PlayerMixer(1000, 1, action => action());
+
+        Assert.False(mixer.Seek(TimeSpan.FromSeconds(3)));
     }
 
     [Fact]

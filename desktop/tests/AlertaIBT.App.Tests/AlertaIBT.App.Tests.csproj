@@ -17,6 +17,9 @@
     <Using Include="System.IO" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="Assets\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\AlertaIBT.App\AlertaIBT.App.csproj" />
     <ProjectReference Include="..\..\src\AlertaIBT.Core\AlertaIBT.Core.csproj" />
   </ItemGroup>

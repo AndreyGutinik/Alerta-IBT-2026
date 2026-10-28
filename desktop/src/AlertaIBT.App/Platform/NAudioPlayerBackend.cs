@@ -210,6 +210,16 @@ public sealed class NAudioPlayerBackend : IPlayerBackend
             return got * _targetChannels;
         }
 
+        public void Seek(TimeSpan position)
+        {
+            var last = _reader.TotalTime - TimeSpan.FromMilliseconds(50);
+            _reader.CurrentTime = position > last ? last : position < TimeSpan.Zero ? TimeSpan.Zero : position;
+            if (_provider is MediaFoundationResampler resampler)
+            {
+                resampler.Reposition(); // drop what the resampler had already converted from the old place
+            }
+        }
+
         public void Dispose()
         {
             (_provider as IDisposable)?.Dispose();
