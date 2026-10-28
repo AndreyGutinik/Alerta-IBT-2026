@@ -32,14 +32,27 @@
                     <ControlTemplate TargetType="local:SettingsSection">
                         <Border Style="{StaticResource IbtCard}">
                             <StackPanel>
-                                <TextBlock
-                                    x:Name="SectionHeader"
-                                    Margin="0,0,0,8"
-                                    Style="{StaticResource SectionTitle}"
-                                    Text="{TemplateBinding Header}" />
+                                <StackPanel Margin="0,0,0,8">
+                                    <TextBlock
+                                        x:Name="SectionHeader"
+                                        Style="{StaticResource SectionTitle}"
+                                        Text="{TemplateBinding Header}" />
+                                    <TextBlock
+                                        x:Name="SectionSubtitle"
+                                        Margin="0,3,0,0"
+                                        FontSize="11.5"
+                                        Foreground="{StaticResource IbtMutedBrush}"
+                                        Text="{TemplateBinding Subtitle}"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
                                 <ContentPresenter />
                             </StackPanel>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Subtitle" Value="">
+                                <Setter TargetName="SectionSubtitle" Property="Visibility" Value="Collapsed" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -259,6 +272,122 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Chrome" Property="Opacity" Value="0.5" />
                             <Setter TargetName="ContentSite" Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        The timeline of the player (SeekSlider) and the volume slider next to it: a thin rounded track, the played part in the green of the church
+        and a round thumb that grows under the mouse. SeekSlider does the clicking and dragging itself; the stock slider logic is not used.
+    -->
+    <Style x:Key="IbtSeekThumb" TargetType="Thumb">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Width" Value="16" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border
+                        x:Name="Dot"
+                        Width="11"
+                        Height="11"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Background="{StaticResource IbtCreamBrush}"
+                        CornerRadius="6">
+                        <Border.Effect>
+                            <DropShadowEffect
+                                BlurRadius="6"
+                                Opacity="0.55"
+                                ShadowDepth="1" />
+                        </Border.Effect>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Dot" Property="Width" Value="14" />
+                            <Setter TargetName="Dot" Property="Height" Value="14" />
+                            <Setter TargetName="Dot" Property="CornerRadius" Value="7" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Dot" Property="Width" Value="14" />
+                            <Setter TargetName="Dot" Property="Height" Value="14" />
+                            <Setter TargetName="Dot" Property="CornerRadius" Value="7" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="IbtSeekPlayed" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Height="20" Background="Transparent">
+                        <Border
+                            Height="4"
+                            VerticalAlignment="Center"
+                            Background="{StaticResource IbtAccentBrush}"
+                            CornerRadius="2,0,0,2" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="IbtSeekRest" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Height="20" Background="Transparent" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="IbtSeekSlider" TargetType="Slider">
+        <Setter Property="Height" Value="20" />
+        <Setter Property="MinHeight" Value="20" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid x:Name="Root" Background="Transparent">
+                        <Border
+                            x:Name="Rail"
+                            Height="4"
+                            VerticalAlignment="Center"
+                            Background="#26FFFFFF"
+                            BorderBrush="Transparent"
+                            BorderThickness="1"
+                            CornerRadius="2" />
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource IbtSeekPlayed}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge" Style="{StaticResource IbtSeekRest}" />
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource IbtSeekThumb}" />
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Rail" Property="BorderBrush" Value="#661DA35F" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.4" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

@@ -1,3 +1,4 @@
+using AlertaIBT.App.Services;
 using AlertaIBT.App.ViewModels;
 using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Player;
@@ -13,14 +14,14 @@ internal sealed class SomRig : IDisposable
 {
     private readonly PlaylistLibrary _library;
 
-    public SomRig(AppSettings? initial = null)
+    public SomRig(AppSettings? initial = null, ICoverArtLoader? covers = null, ITrackMetadataReader? metadata = null)
     {
         Settings = new SettingsRig(initial);
         _library = new PlaylistLibrary(new FakeFiles(), _ => null, Settings.Clock, action => action());
-        Player = new MusicPlayer(Settings.Settings, _library, Backend, Audio, new FakeMetadata(), Settings.Clock, null, action => action(), new Random(1));
+        Player = new MusicPlayer(Settings.Settings, _library, Backend, Audio, metadata ?? new FakeMetadata(), Settings.Clock, null, action => action(), new Random(1));
         Alarms = new AlarmScheduler(Settings.Settings, Player, Settings.Clock);
         Player.Start();
-        PlayerView = new PlayerViewModel(Settings.Settings, Player, Alarms, Audio, action => action(), action => action(), Settings.Clock);
+        PlayerView = new PlayerViewModel(Settings.Settings, Player, Alarms, Audio, action => action(), action => action(), Settings.Clock, covers: covers);
         Controller = new AudioController(Audio, Settings.Settings, Settings.Clock, null, AppOutput);
         Som = new SomViewModel(Settings.Settings, Settings.Saver, Controller, PlayerView, () => Folders.Count > 0 ? Folders.Dequeue() : null);
     }

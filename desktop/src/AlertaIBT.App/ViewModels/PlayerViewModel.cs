@@ -95,6 +95,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         PlayPauseCommand = new RelayCommand(() => Execute(() => IsPlaying && !IsFading ? _player.Pause() : _player.Play()));
         ToggleShuffleCommand = new RelayCommand(() => Shuffle = !Shuffle);
         CycleRepeatCommand = new RelayCommand(() => Repeat = Repeat switch { PlayerRepeat.Off => PlayerRepeat.All, PlayerRepeat.All => PlayerRepeat.One, _ => PlayerRepeat.Off });
+        ToggleMuteCommand = new RelayCommand(() => StartMuted = !StartMuted);
         SeekToCommand = new RelayCommand<double>(seconds => SeekTo(seconds));
         SeekByCommand = new RelayCommand<double>(seconds => SeekBy(seconds));
         RefreshCommand = new RelayCommand(() => Execute(() =>
@@ -141,6 +142,9 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
 
     /// <summary>Off, then all, then one, then off again.</summary>
     public IRelayCommand CycleRepeatCommand { get; }
+
+    /// <summary>Mutes or unmutes the player (the speaker icon next to the volume).</summary>
+    public IRelayCommand ToggleMuteCommand { get; }
 
     /// <summary>Jumps to a position given in seconds (the timeline of a paused player too).</summary>
     public IRelayCommand<double> SeekToCommand { get; }
@@ -257,15 +261,23 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         : TrackCountText;
 
     /// <summary>The title for the big line: the title of the track, or "Nada tocando".</summary>
-    public string HeroTitle => _status.Track?.Title ?? "Nada tocando";
+    public string HeroTitle => !_options.Enabled ? "Player desligado" : _status.Track?.Title ?? "Nada tocando";
 
     /// <summary>The tooltip of the big title: the whole name, never cut.</summary>
     public string HeroTitleTip => _status.Track is { } track ? (string.IsNullOrEmpty(track.Artist) ? track.Title : $"{track.Title} \U00002014 {track.Artist}") : string.Empty;
 
     /// <summary>The line under the title: the artist, the state when there is no artist (<c>Pausado</c>), or a hint when nothing is loaded.</summary>
-    public string HeroSubtitle => _status.Track is null
-        ? "Aperte play para tocar a lista"
-        : string.IsNullOrEmpty(_status.Track.Artist) ? StateText : _status.Track.Artist!;
+    public string HeroSubtitle => !_options.Enabled
+        ? "Ligue o player para tocar m\U000000FAsica e usar os despertadores"
+        : _status.Track is null
+            ? "Aperte play para tocar a lista"
+            : string.IsNullOrEmpty(_status.Track.Artist) ? StateText : _status.Track.Artist!;
+
+    /// <summary>The resource key of the volume icon: crossed out when muted or at 0, one wave up to 49, two waves above.</summary>
+    public string VolumeIconKey => _options.StartMuted || _options.Volume == 0 ? "LucideVolumeX" : _options.Volume < 50 ? "LucideVolume1" : "LucideVolume2";
+
+    /// <summary>The tooltip of the mute button.</summary>
+    public string MuteTip => _options.StartMuted ? "Tirar o mudo do player" : "Deixar o player mudo";
 
     /// <summary>The name of the selected playlist.</summary>
     public string PlaylistName => _status.Playlist;
@@ -811,7 +823,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
 
     private static readonly string[] SettingProperties =
     [
-        nameof(IsEnabled), nameof(PlayerOn), nameof(Volume), nameof(StartMuted), nameof(Shuffle), nameof(Repeat), nameof(RepeatText), nameof(RepeatIconKey),
+        nameof(IsEnabled), nameof(PlayerOn), nameof(Volume), nameof(StartMuted), nameof(VolumeIconKey), nameof(MuteTip), nameof(HeroTitle), nameof(HeroSubtitle), nameof(Shuffle), nameof(Repeat), nameof(RepeatText), nameof(RepeatIconKey),
         nameof(MediaKeys), nameof(AlarmsEnabled), nameof(StopFadeSeconds), nameof(AlarmFadeSeconds), nameof(CurrentPlaylist), nameof(Playlists),
         nameof(Alarms), nameof(OutputRuleText), nameof(OutputDeviceName), nameof(CanSeek),
     ];

@@ -3,14 +3,28 @@ using System.Windows.Controls;
 
 namespace AlertaIBT.App.Views;
 
-/// <summary>A titled card of the Configurações page: the title on top and the <see cref="SettingRow"/> list below it.</summary>
+/// <summary>
+/// A titled card of the Configurações page: the title on top (and, when <see cref="Subtitle"/> has text, one muted line that says what the
+/// card is for) and the <see cref="SettingRow"/> list below it.
+/// </summary>
 public sealed class SettingsSection : HeaderedContentControl
 {
+    /// <summary>The one muted line under the title; empty shows nothing.</summary>
+    public static readonly DependencyProperty SubtitleProperty =
+        DependencyProperty.Register(nameof(Subtitle), typeof(string), typeof(SettingsSection), new PropertyMetadata(string.Empty));
+
     /// <summary>Builds the section; it never takes the keyboard focus (only the controls in its rows do).</summary>
     public SettingsSection()
     {
         Focusable = false;
         IsTabStop = false;
+    }
+
+    /// <summary>The one muted line under the title; empty shows nothing.</summary>
+    public string Subtitle
+    {
+        get => (string)GetValue(SubtitleProperty);
+        set => SetValue(SubtitleProperty, value);
     }
 }
 
