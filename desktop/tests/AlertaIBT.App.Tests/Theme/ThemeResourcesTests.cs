@@ -13,6 +13,7 @@ public sealed class ThemeResourcesTests
         "LucideCircleCheck", "LucideCircleX", "LucideBan", "LucideClock", "LucideCircleStop", "LucideSkipForward", "LucideTrash2",
         "LucideEraser", "LucideHouse", "LucideSpellCheck", "LucideSettings", "LucideLockOpen", "LucideScrollText",
         "LucideChevronRight", "LucideCopy", "LucideDownload", "LucideSparkles", "LucideVolume2",
+        "LucideSquare", "LucideShuffle", "LucideRepeat", "LucideRepeat1", "LucidePlus", "LucidePencil", "LucideFolder",
     ];
 
     [Fact]

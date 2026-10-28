@@ -68,6 +68,9 @@ public partial class MainWindow : FluentWindow, IMainWindow
     /// <summary>The Configurações page (for tests).</summary>
     internal SettingsPage Settings => SettingsPage;
 
+    /// <summary>The Som page (for tests).</summary>
+    internal SomPage Som => SomPage;
+
     /// <inheritdoc />
     public void ShowWindow()
     {

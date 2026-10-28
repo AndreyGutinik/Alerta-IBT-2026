@@ -127,6 +127,23 @@
                                 <TextBlock Margin="10,0,0,0" Text="Configurações" />
                             </StackPanel>
                         </Button>
+                        <Button
+                            x:Name="SomTab"
+                            Margin="0,4,0,0"
+                            AutomationProperties.Name="Som"
+                            Command="{Binding SelectTabCommand}"
+                            CommandParameter="{x:Static vm:MainTab.Som}"
+                            Style="{StaticResource IbtTabButton}"
+                            Tag="{Binding IsSomSelected}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{StaticResource LucideVolume2}"
+                                    Style="{StaticResource LucideIcon}" />
+                                <TextBlock Margin="10,0,0,0" Text="Som" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
 
                     <!-- Telegram, Site, LED, Barra, Gemini: small, light, with a dot; the tooltip has the detail. -->
@@ -173,7 +190,7 @@
                 </Grid>
             </Border>
 
-            <!-- The three tabs stay alive (their text, scroll and state survive a switch); only one is visible. -->
+            <!-- The four tabs stay alive (their text, scroll and state survive a switch); only one is visible. -->
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -218,6 +235,10 @@
                         x:Name="SettingsPage"
                         DataContext="{Binding Settings}"
                         Visibility="{Binding DataContext.IsSettingsSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
+                    <local:SomPage
+                        x:Name="SomPage"
+                        DataContext="{Binding Som}"
+                        Visibility="{Binding DataContext.IsSomSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
                 </Grid>
             </Grid>
         </Grid>

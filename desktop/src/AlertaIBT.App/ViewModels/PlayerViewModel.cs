@@ -259,6 +259,9 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     /// <summary>The icon key and tooltip text of the repeat button.</summary>
     public string RepeatText => Repeat switch { PlayerRepeat.Off => "Repetir: desligado", PlayerRepeat.One => "Repetir: esta m\U000000FAsica", _ => "Repetir: toda a lista" };
 
+    /// <summary>The resource key of the repeat icon: the 1 version for "esta musica", the plain one otherwise.</summary>
+    public string RepeatIconKey => Repeat == PlayerRepeat.One ? "LucideRepeat1" : "LucideRepeat";
+
     /// <summary>"Teclas de m\U000000EDdia controlam o player".</summary>
     public bool MediaKeys
     {
@@ -312,6 +315,35 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     /// <summary>Removes a playlist (the selected one moves to the first that is left).</summary>
     public void RemovePlaylist(string name) =>
         Change(p => p with { Playlists = p.Playlists.Where(l => !string.Equals(l.Name, name, StringComparison.OrdinalIgnoreCase)).ToList() });
+
+    /// <summary>
+    /// Renames a playlist (the selected one and the alarms that play it follow). False when the name is blank, the playlist does not exist or
+    /// another one already has the new name.
+    /// </summary>
+    public bool RenamePlaylist(string name, string newName)
+    {
+        var trimmed = newName?.Trim() ?? string.Empty;
+        var current = _options.FindPlaylist(name);
+        if (current is null || trimmed.Length == 0)
+        {
+            return false;
+        }
+
+        var sameName = string.Equals(current.Name, trimmed, StringComparison.OrdinalIgnoreCase);
+        if (!sameName && _options.FindPlaylist(trimmed) is not null)
+        {
+            return false;
+        }
+
+        var old = current.Name;
+        Change(p => p with
+        {
+            Playlists = p.Playlists.Select(l => string.Equals(l.Name, old, StringComparison.OrdinalIgnoreCase) ? l with { Name = trimmed } : l).ToList(),
+            CurrentPlaylist = string.Equals(p.CurrentPlaylist, old, StringComparison.OrdinalIgnoreCase) ? trimmed : p.CurrentPlaylist,
+            Alarms = p.Alarms.Select(a => string.Equals(a.Playlist, old, StringComparison.OrdinalIgnoreCase) ? a with { Playlist = trimmed } : a).ToList(),
+        });
+        return true;
+    }
 
     /// <summary>Changes the folder of a playlist.</summary>
     public void SetPlaylistFolder(string name, string folder) =>
@@ -513,7 +545,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
 
     private static readonly string[] SettingProperties =
     [
-        nameof(IsEnabled), nameof(PlayerOn), nameof(Volume), nameof(StartMuted), nameof(Shuffle), nameof(Repeat), nameof(RepeatText),
+        nameof(IsEnabled), nameof(PlayerOn), nameof(Volume), nameof(StartMuted), nameof(Shuffle), nameof(Repeat), nameof(RepeatText), nameof(RepeatIconKey),
         nameof(MediaKeys), nameof(AlarmsEnabled), nameof(StopFadeSeconds), nameof(AlarmFadeSeconds), nameof(CurrentPlaylist), nameof(Playlists),
         nameof(Alarms), nameof(OutputRuleText), nameof(OutputDeviceName),
     ];

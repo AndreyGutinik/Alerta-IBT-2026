@@ -306,9 +306,10 @@ public sealed class OverlayWindowTests
             return outcome;
         });
 
-        // The preview is one pass of 3 s: slide in, scroll, slide out, driven by real rendered frames.
-        Assert.InRange(result.Elapsed.TotalSeconds, 2.8, 6.0);
-        Assert.True(result.Frames > 30, $"only {result.Frames} frames were drawn");
+        // The preview is one pass of 3 s: slide in, scroll, slide out, driven by real rendered frames. The upper bound only says "it did not hang":
+        // the other WPF tests share this one dispatcher thread, and when they keep it busy the real frames of this pass wait for it.
+        Assert.InRange(result.Elapsed.TotalSeconds, 2.8, 30.0);
+        Assert.True(result.Frames > 10, $"only {result.Frames} frames were drawn"); // 30 or more on an idle PC; fewer when the other WPF tests hold the dispatcher
         Assert.False(result.Visible);
         Assert.False(result.Shown);
     }

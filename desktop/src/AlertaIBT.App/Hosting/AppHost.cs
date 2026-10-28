@@ -165,6 +165,15 @@ public static class AppHost
     private static void ConfigurePlayer(IServiceCollection services)
     {
         services.TryAddSingleton<IAudioSystem, WindowsAudioSystem>(); // shared with the "Som" tab's audio controller
+        services.AddSingleton<IAppOutputPolicy, WindowsAppOutputPolicy>();
+
+        // The sound rules (volumes, the lock of the default output, the Holyrics output): nothing is read or written before the shell starts it.
+        services.AddSingleton(provider => new AudioController(
+            provider.GetRequiredService<IAudioSystem>(),
+            provider.GetRequiredService<SettingsService>(),
+            TimeProvider.System,
+            provider.GetRequiredService<ILogger<AudioController>>(),
+            provider.GetRequiredService<IAppOutputPolicy>()));
         services.AddSingleton<IPlayerBackend, NAudioPlayerBackend>();
         services.AddSingleton<ITrackMetadataReader, FileTrackMetadataReader>();
         services.AddSingleton(provider => new PlaylistLibrary(
@@ -265,6 +274,14 @@ public static class AppHost
             PostToUi,
             provider.GetRequiredService<ILogger<SettingsViewModel>>(),
             provider.GetRequiredService<IUpdateStatus>()));
+        services.AddSingleton(provider => new SomViewModel(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<Autosaver>(),
+            provider.GetRequiredService<AudioController>(),
+            provider.GetRequiredService<PlayerViewModel>(),
+            PickPlaylistFolder,
+            PostToUi,
+            provider.GetRequiredService<ILogger<SomViewModel>>()));
         services.AddSingleton(provider => new MainViewModel(
             provider.GetRequiredService<StatusHub>(),
             provider.GetRequiredService<HomeViewModel>(),
@@ -272,7 +289,8 @@ public static class AppHost
             provider.GetRequiredService<SettingsViewModel>(),
             provider.GetRequiredService<Autosaver>(),
             PostToUi,
-            provider.GetRequiredService<IUpdateStatus>()));
+            provider.GetRequiredService<IUpdateStatus>(),
+            provider.GetRequiredService<SomViewModel>()));
         services.AddSingleton(provider =>
         {
             var viewModel = provider.GetRequiredService<MainViewModel>();
@@ -298,6 +316,22 @@ public static class AppHost
         // Over the main window, which is never on the LED. (The system file dialog cannot be hidden from capture before it shows.)
         var owner = Application.Current?.Windows.OfType<MainWindow>().FirstOrDefault(window => window.IsVisible);
         return (owner is null ? dialog.ShowDialog() : dialog.ShowDialog(owner)) == true ? dialog.FileName : null;
+    }
+
+    // "Adicionar" a playlist: asks for the folder of the music; null when the user cancels.
+    private static string? PickPlaylistFolder()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Escolha a pasta da mU000000FAsica",
+            Multiselect = false,
+        };
+
+        // Over the main window, which is never on the LED.
+        var owner = Application.Current?.Windows.OfType<MainWindow>().FirstOrDefault(window => window.IsVisible);
+        return (owner is null ? dialog.ShowDialog() : dialog.ShowDialog(owner)) == true && !string.IsNullOrWhiteSpace(dialog.FolderName)
+            ? dialog.FolderName
+            : null;
     }
 
     // Changes announced by the status hub or the queue come from any thread; the panel's properties belong to the UI thread.
@@ -498,7 +532,8 @@ public static class AppHost
             apiPort,
             null,
             provider.GetRequiredService<MusicPlayer>(),
-            () => provider.GetRequiredService<AlarmScheduler>().NextAlarmText));
+            () => provider.GetRequiredService<AlarmScheduler>().NextAlarmText,
+            () => provider.GetRequiredService<SettingsService>().Current.System.AlertsEnabled));
         services.AddSingleton<AlertRuntime>();
     }
 }

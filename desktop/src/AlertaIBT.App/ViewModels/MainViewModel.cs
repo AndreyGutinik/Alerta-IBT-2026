@@ -17,6 +17,9 @@ public enum MainTab
 
     /// <summary>Configurações: the bar, Telegram, the system and the diagnostics.</summary>
     Settings,
+
+    /// <summary>Som: the volumes, the routing of the outputs, the music player and the alarms.</summary>
+    Som,
 }
 
 /// <summary>One line of the small status list at the bottom of the side bar.</summary>
@@ -47,6 +50,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <param name="saver">The autosave the two settings tabs share; saved one last time when this is disposed.</param>
     /// <param name="post">Runs an action on the UI thread; runs it at once when null (tests).</param>
     /// <param name="updates">The automatic update, for the one-line notice while it downloads or installs; null shows none.</param>
+    /// <param name="som">The Som tab; null leaves the tab empty (tests of the other tabs).</param>
     public MainViewModel(
         StatusHub hub,
         HomeViewModel home,
@@ -54,7 +58,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SettingsViewModel settings,
         Autosaver saver,
         Action<Action>? post = null,
-        IUpdateStatus? updates = null)
+        IUpdateStatus? updates = null,
+        SomViewModel? som = null)
     {
         ArgumentNullException.ThrowIfNull(hub);
         ArgumentNullException.ThrowIfNull(home);
@@ -66,6 +71,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Home = home;
         Correction = correction;
         Settings = settings;
+        Som = som;
         Saver = saver;
         _post = post ?? (action => action());
         SelectTabCommand = new RelayCommand<MainTab>(tab => SelectedTab = tab);
@@ -97,6 +103,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The Configurações tab.</summary>
     public SettingsViewModel Settings { get; }
 
+    /// <summary>The Som tab (null when the window was built without it).</summary>
+    public SomViewModel? Som { get; }
+
     /// <summary>The autosave of the settings tabs (their "Salvo" stamp).</summary>
     public Autosaver Saver { get; }
 
@@ -114,6 +123,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Whether the Configurações tab is selected.</summary>
     public bool IsSettingsSelected => SelectedTab == MainTab.Settings;
+
+    /// <summary>Whether the Som tab is selected.</summary>
+    public bool IsSomSelected => SelectedTab == MainTab.Som;
 
     /// <summary>The window was shown: the Início tab takes a fresh look at the queue and the field takes the focus.</summary>
     public void OnShown()
@@ -142,6 +154,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Home.Composer.Dispose();
         Correction.Dispose();
         Settings.Dispose();
+        Som?.Dispose();
     }
 
     partial void OnSelectedTabChanged(MainTab value)
@@ -149,6 +162,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsHomeSelected));
         OnPropertyChanged(nameof(IsCorrectionSelected));
         OnPropertyChanged(nameof(IsSettingsSelected));
+        OnPropertyChanged(nameof(IsSomSelected));
     }
 
     private void OnHubChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => _post(RefreshStatus);

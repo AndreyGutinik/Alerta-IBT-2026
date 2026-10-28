@@ -4,6 +4,7 @@ using AlertaIBT.App.Overlay;
 using AlertaIBT.App.Platform;
 using AlertaIBT.App.Services;
 using AlertaIBT.App.Tray;
+using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Services;
@@ -32,6 +33,7 @@ public sealed class AppShell : IDisposable
     private readonly MouseLockController _mouse;
     private readonly MusicPlayer _player;
     private readonly AlarmScheduler _alarms;
+    private readonly AudioController _audio;
 
     private MessageWindow? _messages;
     private HotkeyService? _hotkeys;
@@ -54,7 +56,8 @@ public sealed class AppShell : IDisposable
         IUpdateStatus updates,
         MouseLockController mouse,
         MusicPlayer player,
-        AlarmScheduler alarms)
+        AlarmScheduler alarms,
+        AudioController audio)
     {
         _logger = logger;
         _settings = settings;
@@ -68,6 +71,7 @@ public sealed class AppShell : IDisposable
         _mouse = mouse;
         _player = player;
         _alarms = alarms;
+        _audio = audio;
     }
 
     /// <summary>The user wants the quick panel (tray click or the hotkey). Raised on the UI thread.</summary>
@@ -90,6 +94,9 @@ public sealed class AppShell : IDisposable
 
     /// <summary>The alarms of the player (started by <see cref="Start"/>).</summary>
     public AlarmScheduler Alarms => _alarms;
+
+    /// <summary>The sound rules of the "Som" tab (started by <see cref="Start"/>).</summary>
+    public AudioController Audio => _audio;
 
     /// <summary>The tray icon, so other parts can add menu items or notifications.</summary>
     public TrayService Tray => _tray;
@@ -153,6 +160,17 @@ public sealed class AppShell : IDisposable
         // The music player: the playlists are scanned and the output is looked at; nothing plays by itself here.
         _player.Start();
         _alarms.Start(); // an alarm missed while the app was closed starts now, until its "do not start after" time
+
+        // The sound of the PC (volumes, the lock of the output, the output of Holyrics): it reads nothing before its own timers (6 s from now),
+        // so the window and the tray never wait for it, and a Windows audio that does not answer never reaches the UI.
+        try
+        {
+            _audio.Start();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nao foi possivel iniciar o som");
+        }
 
         _settings.Changed += OnSettingsChanged;
 
@@ -250,6 +268,7 @@ public sealed class AppShell : IDisposable
         _mouse.Dispose();
         _alarms.Dispose();
         _player.Dispose(); // the sound stops at once, before the slow parts
+        _audio.Dispose();
         _mouseHotkeys?.Dispose();
         _overlay.Dispose(); // first: it ends the pass in progress, so stopping the alert service does not wait for the UI thread
         _runtime.Dispose();
