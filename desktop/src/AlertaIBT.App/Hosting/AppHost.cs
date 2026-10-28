@@ -187,13 +187,16 @@ public static class AppHost
             provider.GetRequiredService<IAudioSystem>(),
             provider.GetRequiredService<ITrackMetadataReader>(),
             logger: provider.GetRequiredService<ILogger<MusicPlayer>>()));
+        services.AddSingleton<ICoverArtReader, CoverArtReader>();
+        services.AddSingleton<ICoverArtLoader>(provider => new CoverArtService(provider.GetRequiredService<ICoverArtReader>()));
         services.AddSingleton(provider => new PlayerViewModel(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<MusicPlayer>(),
             provider.GetRequiredService<AlarmScheduler>(),
             provider.GetRequiredService<IAudioSystem>(),
             PostToUi,
-            logger: provider.GetRequiredService<ILogger<PlayerViewModel>>()));
+            logger: provider.GetRequiredService<ILogger<PlayerViewModel>>(),
+            covers: provider.GetRequiredService<ICoverArtLoader>()));
         services.AddSingleton(provider => new MediaKeyRouter(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<MusicPlayer>(),

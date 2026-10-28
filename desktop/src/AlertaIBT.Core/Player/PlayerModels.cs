@@ -81,7 +81,7 @@ public sealed record OutputStatus(string Text, OutputChoiceKind Kind, string? De
     public static OutputStatus Unknown { get; } = new("Sa\U000000EDda do player: ainda n\U000000E3o verificada", OutputChoiceKind.None, null);
 }
 
-/// <summary>An immutable picture of the player, for the screen and for <c>/player/status</c>.</summary>
+/// <summary>An immutable picture of the player, for the screen and for <c>/player/status</c>. <c>TrackIndex</c> is the 1-based place of the current track in the playlist order (0 when unknown).</summary>
 public sealed record PlayerStatus(
     bool Enabled,
     PlayerState State,
@@ -96,7 +96,8 @@ public sealed record PlayerStatus(
     bool Shuffle,
     PlayerRepeat Repeat,
     OutputStatus Output,
-    string? LastError)
+    string? LastError,
+    int TrackIndex = 0)
 {
     /// <summary>Whether sound is (or is about to be) coming out.</summary>
     public bool IsPlaying => State == PlayerState.Playing;

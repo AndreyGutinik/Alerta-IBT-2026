@@ -297,8 +297,29 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
                 options.Shuffle,
                 PlayerRepeatText.Parse(options.Repeat),
                 _choice is null ? OutputStatus.Unknown : DescribeOutput(options, _choice),
-                _lastError);
+                _lastError,
+                IndexOfCurrentLocked());
         }
+    }
+
+    // The 1-based place of the current track in the playlist (0 when nothing plays or it is not in the list).
+    private int IndexOfCurrentLocked()
+    {
+        if (_current is null)
+        {
+            return 0;
+        }
+
+        var tracks = _queue.Tracks;
+        for (var i = 0; i < tracks.Count; i++)
+        {
+            if (string.Equals(tracks[i], _current.Path, StringComparison.OrdinalIgnoreCase))
+            {
+                return i + 1;
+            }
+        }
+
+        return 0;
     }
 
     /// <summary>Stops everything at once (no fade) and lets go of the settings and the outputs.</summary>

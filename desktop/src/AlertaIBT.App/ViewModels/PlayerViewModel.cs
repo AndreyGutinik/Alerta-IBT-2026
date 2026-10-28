@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Windows.Media;
+using AlertaIBT.App.Services;
 using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Settings;
@@ -20,6 +22,9 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     /// <summary>How often the position of the track is refreshed while it plays.</summary>
     public static readonly TimeSpan PositionInterval = TimeSpan.FromMilliseconds(500);
 
+    /// <summary>How far the Left and Right keys of the timeline move.</summary>
+    public const double KeySeekSeconds = 5;
+
     private readonly SettingsService _settings;
     private readonly MusicPlayer _player;
     private readonly AlarmScheduler _alarms;
@@ -28,8 +33,17 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     private readonly Action<Action> _run;
     private readonly ILogger _logger;
     private readonly ITimer _timer;
+    private readonly ICoverArtLoader? _covers;
+    private readonly object _seekGate = new();
     private bool _syncing;
     private bool _disposed;
+    private bool _isSeeking;
+    private double _dragSeconds;
+    private TimeSpan? _seekShown;
+    private TimeSpan? _queuedSeek;
+    private bool _seekRunning;
+    private string? _coverPath;
+    private ImageSource? _coverArt;
 
     private PlayerStatus _status;
     private PlayerSettings _options;
@@ -45,6 +59,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     /// <param name="run">Runs an engine command off the UI thread; the thread pool when null.</param>
     /// <param name="clock">Drives the position refresh.</param>
     /// <param name="logger">Receives failures.</param>
+    /// <param name="covers">Loads the album art of a track off the UI thread; <c>null</c> shows no art.</param>
     public PlayerViewModel(
         SettingsService settings,
         MusicPlayer player,
@@ -53,7 +68,8 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         Action<Action>? post = null,
         Action<Action>? run = null,
         TimeProvider? clock = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        ICoverArtLoader? covers = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(player);
@@ -66,6 +82,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         _post = post ?? (action => action());
         _run = run ?? (action => _ = Task.Run(action));
         _logger = logger ?? NullLogger.Instance;
+        _covers = covers;
         _status = player.GetStatus();
         _options = settings.Current.Player;
         _nextAlarmText = alarms.NextAlarmText;
@@ -78,6 +95,8 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         PlayPauseCommand = new RelayCommand(() => Execute(() => IsPlaying && !IsFading ? _player.Pause() : _player.Play()));
         ToggleShuffleCommand = new RelayCommand(() => Shuffle = !Shuffle);
         CycleRepeatCommand = new RelayCommand(() => Repeat = Repeat switch { PlayerRepeat.Off => PlayerRepeat.All, PlayerRepeat.All => PlayerRepeat.One, _ => PlayerRepeat.Off });
+        SeekToCommand = new RelayCommand<double>(seconds => SeekTo(seconds));
+        SeekByCommand = new RelayCommand<double>(seconds => SeekBy(seconds));
         RefreshCommand = new RelayCommand(() => Execute(() =>
         {
             _player.Refresh();
@@ -94,6 +113,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
 
         _timer = (clock ?? TimeProvider.System).CreateTimer(_ => _post(RefreshPosition), null, PositionInterval, PositionInterval);
         ReloadOutputDevices();
+        LoadCover();
     }
 
     // ---- commands ----
@@ -121,6 +141,12 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
 
     /// <summary>Off, then all, then one, then off again.</summary>
     public IRelayCommand CycleRepeatCommand { get; }
+
+    /// <summary>Jumps to a position given in seconds (the timeline of a paused player too).</summary>
+    public IRelayCommand<double> SeekToCommand { get; }
+
+    /// <summary>Moves by a number of seconds (negative goes back): the Left and Right keys of the timeline.</summary>
+    public IRelayCommand<double> SeekByCommand { get; }
 
     /// <summary>"Atualizar": scans the current playlist's folder again and looks at the outputs again.</summary>
     public IRelayCommand RefreshCommand { get; }
@@ -165,17 +191,81 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         ? (string.IsNullOrEmpty(track.Artist) ? track.Title : $"{track.Title} \U00002014 {track.Artist}")
         : "Nada tocando";
 
-    /// <summary>How far into the track.</summary>
-    public TimeSpan Position => _status.Position;
+    /// <summary>How far into the track (while the timeline is dragged, where the thumb is).</summary>
+    public TimeSpan Position => _isSeeking ? TimeSpan.FromSeconds(_dragSeconds) : _seekShown ?? _status.Position;
 
     /// <summary>The length of the track.</summary>
     public TimeSpan Duration => _status.Duration;
 
     /// <summary>Position over length, 0 to 1 (for a progress bar).</summary>
-    public double Progress => _status.Duration > TimeSpan.Zero ? Math.Clamp(_status.Position / _status.Duration, 0, 1) : 0;
+    public double Progress => _status.Duration > TimeSpan.Zero ? Math.Clamp(Position / _status.Duration, 0, 1) : 0;
 
     /// <summary>"1:23 / 4:11", or empty when nothing plays.</summary>
-    public string PositionText => _status.Duration > TimeSpan.Zero ? $"{Clock(_status.Position)} / {Clock(_status.Duration)}" : string.Empty;
+    public string PositionText => _status.Duration > TimeSpan.Zero ? $"{Clock(Position)} / {Clock(_status.Duration)}" : string.Empty;
+
+    /// <summary>The elapsed time on the left of the timeline, such as <c>1:23</c> (<c>0:00</c> when nothing plays); it follows the thumb while it is dragged.</summary>
+    public string ElapsedText => Clock(Position);
+
+    /// <summary>The length on the right of the timeline, such as <c>4:11</c> (<c>0:00</c> when nothing plays).</summary>
+    public string DurationText => Clock(_status.Duration);
+
+    /// <summary>The timeline's range in seconds: the length of the track (1 when there is none, so the slider stays valid).</summary>
+    public double SeekMaximum => _status.Duration > TimeSpan.Zero ? _status.Duration.TotalSeconds : 1;
+
+    /// <summary>
+    /// The thumb of the timeline in seconds. It follows the player; while the listener drags it, it is where the thumb is, and writing it moves
+    /// the thumb and the elapsed label only (playback does not jump). Writes while not dragging are ignored.
+    /// </summary>
+    public double SeekValue
+    {
+        get => Math.Clamp(Position.TotalSeconds, 0, SeekMaximum);
+        set
+        {
+            if (_isSeeking)
+            {
+                _dragSeconds = Math.Clamp(value, 0, SeekMaximum);
+                RaiseTimeline();
+            }
+        }
+    }
+
+    /// <summary>Whether the timeline is being dragged right now.</summary>
+    public bool IsSeeking => _isSeeking;
+
+    /// <summary>Whether the timeline can be used: a track is loaded (playing or paused) and the player is on.</summary>
+    public bool CanSeek => _options.Enabled && HasTrack && _status.Duration > TimeSpan.Zero && _status.State is PlayerState.Playing or PlayerState.Paused;
+
+    /// <summary>The cover of the current track, decoded and frozen; <c>null</c> while it loads or when the track has none.</summary>
+    public ImageSource? CoverArt
+    {
+        get => _coverArt;
+        private set
+        {
+            if (SetProperty(ref _coverArt, value))
+            {
+                OnPropertyChanged(nameof(HasCover));
+            }
+        }
+    }
+
+    /// <summary>Whether there is a cover to show (otherwise the screen shows the music tile).</summary>
+    public bool HasCover => _coverArt is not null;
+
+    /// <summary>The place of the track in the playlist, such as <c>12 de 237</c>; just the count (<c>237 m\U000000FAsicas</c>) when no track is loaded.</summary>
+    public string TrackIndexText => _status.Track is not null && _status.TrackIndex > 0
+        ? string.Create(CultureInfo.InvariantCulture, $"{_status.TrackIndex} de {_status.TrackCount}")
+        : TrackCountText;
+
+    /// <summary>The title for the big line: the title of the track, or "Nada tocando".</summary>
+    public string HeroTitle => _status.Track?.Title ?? "Nada tocando";
+
+    /// <summary>The tooltip of the big title: the whole name, never cut.</summary>
+    public string HeroTitleTip => _status.Track is { } track ? (string.IsNullOrEmpty(track.Artist) ? track.Title : $"{track.Title} \U00002014 {track.Artist}") : string.Empty;
+
+    /// <summary>The line under the title: the artist, the state when there is no artist (<c>Pausado</c>), or a hint when nothing is loaded.</summary>
+    public string HeroSubtitle => _status.Track is null
+        ? "Aperte play para tocar a lista"
+        : string.IsNullOrEmpty(_status.Track.Artist) ? StateText : _status.Track.Artist!;
 
     /// <summary>The name of the selected playlist.</summary>
     public string PlaylistName => _status.Playlist;
@@ -421,6 +511,170 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         _timer.Dispose();
     }
 
+    // ---- the timeline ----
+
+    /// <summary>The listener took the thumb of the timeline: the label follows it and playback is left alone.</summary>
+    public void BeginSeek()
+    {
+        if (!CanSeek)
+        {
+            return;
+        }
+
+        _dragSeconds = Position.TotalSeconds;
+        _isSeeking = true;
+        OnPropertyChanged(nameof(IsSeeking));
+    }
+
+    /// <summary>Moves the thumb (the elapsed label follows) without touching playback.</summary>
+    public void UpdateSeek(double seconds) => SeekValue = seconds;
+
+    /// <summary>The listener let go: jump to where the thumb is.</summary>
+    public void CommitSeek()
+    {
+        if (!_isSeeking)
+        {
+            return;
+        }
+
+        var target = TimeSpan.FromSeconds(_dragSeconds);
+        _isSeeking = false;
+        OnPropertyChanged(nameof(IsSeeking));
+        QueueSeek(target);
+    }
+
+    /// <summary>The listener let go somewhere that is not a seek (Escape, focus lost): the thumb goes back to the player's position.</summary>
+    public void CancelSeek()
+    {
+        if (!_isSeeking)
+        {
+            return;
+        }
+
+        _isSeeking = false;
+        OnPropertyChanged(nameof(IsSeeking));
+        RaiseTimeline();
+    }
+
+    /// <summary>Jumps to <paramref name="seconds"/> (a click or the keyboard); ignored when there is nothing to seek in.</summary>
+    public void SeekTo(double seconds)
+    {
+        if (CanSeek)
+        {
+            QueueSeek(TimeSpan.FromSeconds(Math.Clamp(seconds, 0, SeekMaximum)));
+        }
+    }
+
+    /// <summary>Moves by <paramref name="deltaSeconds"/> from where the timeline shows now (the Left and Right keys use <see cref="KeySeekSeconds"/>).</summary>
+    public void SeekBy(double deltaSeconds) => SeekTo(SeekValue + deltaSeconds);
+
+    // Seeks are applied one at a time and in order, off the UI thread; a burst of key presses collapses to the last target. Until the engine
+    // has it, the screen shows the target (so a timer tick never makes the thumb jump back).
+    private void QueueSeek(TimeSpan target)
+    {
+        _seekShown = target;
+        RaiseTimeline();
+        lock (_seekGate)
+        {
+            _queuedSeek = target;
+            if (_seekRunning)
+            {
+                return;
+            }
+
+            _seekRunning = true;
+        }
+
+        _run(() =>
+        {
+            while (true)
+            {
+                TimeSpan next;
+                lock (_seekGate)
+                {
+                    if (_queuedSeek is not { } queued)
+                    {
+                        _seekRunning = false;
+                        break;
+                    }
+
+                    next = queued;
+                    _queuedSeek = null;
+                }
+
+                PlayerResult result;
+                try
+                {
+                    result = _player.Seek(next);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "A busca na linha do tempo falhou");
+                    result = PlayerResult.Fail(ex.Message);
+                }
+
+                bool done;
+                lock (_seekGate)
+                {
+                    done = _queuedSeek is null;
+                }
+
+                _post(() =>
+                {
+                    if (done)
+                    {
+                        _seekShown = null;
+                    }
+
+                    ShowCommandResult(result);
+                    RaiseTimeline();
+                });
+            }
+        });
+    }
+
+    private void RaiseTimeline()
+    {
+        OnPropertyChanged(nameof(Position));
+        OnPropertyChanged(nameof(Progress));
+        OnPropertyChanged(nameof(PositionText));
+        OnPropertyChanged(nameof(ElapsedText));
+        OnPropertyChanged(nameof(SeekValue));
+    }
+
+    // The cover follows the track: the old one goes at once (never another track's art), the new one arrives from a worker thread.
+    private void LoadCover()
+    {
+        var path = _status.Track?.Path;
+        if (string.Equals(path, _coverPath, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _coverPath = path;
+        CoverArt = null;
+        if (path is null || _covers is null)
+        {
+            return;
+        }
+
+        _covers.LoadAsync(path).ContinueWith(
+            task =>
+            {
+                var image = task.IsCompletedSuccessfully ? task.Result : null;
+                _post(() =>
+                {
+                    if (!_disposed && string.Equals(_coverPath, path, StringComparison.Ordinal))
+                    {
+                        CoverArt = image;
+                    }
+                });
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
     // ---- internals ----
 
     private static string Clock(TimeSpan span) =>
@@ -481,16 +735,16 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     // The position moves while it plays; nothing else is refreshed by the timer.
     private void RefreshPosition()
     {
-        if (_disposed || !_status.IsPlaying)
+        if (_disposed || !_status.IsPlaying || _isSeeking)
         {
             return;
         }
 
         _status = _player.GetStatus();
-        OnPropertyChanged(nameof(Position));
         OnPropertyChanged(nameof(Duration));
-        OnPropertyChanged(nameof(Progress));
-        OnPropertyChanged(nameof(PositionText));
+        OnPropertyChanged(nameof(DurationText));
+        OnPropertyChanged(nameof(SeekMaximum));
+        RaiseTimeline();
     }
 
     // Takes the engine's status and the settings again and tells the screen what changed.
@@ -507,6 +761,15 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         _status = status;
         _options = options;
         _nextAlarmText = _alarms.NextAlarmText;
+        if (before.Status.Track?.Path != status.Track?.Path)
+        {
+            _seekShown = null;
+            if (_isSeeking)
+            {
+                _isSeeking = false;
+                OnPropertyChanged(nameof(IsSeeking));
+            }
+        }
 
         _syncing = true;
         try
@@ -533,6 +796,8 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         {
             _syncing = false;
         }
+
+        LoadCover();
     }
 
     private static readonly string[] StatusProperties =
@@ -540,13 +805,14 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         nameof(State), nameof(StateText), nameof(IsPlaying), nameof(IsFading), nameof(HasTrack), nameof(TrackTitle), nameof(TrackArtist),
         nameof(TrackFileName), nameof(QuickTitle), nameof(Position), nameof(Duration), nameof(Progress), nameof(PositionText),
         nameof(PlaylistName), nameof(TrackCount), nameof(TrackCountText), nameof(OutputText), nameof(LastError), nameof(HasError),
-        nameof(PlayPauseIconKey), nameof(PlayPauseTip),
+        nameof(PlayPauseIconKey), nameof(PlayPauseTip), nameof(ElapsedText), nameof(DurationText), nameof(SeekMaximum), nameof(SeekValue), nameof(CanSeek),
+        nameof(TrackIndexText), nameof(HeroTitle), nameof(HeroTitleTip), nameof(HeroSubtitle),
     ];
 
     private static readonly string[] SettingProperties =
     [
         nameof(IsEnabled), nameof(PlayerOn), nameof(Volume), nameof(StartMuted), nameof(Shuffle), nameof(Repeat), nameof(RepeatText), nameof(RepeatIconKey),
         nameof(MediaKeys), nameof(AlarmsEnabled), nameof(StopFadeSeconds), nameof(AlarmFadeSeconds), nameof(CurrentPlaylist), nameof(Playlists),
-        nameof(Alarms), nameof(OutputRuleText), nameof(OutputDeviceName),
+        nameof(Alarms), nameof(OutputRuleText), nameof(OutputDeviceName), nameof(CanSeek),
     ];
 }
