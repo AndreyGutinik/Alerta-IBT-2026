@@ -140,4 +140,4 @@ Sem o LED (PC de desenvolvimento): `AlertaIBT.exe --test-led` usa o monitor prin
 
 O código deste repositório é licenciado sob a [Licença MIT](LICENSE) (© 2026 Andrey Gutinik). O dicionário pt-BR (VERO/LibreOffice) é de terceiros e segue a licença descrita em `desktop/src/AlertaIBT.Core/Dictionaries/README.md`.
 
-O app usa bibliotecas de terceiros pelo NuGet, cada uma com a sua licença: NAudio, CommunityToolkit.Mvvm, H.NotifyIcon, WPF-UI, Serilog, Velopack, WeCantSpell.Hunspell e Microsoft.Extensions (MIT) e TagLibSharp (LGPL-2.1, usada sem modificação, só para ler a capa das músicas; a DLL fica separada no programa instalado e pode ser trocada).
+O app usa bibliotecas de terceiros pelo NuGet, cada uma com a sua licença: NAudio, CommunityToolkit.Mvvm, H.NotifyIcon, WPF-UI, Velopack e Microsoft.Extensions (MIT); Serilog (Apache-2.0); WeCantSpell.Hunspell (MPL 1.1/GPL 2.0/LGPL 2.1, herdada do Hunspell); TagLibSharp (LGPL-2.1, só para ler a capa das músicas). Todas são usadas sem modificação, cada uma na sua própria DLL dentro da pasta do programa instalado.
