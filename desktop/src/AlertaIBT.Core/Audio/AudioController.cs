@@ -15,6 +15,7 @@ namespace AlertaIBT.Core.Audio;
 /// <param name="AppliedSummary">What was set, such as <c>Volume geral 80%, Spotify 100%</c>; empty when nothing was.</param>
 /// <param name="Waiting">The programs whose session has not appeared yet, such as <c>Spotify: aguardando abrir</c>.</param>
 /// <param name="Known">Whether the outputs were looked at already (false only for <see cref="Empty"/>).</param>
+/// <param name="HolyricsText">What the Holyrics output is doing (<c>Holyrics toca em WING-USB (Out 1-2)</c>, or that the device is not there and the program is left alone); <c>null</c> when the switch is off.</param>
 public sealed record AudioStatus(
     IReadOnlyList<AudioDevice> Devices,
     string? CurrentOutputName,
@@ -24,7 +25,8 @@ public sealed record AudioStatus(
     DateTimeOffset? LastAppliedAt,
     string AppliedSummary,
     IReadOnlyList<string> Waiting,
-    bool Known = true)
+    bool Known = true,
+    string? HolyricsText = null)
 {
     /// <summary>No information yet (before the first look at the outputs).</summary>
     public static AudioStatus Empty { get; } = new([], null, null, false, false, null, string.Empty, [], Known: false);
@@ -55,20 +57,21 @@ public sealed record AudioStatus(
             }
             else
             {
-                parts.Add("Ainda nada aplicado nesta abertura do app.");
+                parts.Add("Ainda nada aplicado nesta abertura do app");
             }
 
             parts.AddRange(Waiting);
-            return string.Join(". ", parts);
+            return string.Join(". ", parts) + ".";
         }
     }
 }
 
 /// <summary>
 /// The rules of the "Som" tab, against <see cref="IAudioSystem"/>: when the volumes are set (once at start after a short delay, when the chosen
-/// output appears again, when a program's session appears in its first 30 minutes, and by "Aplicar agora"), and the one thing that is enforced
-/// all the time: the Windows default output stays on the chosen device. It never raises a volume again after setting it, so the owner can
-/// still move the sliders by hand, and it never forces a device that is not there.
+/// output appears again, every time a program's audio session appears, and by "Aplicar agora"), the one thing that is enforced all the time
+/// (the Windows default output stays on the chosen device), and the Windows per-app output of Holyrics (set when a Holyrics process makes sound
+/// and by "Aplicar agora"; never touched with its switch off). It never raises a volume again after setting it, so the owner can still move
+/// the sliders by hand, and it never forces a device that is not there.
 /// </summary>
 /// <remarks>
 /// Everything runs from timers (never on the caller's thread, never on the UI thread), serialized by one lock; the events of
@@ -83,9 +86,6 @@ public sealed class AudioController : IDisposable
     /// <summary>How long events are gathered before one look at the audio (500 ms).</summary>
     public static readonly TimeSpan Debounce = TimeSpan.FromMilliseconds(500);
 
-    /// <summary>How long after <see cref="Start"/> a program's new session still gets its volume (30 minutes).</summary>
-    public static readonly TimeSpan SessionWindow = TimeSpan.FromMinutes(30);
-
     /// <summary>The most corrections of the default output in <see cref="CorrectionWindow"/> (3): more means something keeps undoing them.</summary>
     public const int MaxCorrections = 3;
 
@@ -94,9 +94,11 @@ public sealed class AudioController : IDisposable
 
     private const string MasterName = "Volume geral";
     private const string SystemSoundsName = "Sons do Windows";
+    private const string HolyricsName = "Holyrics";
 
     private readonly IAudioSystem _system;
     private readonly SettingsService _settings;
+    private readonly IAppOutputPolicy? _appOutput;
     private readonly TimeProvider _clock;
     private readonly ILogger _logger;
     private readonly object _gate = new();
@@ -104,16 +106,20 @@ public sealed class AudioController : IDisposable
     private readonly HashSet<string> _appliedSessions = [];
     private readonly HashSet<string> _openedApps = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _applied = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _routed = [];
+    private readonly HashSet<string> _routeFailed = [];
     private ITimer? _debounceTimer;
     private ITimer? _startTimer;
-    private DateTimeOffset _startedAt;
     private DateTimeOffset? _lastAppliedAt;
     private bool _started;
     private bool _disposed;
     private bool _startDue;
     private bool _masterPending = true;
     private bool _gaveUp;
-    private string? _watchedId;
+    private string _watchedKey = string.Empty;
+    private AudioDevice? _holyricsDevice;
+    private int _holyricsRunning;
+    private bool _holyricsReportedAbsent;
     private string _lastSeen = string.Empty;
     private IReadOnlyList<AudioDevice> _devices = [];
     private DefaultDevices? _defaults;
@@ -125,13 +131,15 @@ public sealed class AudioController : IDisposable
     /// <param name="settings">The settings (the chosen output is saved there when it is found).</param>
     /// <param name="clock">Drives the delays and dates what happened.</param>
     /// <param name="logger">Receives what happens (device names, process names and percentages only).</param>
-    public AudioController(IAudioSystem system, SettingsService settings, TimeProvider? clock = null, ILogger? logger = null)
+    /// <param name="appOutput">The Windows per-app output (for Holyrics); without it the Holyrics routing does nothing.</param>
+    public AudioController(IAudioSystem system, SettingsService settings, TimeProvider? clock = null, ILogger? logger = null, IAppOutputPolicy? appOutput = null)
     {
         ArgumentNullException.ThrowIfNull(system);
         ArgumentNullException.ThrowIfNull(settings);
 
         _system = system;
         _settings = settings;
+        _appOutput = appOutput;
         _clock = clock ?? TimeProvider.System;
         _logger = logger ?? NullLogger.Instance;
     }
@@ -165,7 +173,6 @@ public sealed class AudioController : IDisposable
             }
 
             _started = true;
-            _startedAt = _clock.GetUtcNow();
             _debounceTimer = _clock.CreateTimer(_ => Reconcile(applyNow: false), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             _startTimer = _clock.CreateTimer(_ => OnStartDue(), null, StartDelay, Timeout.InfiniteTimeSpan);
             _system.DevicesChanged += Kick;
@@ -176,14 +183,11 @@ public sealed class AudioController : IDisposable
         }
     }
 
-    /// <summary>"Aplicar agora": sets everything now, on the chosen output and on the sessions that exist (even if the switch is off or the 30 minutes passed). Never throws.</summary>
+    /// <summary>"Aplicar agora": sets everything now (volumes, and the Holyrics output when its switch is on), on the chosen output and on the sessions that exist, even if "Ajustar o som ao iniciar" is off. Never throws.</summary>
     public void ApplyNow() => Reconcile(applyNow: true);
 
     /// <summary>"Aplicar agora" without holding up the caller (the screen).</summary>
     public Task ApplyNowAsync() => Task.Run(ApplyNow);
-
-    /// <summary>The tray item: turns the lock on or off and saves it.</summary>
-    public void ToggleLock() => _settings.Update(s => s with { Audio = s.Audio with { LockOutput = !s.Audio.LockOutput } });
 
     /// <inheritdoc />
     public void Dispose()
@@ -210,7 +214,7 @@ public sealed class AudioController : IDisposable
 
         try
         {
-            _system.WatchSessions(null);
+            _system.WatchSessions([]);
             _system.Dispose();
         }
         catch (Exception ex)
@@ -332,8 +336,25 @@ public sealed class AudioController : IDisposable
             target = defaults.Console;
         }
 
-        // New sessions are only watched while the adjustment is on.
-        UpdateWatch(audio.Enabled ? target : null);
+        // The output of Holyrics, then the sessions worth watching: new ones only matter while a switch that reacts to them is on.
+        var holyrics = ResolveHolyrics(audio, devices);
+        var watch = new List<string>();
+        if (target is not null && (audio.Enabled || audio.HolyricsRoute))
+        {
+            watch.Add(target);
+        }
+
+        if (holyrics is not null && !watch.Contains(holyrics.Id, StringComparer.OrdinalIgnoreCase))
+        {
+            watch.Add(holyrics.Id);
+        }
+
+        UpdateWatch(watch);
+        if (audio.HolyricsRoute)
+        {
+            RouteHolyrics(audio, devices, holyrics, applyNow);
+        }
+
         var apply = applyNow || (audio.Enabled && _startDue);
         if (target is null)
         {
@@ -364,45 +385,60 @@ public sealed class AudioController : IDisposable
             }
         }
 
-        ApplySessions(audio, target, applyNow);
+        // The output in use and, when Holyrics plays elsewhere, that one too: the program's volume is set wherever its session appears.
+        var places = new List<string> { target };
+        if (holyrics is not null && !places.Contains(holyrics.Id, StringComparer.OrdinalIgnoreCase))
+        {
+            places.Add(holyrics.Id);
+        }
+
+        ApplySessions(audio, places, applyNow);
     }
 
-    private void ApplySessions(AudioSettings audio, string target, bool force)
+    // Every NEW session (one the program opened since the last look) gets the volume of its program once, however long the app has been
+    // running; "Aplicar agora" sets the ones that exist again.
+    private void ApplySessions(AudioSettings audio, IReadOnlyList<string> devices, bool force)
     {
-        var sessions = _system.GetSessions(target);
-        var inWindow = _clock.GetUtcNow() - _startedAt <= SessionWindow;
         var seen = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var session in sessions)
+        var current = new HashSet<string>();
+        foreach (var device in devices)
         {
-            if (session.ProcessName is { Length: > 0 } process)
+            foreach (var session in _system.GetSessions(device))
             {
-                seen.Add(process);
-            }
-
-            var key = target + "|" + session.Key;
-            if (session.IsSystemSounds)
-            {
-                if (force || _appliedSessions.Add(key))
+                if (session.ProcessName is { Length: > 0 } process)
                 {
-                    _appliedSessions.Add(key);
-                    SetSession(target, session, SystemSoundsName, audio.SystemSoundsVolume, audio.SystemSoundsMuted);
+                    seen.Add(process);
                 }
 
-                continue;
-            }
+                var key = device + "|" + session.Key;
+                current.Add(key);
+                if (session.IsSystemSounds)
+                {
+                    if (force || _appliedSessions.Add(key))
+                    {
+                        _appliedSessions.Add(key);
+                        SetSession(device, session, SystemSoundsName, audio.SystemSoundsVolume, audio.SystemSoundsMuted);
+                    }
 
-            var entry = audio.Apps.FirstOrDefault(app => AudioNames.MatchesProcess(app.ProcessNames, session.ProcessName));
-            if (entry is null || (!force && (!inWindow || _appliedSessions.Contains(key))))
-            {
-                continue;
-            }
+                    continue;
+                }
 
-            _appliedSessions.Add(key);
-            if (SetSession(target, session, entry.Name, entry.Volume, entry.Muted))
-            {
-                _openedApps.Add(entry.Name);
+                var entry = audio.Apps.FirstOrDefault(app => AudioNames.MatchesProcess(app.ProcessNames, session.ProcessName));
+                if (entry is null || (!force && _appliedSessions.Contains(key)))
+                {
+                    continue;
+                }
+
+                _appliedSessions.Add(key);
+                if (SetSession(device, session, entry.Name, entry.Volume, entry.Muted))
+                {
+                    _openedApps.Add(entry.Name);
+                }
             }
         }
+
+        // A session that is gone is forgotten: the program opening again is a new session and gets its volume again.
+        _appliedSessions.RemoveWhere(key => !current.Contains(key));
 
         var names = string.Join(", ", seen);
         if (names.Length > 0 && names != _lastSeen)
@@ -429,25 +465,112 @@ public sealed class AudioController : IDisposable
     // The chosen output: by id, then by name; with none chosen yet, the first one whose name has "WING" (saved, so the choice is kept).
     private AudioDevice? ResolveChosen(AudioSettings audio, IReadOnlyList<AudioDevice> devices)
     {
-        if (string.IsNullOrWhiteSpace(audio.OutputDeviceId) && string.IsNullOrWhiteSpace(audio.OutputDeviceName))
+        var found = OutputResolver.Find(devices, audio.OutputDeviceId, new DeviceMatchRule(audio.OutputMatch)).Device;
+        if (found is null)
         {
-            var wing = AudioNames.FindContaining(devices, AudioSettings.DefaultOutputMatch);
-            if (wing is not null)
-            {
-                Remember(wing);
-                _logger.LogInformation("Som: saida escolhida: {Device}", wing.ShortName);
-            }
-
-            return wing;
+            return null;
         }
 
-        var found = AudioNames.Resolve(devices, audio.OutputDeviceId, audio.OutputDeviceName);
-        if (found is not null && (!string.Equals(found.Id, audio.OutputDeviceId, StringComparison.OrdinalIgnoreCase) || found.Name != audio.OutputDeviceName))
+        if (!string.Equals(found.Id, audio.OutputDeviceId, StringComparison.OrdinalIgnoreCase) || found.Name != audio.OutputDeviceName)
         {
-            Remember(found); // the same device under another id or name (another USB port): learn it
+            // The first time, or the same device under another id or name (another USB port): learn it.
+            if (string.IsNullOrWhiteSpace(audio.OutputDeviceId) && string.IsNullOrWhiteSpace(audio.OutputDeviceName))
+            {
+                _logger.LogInformation("Som: saida escolhida: {Device}", found.ShortName);
+            }
+
+            Remember(found);
         }
 
         return found;
+    }
+
+    // The Holyrics output: by id, then by the name rule, else none (and the program is left alone). Learns the id and name of what it finds.
+    private AudioDevice? ResolveHolyrics(AudioSettings audio, IReadOnlyList<AudioDevice> devices)
+    {
+        if (!audio.HolyricsRoute)
+        {
+            _holyricsDevice = null;
+            return null;
+        }
+
+        var found = OutputResolver.Find(devices, audio.HolyricsDeviceId, new DeviceMatchRule(audio.HolyricsMatch)).Device;
+        _holyricsDevice = found;
+        if (found is not null
+            && (!string.Equals(found.Id, audio.HolyricsDeviceId, StringComparison.OrdinalIgnoreCase) || found.Name != audio.HolyricsDeviceName))
+        {
+            _settings.Update(s => s with { Audio = s.Audio with { HolyricsDeviceId = found.Id, HolyricsDeviceName = found.Name } });
+        }
+
+        return found;
+    }
+
+    // Sets the Windows per-app output of every Holyrics process that makes sound, once per process and output ("Aplicar agora" does it again).
+    private void RouteHolyrics(AudioSettings audio, IReadOnlyList<AudioDevice> devices, AudioDevice? holyrics, bool force)
+    {
+        if (holyrics is null)
+        {
+            if (!_holyricsReportedAbsent)
+            {
+                _holyricsReportedAbsent = true;
+                _logger.LogInformation("Som: a saida do Holyrics nao esta ativa; o Holyrics fica como esta");
+            }
+
+            _holyricsRunning = 0;
+            return;
+        }
+
+        _holyricsReportedAbsent = false;
+        if (_appOutput is null)
+        {
+            return;
+        }
+
+        var names = audio.Apps.FirstOrDefault(app => string.Equals(app.Name, HolyricsName, StringComparison.OrdinalIgnoreCase))?.ProcessNames
+            ?? ["Holyrics", "javaw"];
+        var processes = new SortedSet<int>();
+        foreach (var device in devices)
+        {
+            foreach (var session in _system.GetSessions(device.Id))
+            {
+                if (session.ProcessId > 0 && !session.IsSystemSounds && AudioNames.MatchesProcess(names, session.ProcessName))
+                {
+                    processes.Add(session.ProcessId);
+                }
+            }
+        }
+
+        _holyricsRunning = processes.Count;
+        var live = new HashSet<string>(processes.Select(pid => $"{pid}|{holyrics.Id}"));
+        _routed.RemoveWhere(key => !live.Contains(key));
+        _routeFailed.RemoveWhere(key => !live.Contains(key));
+        foreach (var pid in processes)
+        {
+            var key = $"{pid}|{holyrics.Id}";
+            if (!force && (_routed.Contains(key) || _routeFailed.Contains(key)))
+            {
+                continue;
+            }
+
+            var current = _appOutput.GetPersistedEndpoint(pid);
+            if (current is not null && string.Equals(current, holyrics.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                _routed.Add(key);
+                continue;
+            }
+
+            if (_appOutput.SetPersistedEndpoint(pid, holyrics.Id))
+            {
+                _routed.Add(key);
+                _routeFailed.Remove(key);
+                _logger.LogInformation("Som: Holyrics (processo {Process}) agora toca em {Device}", pid, holyrics.ShortName);
+            }
+            else
+            {
+                _routeFailed.Add(key);
+                _logger.LogWarning("Som: nao foi possivel mudar a saida do Holyrics para {Device}", holyrics.ShortName);
+            }
+        }
     }
 
     private void Remember(AudioDevice device) =>
@@ -492,15 +615,16 @@ public sealed class AudioController : IDisposable
         }
     }
 
-    private void UpdateWatch(string? deviceId)
+    private void UpdateWatch(IReadOnlyList<string> deviceIds)
     {
-        if (string.Equals(deviceId, _watchedId, StringComparison.Ordinal))
+        var key = string.Join('\n', deviceIds);
+        if (string.Equals(key, _watchedKey, StringComparison.Ordinal))
         {
             return;
         }
 
-        _watchedId = deviceId;
-        _system.WatchSessions(deviceId);
+        _watchedKey = key;
+        _system.WatchSessions(deviceIds);
     }
 
     private void Record(string name, int volume, bool muted)
@@ -516,9 +640,11 @@ public sealed class AudioController : IDisposable
         var audio = _settings.Current.Audio;
         var current = _defaults?.Console is { } id ? _devices.FirstOrDefault(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase)) : null;
         var selectedName = _chosen?.ShortName ?? (string.IsNullOrWhiteSpace(audio.OutputDeviceName) ? null : AudioNames.Short(audio.OutputDeviceName));
-        var inWindow = _clock.GetUtcNow() - _startedAt <= SessionWindow;
-        var waiting = audio.Enabled && inWindow
-            ? audio.Apps.Where(app => !_openedApps.Contains(app.Name)).Select(app => $"{app.Name}: aguardando abrir").ToList()
+        var waiting = audio.Enabled
+            ? audio.Apps
+                .Where(app => !AudioSettings.HiddenApps.Contains(app.Name, StringComparer.OrdinalIgnoreCase) && !_openedApps.Contains(app.Name))
+                .Select(app => $"{app.Name}: aguardando abrir")
+                .ToList()
             : [];
         var order = new[] { MasterName }.Concat(audio.Apps.Select(a => a.Name)).Append(SystemSoundsName).ToList();
         var summary = string.Join(", ", order.Where(_applied.ContainsKey).Select(n => _applied[n]));
@@ -530,7 +656,37 @@ public sealed class AudioController : IDisposable
             audio.LockOutput,
             _lastAppliedAt,
             summary,
-            waiting);
+            waiting,
+            HolyricsText: HolyricsText(audio));
+    }
+
+    private string? HolyricsText(AudioSettings audio)
+    {
+        if (!audio.HolyricsRoute)
+        {
+            return null;
+        }
+
+        if (_holyricsDevice is null)
+        {
+            var wished = string.IsNullOrWhiteSpace(audio.HolyricsDeviceName) ? new DeviceMatchRule(audio.HolyricsMatch).Text : AudioNames.Short(audio.HolyricsDeviceName);
+            return $"{wished} \U00002014 desconectado, deixando o Holyrics como est\U000000E1";
+        }
+
+        var name = _holyricsDevice.ShortName;
+        if (_appOutput is null)
+        {
+            return $"{name} \U00002014 sem acesso \U000000E0 sa\U000000EDda por programa neste Windows";
+        }
+
+        if (_holyricsRunning == 0)
+        {
+            return $"{name} \U00002014 aguardando o Holyrics tocar";
+        }
+
+        return _routeFailed.Count > 0 && _routed.Count == 0
+            ? $"{name} \U00002014 n\U000000E3o foi poss\U000000EDvel mudar a sa\U000000EDda do Holyrics"
+            : $"Holyrics toca em {name}";
     }
 
     private static bool EqualStatus(AudioStatus a, AudioStatus b) =>
@@ -541,5 +697,6 @@ public sealed class AudioController : IDisposable
         && a.LastAppliedAt == b.LastAppliedAt
         && a.AppliedSummary == b.AppliedSummary
         && a.Waiting.SequenceEqual(b.Waiting)
+        && a.HolyricsText == b.HolyricsText
         && a.Devices.SequenceEqual(b.Devices);
 }

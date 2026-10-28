@@ -227,6 +227,11 @@ public sealed record AudioSettings
         && LockOutput == other.LockOutput
         && OutputDeviceId == other.OutputDeviceId
         && OutputDeviceName == other.OutputDeviceName
+        && OutputMatch.SequenceEqual(other.OutputMatch)
+        && HolyricsRoute == other.HolyricsRoute
+        && HolyricsDeviceId == other.HolyricsDeviceId
+        && HolyricsDeviceName == other.HolyricsDeviceName
+        && HolyricsMatch.SequenceEqual(other.HolyricsMatch)
         && Apps.SequenceEqual(other.Apps);
 
     /// <inheritdoc />
@@ -234,6 +239,15 @@ public sealed record AudioSettings
 
     /// <summary>The text that picks the output when none was chosen yet: the name of the Behringer WING USB contains it.</summary>
     public const string DefaultOutputMatch = "WING";
+
+    /// <summary>The words of the default name rule of the Windows default output: <c>WING</c>.</summary>
+    public static readonly IReadOnlyList<string> DefaultOutputWords = [DefaultOutputMatch];
+
+    /// <summary>The words of the default name rule of the Holyrics output: <c>WING</c> and <c>1-2</c> (the church's "WING-USB (Out 1-2)").</summary>
+    public static readonly IReadOnlyList<string> DefaultHolyricsWords = [DefaultOutputMatch, "1-2"];
+
+    /// <summary>The programs the screen does not list (their settings are kept; the player took the place of the Spotify row).</summary>
+    public static readonly IReadOnlyList<string> HiddenApps = ["Spotify"];
 
     /// <summary>Whether the volumes are set when the PC starts (and when a program opens within 30 minutes). On by default.</summary>
     public bool Enabled { get; init; } = true;
@@ -261,6 +275,21 @@ public sealed record AudioSettings
 
     /// <summary>The friendly name of the chosen output (matched when the id changes, for example on another USB port).</summary>
     public string? OutputDeviceName { get; init; }
+
+    /// <summary>The words that find the default output by name when the id is not active (all must be in the name). Default <c>WING</c>.</summary>
+    public IReadOnlyList<string> OutputMatch { get; init; } = DefaultOutputWords;
+
+    /// <summary>"Definir a saida do Holyrics": the Windows per-app output of Holyrics is set to the Holyrics output. With it off the app never touches that setting. On by default.</summary>
+    public bool HolyricsRoute { get; init; } = true;
+
+    /// <summary>The endpoint id of the Holyrics output, when known (filled in when the output is found).</summary>
+    public string? HolyricsDeviceId { get; init; }
+
+    /// <summary>The friendly name of the Holyrics output, for the screen (filled in when the output is found).</summary>
+    public string? HolyricsDeviceName { get; init; }
+
+    /// <summary>The words that find the Holyrics output by name when the id is not active (all must be in the name). Default <c>WING</c> + <c>1-2</c>.</summary>
+    public IReadOnlyList<string> HolyricsMatch { get; init; } = DefaultHolyricsWords;
 
     /// <summary>
     /// Holyrics and Spotify at 100%, unmuted. Holyrics is a Launch4j program: the visible Holyrics.exe starts the bundled Java
@@ -293,6 +322,12 @@ public sealed record SystemSettings
 
     /// <summary>Whether the site still has to be cleared: the history was cleared while the site was offline.</summary>
     public bool SitePendingClear { get; init; }
+
+    /// <summary>
+    /// "Alertas ligados": the master switch of the alert part of the app (the bar on the LED, Telegram, the site and the overlay API). Off
+    /// is for a smaller temple that only wants the sound. On by default, and for an older settings file.
+    /// </summary>
+    public bool AlertsEnabled { get; init; } = true;
 
     /// <summary>Whether the app looks for a newer version when it opens (and every 30 minutes) and installs it, restarting, when it is idle.</summary>
     public bool AutoUpdate { get; init; } = true;

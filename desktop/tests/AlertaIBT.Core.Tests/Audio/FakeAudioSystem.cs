@@ -40,7 +40,11 @@ public sealed class FakeAudioSystem : IAudioSystem
     /// <summary>What a driver that fights back does after each selection: runs inside <see cref="SetDefaultRenderDevice"/>.</summary>
     public Action? AfterSetDefault { get; set; }
 
-    public string? Watching { get; private set; }
+    /// <summary>The outputs watched now (empty when none).</summary>
+    public IReadOnlyList<string> WatchedIds { get; private set; } = [];
+
+    /// <summary>The first watched output, or <c>null</c> when none.</summary>
+    public string? Watching => WatchedIds.Count > 0 ? WatchedIds[0] : null;
 
     public event Action? DevicesChanged;
 
@@ -68,7 +72,7 @@ public sealed class FakeAudioSystem : IAudioSystem
         DefaultDeviceChanged?.Invoke();
     }
 
-    public void AddSession(string deviceId, string key, string? process, bool system = false, bool raise = true)
+    public void AddSession(string deviceId, string key, string? process, bool system = false, bool raise = true, int processId = 0)
     {
         lock (_gate)
         {
@@ -77,7 +81,7 @@ public sealed class FakeAudioSystem : IAudioSystem
                 Sessions[deviceId] = list = [];
             }
 
-            list.Add(new AudioSessionInfo(key, process, system));
+            list.Add(new AudioSessionInfo(key, process, system, processId));
         }
 
         if (raise)
@@ -137,10 +141,10 @@ public sealed class FakeAudioSystem : IAudioSystem
         return !FailSetVolume;
     }
 
-    public void WatchSessions(string? deviceId)
+    public void WatchSessions(IReadOnlyList<string> deviceIds)
     {
-        Watching = deviceId;
-        Calls.Add("watch:" + deviceId);
+        WatchedIds = [.. deviceIds];
+        Calls.Add("watch:" + string.Join(",", deviceIds));
     }
 
     public void Dispose() => Calls.Add("dispose");

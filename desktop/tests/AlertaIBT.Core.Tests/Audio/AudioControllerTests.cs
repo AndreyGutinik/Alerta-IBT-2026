@@ -118,7 +118,7 @@ public sealed class AudioControllerTests : IDisposable
     [Fact]
     public void With_the_switch_off_no_volume_is_set_but_the_output_is_still_locked()
     {
-        Change(a => a with { Enabled = false });
+        Change(a => a with { Enabled = false, HolyricsRoute = false });
         _audio.AddSession(WingId, "s-spot", "Spotify", raise: false);
 
         Boot();
@@ -150,7 +150,7 @@ public sealed class AudioControllerTests : IDisposable
     // ---- sessions that appear later ----
 
     [Fact]
-    public void A_program_that_opens_inside_the_first_30_minutes_gets_its_volume_once()
+    public void A_program_that_opens_later_gets_its_volume_once()
     {
         Boot();
         Wait(TimeSpan.FromMinutes(10));
@@ -164,22 +164,41 @@ public sealed class AudioControllerTests : IDisposable
     }
 
     [Fact]
-    public void A_program_that_opens_after_30_minutes_is_left_alone()
+    public void A_program_that_opens_hours_after_the_start_still_gets_its_volume_every_time_it_opens()
     {
         Boot();
-        Wait(AudioController.SessionWindow + TimeSpan.FromMinutes(1));
+        Wait(TimeSpan.FromHours(5));
 
         _audio.AddSession(WingId, "s-spot", "Spotify");
         Wait(AudioController.Debounce);
+        _audio.Sessions[WingId].Clear(); // closed
+        Wait(TimeSpan.FromHours(2));
+        _audio.AddSession(WingId, "s-spot-2", "Spotify"); // opened again: a new session
+        Wait(AudioController.Debounce);
 
-        Assert.Empty(_audio.Writes("session"));
+        Assert.Equal([$"session:{WingId}:s-spot:100:False", $"session:{WingId}:s-spot-2:100:False"], _audio.Writes("session"));
+    }
+
+    [Fact]
+    public void A_session_that_stays_open_is_set_only_once_however_many_looks_follow()
+    {
+        Boot();
+        _audio.AddSession(WingId, "s-holy", "javaw");
+        Wait(AudioController.Debounce);
+
+        _audio.Add(new AudioDevice("{x}", "Fones (USB)"));
+        Wait(AudioController.Debounce);
+        _audio.AddSession(WingId, "s-chrome", "chrome");
+        Wait(AudioController.Debounce);
+
+        Assert.Equal([$"session:{WingId}:s-holy:100:False"], _audio.Writes("session"));
     }
 
     [Fact]
     public void The_system_sounds_session_is_set_whenever_it_appears()
     {
         Boot();
-        Wait(AudioController.SessionWindow + TimeSpan.FromHours(2));
+        Wait(TimeSpan.FromHours(3));
 
         _audio.AddSession(WingId, "s-sys", null, system: true);
         Wait(AudioController.Debounce);
@@ -217,13 +236,13 @@ public sealed class AudioControllerTests : IDisposable
     // ---- apply now ----
 
     [Fact]
-    public void Apply_now_sets_everything_again_even_after_30_minutes_and_with_the_switch_off()
+    public void Apply_now_sets_everything_again_even_hours_later_and_with_the_switch_off()
     {
         _audio.AddSession(WingId, "s-spot", "Spotify", raise: false);
         _audio.AddSession(WingId, "s-sys", null, system: true, raise: false);
         Boot();
         Change(a => a with { Enabled = false, MasterVolume = 42 });
-        Wait(AudioController.SessionWindow + TimeSpan.FromMinutes(5));
+        Wait(TimeSpan.FromHours(1));
         _audio.Calls.Clear();
 
         _controller.ApplyNow();
@@ -400,7 +419,7 @@ public sealed class AudioControllerTests : IDisposable
     [Fact]
     public void A_device_chosen_by_the_user_is_kept_and_a_lookalike_is_not_picked_instead_when_it_is_absent()
     {
-        Change(a => a with { OutputDeviceId = SpeakersId, OutputDeviceName = FakeAudioSystem.SpeakersName });
+        Change(a => a with { OutputDeviceId = SpeakersId, OutputDeviceName = FakeAudioSystem.SpeakersName, OutputMatch = [FakeAudioSystem.SpeakersName] });
         _audio.Remove(SpeakersId);
 
         Boot();
@@ -443,31 +462,39 @@ public sealed class AudioControllerTests : IDisposable
     // ---- status ----
 
     [Fact]
-    public void The_status_lists_the_programs_still_waiting_to_open_and_what_was_applied()
+    public void The_status_lists_the_programs_still_waiting_to_open_without_the_hidden_spotify_and_what_was_applied()
     {
         Boot();
-
-        Assert.Equal(["Holyrics: aguardando abrir", "Spotify: aguardando abrir"], _controller.Status.Waiting);
-        Assert.Contains("Volume geral 80%", _controller.Status.AppliedSummary);
-
-        _audio.AddSession(WingId, "s-spot", "Spotify");
-        Wait(AudioController.Debounce);
 
         Assert.Equal(["Holyrics: aguardando abrir"], _controller.Status.Waiting);
-        Assert.Equal("Volume geral 80%, Spotify 100%", _controller.Status.AppliedSummary);
-        Assert.StartsWith("Aplicado ", _controller.Status.AppliedLine, StringComparison.Ordinal);
-        Assert.EndsWith("Holyrics: aguardando abrir", _controller.Status.AppliedLine, StringComparison.Ordinal);
-    }
+        Assert.Contains("Volume geral 80%", _controller.Status.AppliedSummary);
 
-    [Fact]
-    public void Nothing_waits_after_the_30_minutes()
-    {
-        Boot();
-        Wait(AudioController.SessionWindow + TimeSpan.FromMinutes(1));
-        _audio.Add(new AudioDevice("{x}", "Fones (USB)")); // any event refreshes the status
+        _audio.AddSession(WingId, "s-holy", "javaw");
         Wait(AudioController.Debounce);
 
         Assert.Empty(_controller.Status.Waiting);
+        Assert.Equal("Volume geral 80%, Holyrics 100%", _controller.Status.AppliedSummary);
+        Assert.StartsWith("Aplicado ", _controller.Status.AppliedLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void With_the_adjustment_off_nothing_is_waiting()
+    {
+        Change(a => a with { Enabled = false });
+        Boot();
+
+        Assert.Empty(_controller.Status.Waiting);
+    }
+
+    [Fact]
+    public void The_spotify_entry_still_gets_its_volume_even_though_the_screen_hides_it()
+    {
+        Boot();
+        _audio.AddSession(WingId, "s-spot", "Spotify");
+        Wait(AudioController.Debounce);
+
+        Assert.Contains($"session:{WingId}:s-spot:100:False", _audio.Calls);
+        Assert.Contains(AudioSettings.HiddenApps, name => name == "Spotify");
     }
 
     [Fact]
@@ -552,15 +579,4 @@ public sealed class AudioControllerTests : IDisposable
         Assert.Empty(_audio.Writes("default"));
     }
 
-    [Fact]
-    public void The_tray_toggle_flips_the_lock_in_the_settings()
-    {
-        Assert.True(_settings.Current.Audio.LockOutput);
-
-        _controller.ToggleLock();
-        Assert.False(_settings.Current.Audio.LockOutput);
-
-        _controller.ToggleLock();
-        Assert.True(_settings.Current.Audio.LockOutput);
-    }
 }

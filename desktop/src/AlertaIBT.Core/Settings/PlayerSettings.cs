@@ -86,8 +86,8 @@ public sealed record PlayerSettings
     /// <summary>The words that find the output by name when the id is not active (all must be in the name). Default WING + 3-4.</summary>
     public IReadOnlyList<string> OutputMatch { get; init; } = DefaultOutputMatch;
 
-    /// <summary>The player's own volume, 0 to 100 (applied to the samples), 80 by default.</summary>
-    public int Volume { get; init; } = 80;
+    /// <summary>The player's own volume, 0 to 100 (applied to the samples), 100 by default.</summary>
+    public int Volume { get; init; } = 100;
 
     /// <summary>Whether the player is muted (the volume row's "mudo"). Off by default.</summary>
     public bool StartMuted { get; init; }

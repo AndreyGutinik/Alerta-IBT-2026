@@ -15,7 +15,8 @@ public sealed record AudioDevice(string Id, string Name)
 /// <param name="Key">Identifies this session instance on its device (it changes when the program is closed and opened again).</param>
 /// <param name="ProcessName">The program's process name without <c>.exe</c>; <c>null</c> for the system sounds or when the process is gone.</param>
 /// <param name="IsSystemSounds">Whether this is the "Sons do sistema" session.</param>
-public sealed record AudioSessionInfo(string Key, string? ProcessName, bool IsSystemSounds);
+/// <param name="ProcessId">The process id, or 0 when unknown (the system sounds, or a process that is gone).</param>
+public sealed record AudioSessionInfo(string Key, string? ProcessName, bool IsSystemSounds, int ProcessId = 0);
 
 /// <summary>The default output for each of the three roles of Windows (any can be missing).</summary>
 public sealed record DefaultDevices(string? Console, string? Multimedia, string? Communications)
@@ -62,8 +63,8 @@ public interface IAudioSystem : IDisposable
     /// <summary>Sets the volume (0 to 100) and the mute of one session.</summary>
     bool SetSessionVolume(string deviceId, string sessionKey, int percent, bool muted);
 
-    /// <summary>Starts telling (through <see cref="SessionCreated"/>) about new sessions on this output; <c>null</c> stops.</summary>
-    void WatchSessions(string? deviceId);
+    /// <summary>Starts telling (through <see cref="SessionCreated"/>) about new sessions on these outputs; an empty list stops.</summary>
+    void WatchSessions(IReadOnlyList<string> deviceIds);
 }
 
 /// <summary>Name rules shared by the controller and the screen: process names and device names as the user and Windows write them.</summary>

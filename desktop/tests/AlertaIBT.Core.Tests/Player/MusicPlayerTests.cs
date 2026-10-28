@@ -53,7 +53,7 @@ public sealed class MusicPlayerTests : IDisposable
         var first = Backend.Output.Pump(480);
 
         Assert.InRange(first[0], 0f, 0.01f);
-        Assert.InRange(first[^2], 0.39f, 0.41f); // 10 ms later it is at full level, 0.5 * volume 80% = 0.4
+        Assert.InRange(first[^2], 0.49f, 0.51f); // 10 ms later it is at full level, 0.5 * volume 100% = 0.5
     }
 
     [Fact]
@@ -168,7 +168,7 @@ public sealed class MusicPlayerTests : IDisposable
         Assert.Equal(PlayerState.Playing, status.State);
         Assert.False(status.Fading);
         Assert.Equal(path, status.Track!.Path);
-        Assert.Equal(0.4f, Backend.Output.Pump(1)[0], 2);
+        Assert.Equal(0.5f, Backend.Output.Pump(1)[0], 2);
     }
 
     [Fact]
@@ -470,9 +470,9 @@ public sealed class MusicPlayerTests : IDisposable
         Assert.True(_rig.Settings.Current.Player.Shuffle);
         Assert.Equal("all", _rig.Settings.Current.Player.Repeat);
         Backend.Output.PumpSeconds(2.5);
-        Assert.InRange(Backend.Output.Pump(1)[0], 0.1f, 0.3f); // half way up to 0.4
+        Assert.InRange(Backend.Output.Pump(1)[0], 0.1f, 0.3f); // half way up to 0.5
         Backend.Output.PumpSeconds(3);
-        Assert.Equal(0.4f, Backend.Output.Pump(1)[0], 2);
+        Assert.Equal(0.5f, Backend.Output.Pump(1)[0], 2);
     }
 
     [Fact]

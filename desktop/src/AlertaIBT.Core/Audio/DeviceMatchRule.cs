@@ -21,11 +21,22 @@ public sealed record DeviceMatchRule(IReadOnlyList<string> AllOf)
     public static DeviceMatchRule Parse(string? text) =>
         new((text ?? string.Empty).Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
 
-    /// <summary>Whether <paramref name="deviceName"/> contains every word.</summary>
-    public bool Matches(string? deviceName) =>
-        !IsEmpty
-        && !string.IsNullOrWhiteSpace(deviceName)
-        && AllOf.All(word => deviceName.Contains(word, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Whether <paramref name="deviceName"/> contains every word (case does not matter). The "2- " that Windows puts in front of a second
+    /// device of the same kind is ignored too, so the name of a device still matches when it is plugged into another USB port.
+    /// </summary>
+    public bool Matches(string? deviceName)
+    {
+        if (IsEmpty || string.IsNullOrWhiteSpace(deviceName))
+        {
+            return false;
+        }
+
+        var plain = AudioNames.NormalizeDevice(deviceName);
+        return AllOf.All(word =>
+            deviceName.Contains(word, StringComparison.OrdinalIgnoreCase)
+            || plain.Contains(AudioNames.NormalizeDevice(word), StringComparison.Ordinal));
+    }
 
     /// <summary>Value equality, with the words compared one by one.</summary>
     public bool Equals(DeviceMatchRule? other) => other is not null && AllOf.SequenceEqual(other.AllOf, StringComparer.Ordinal);
@@ -62,6 +73,27 @@ public sealed record OutputChoice(OutputChoiceKind Kind, AudioDevice? Device)
 /// <summary>The order in which an output is chosen: exact endpoint id, else the first active device matching the name rule, else the Windows default.</summary>
 public static class OutputResolver
 {
+    /// <summary>
+    /// The device a rule and a saved id point at, without any stand-in: the saved id when it is active, else the first active device
+    /// matching the rule, else none (`Device` is <c>null</c>, kind <see cref="OutputChoiceKind.None"/>). Used where a missing device means
+    /// "leave things alone" (the lock of the default output, the Holyrics output).
+    /// </summary>
+    public static OutputChoice Find(IReadOnlyList<AudioDevice> active, string? savedId, DeviceMatchRule rule)
+    {
+        ArgumentNullException.ThrowIfNull(active);
+        ArgumentNullException.ThrowIfNull(rule);
+
+        if (!string.IsNullOrWhiteSpace(savedId)
+            && active.FirstOrDefault(d => string.Equals(d.Id, savedId.Trim(), StringComparison.OrdinalIgnoreCase)) is { } byId)
+        {
+            return new OutputChoice(OutputChoiceKind.ById, byId);
+        }
+
+        return active.FirstOrDefault(d => rule.Matches(d.Name)) is { } byRule
+            ? new OutputChoice(OutputChoiceKind.ByRule, byRule)
+            : new OutputChoice(OutputChoiceKind.None, null);
+    }
+
     /// <summary>Picks the output.</summary>
     /// <param name="active">The active outputs.</param>
     /// <param name="defaultId">The id of the Windows default output (multimedia role), or <c>null</c>.</param>

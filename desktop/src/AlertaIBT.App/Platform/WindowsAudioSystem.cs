@@ -15,8 +15,7 @@ public sealed class WindowsAudioSystem : IAudioSystem
     private readonly object _gate = new();
     private MMDeviceEnumerator? _enumerator;
     private MMDeviceNotificationClient? _notifications;
-    private MMDevice? _watchedDevice;
-    private AudioSessionManager? _watchedManager;
+    private readonly List<(MMDevice Device, AudioSessionManager Manager)> _watched = [];
     private bool _disposed;
 
     /// <inheritdoc />
@@ -135,7 +134,8 @@ public sealed class WindowsAudioSystem : IAudioSystem
                 {
                     var session = sessions[i];
                     var system = session.IsSystemSoundsSession;
-                    result.Add(new AudioSessionInfo(session.GetSessionInstanceIdentifier, system ? null : ProcessName(session.GetProcessID), system));
+                    var processId = system ? 0 : (int)session.GetProcessID;
+                    result.Add(new AudioSessionInfo(session.GetSessionInstanceIdentifier, system ? null : ProcessName(session.GetProcessID), system, processId));
                 }
             }
             catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
@@ -181,25 +181,30 @@ public sealed class WindowsAudioSystem : IAudioSystem
     }
 
     /// <inheritdoc />
-    public void WatchSessions(string? deviceId)
+    public void WatchSessions(IReadOnlyList<string> deviceIds)
     {
         lock (_gate)
         {
             StopWatching();
-            if (_disposed || string.IsNullOrWhiteSpace(deviceId))
+            if (_disposed)
             {
                 return;
             }
 
-            try
+            foreach (var deviceId in deviceIds.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                _watchedDevice = Enumerator().GetDevice(deviceId);
-                _watchedManager = _watchedDevice.AudioSessionManager;
-                _watchedManager.OnSessionCreated += OnSessionCreated;
-            }
-            catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
-            {
-                StopWatching();
+                MMDevice? device = null;
+                try
+                {
+                    device = Enumerator().GetDevice(deviceId);
+                    var manager = device.AudioSessionManager;
+                    manager.OnSessionCreated += OnSessionCreated;
+                    _watched.Add((device, manager));
+                }
+                catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
+                {
+                    device?.Dispose();
+                }
             }
         }
     }
@@ -289,22 +294,22 @@ public sealed class WindowsAudioSystem : IAudioSystem
 
     private void StopWatching()
     {
-        if (_watchedManager is not null)
+        foreach (var (device, manager) in _watched)
         {
             try
             {
-                _watchedManager.OnSessionCreated -= OnSessionCreated;
-                _watchedManager.Dispose();
+                manager.OnSessionCreated -= OnSessionCreated;
+                manager.Dispose();
             }
             catch (Exception ex) when (ex is COMException or InvalidOperationException)
             {
                 // Closing a manager of a device that is gone can fail: nothing is left to close.
             }
+
+            device.Dispose();
         }
 
-        _watchedManager = null;
-        _watchedDevice?.Dispose();
-        _watchedDevice = null;
+        _watched.Clear();
     }
 
     private void OnSessionCreated(object? sender, AudioSessionControl newSession) => Raise(SessionCreated);

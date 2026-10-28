@@ -13,120 +13,10 @@ namespace AlertaIBT.App.Tests.ViewModels;
 // The player's view-model and the quick panel row, on the real engine with fakes: no device is opened, no file is decoded, no sound.
 public sealed class PlayerViewModelTests : IDisposable
 {
-    private sealed class Track(string path) : IPcmTrack
-    {
-        private int _read;
-
-        public string Path { get; } = path;
-
-        public TimeSpan Duration => TimeSpan.FromSeconds(200);
-
-        public TimeSpan Position => TimeSpan.FromSeconds(_read / 96000.0);
-
-        public int Read(float[] buffer, int offset, int count)
-        {
-            Array.Fill(buffer, 0.5f, offset, count);
-            _read += count;
-            return count;
-        }
-
-        public void Dispose()
-        {
-        }
-    }
-
-    private sealed class Output(IPcmSource source) : IPlayerOutput
-    {
-        public IPcmSource Source { get; } = source;
-
-        public string? DeviceId => "dev";
-
-        public string? DeviceName => "dev";
-
-        public event Action<Exception?>? Failed
-        {
-            add { }
-            remove { }
-        }
-
-        public void Dispose()
-        {
-        }
-    }
-
-    private sealed class Backend : IPlayerBackend
-    {
-        public List<Output> Outputs { get; } = [];
-
-        public IPlayerOutput OpenOutput(string? deviceId, Func<int, int, IPcmSource> createSource)
-        {
-            var output = new Output(createSource(48000, 2));
-            Outputs.Add(output);
-            return output;
-        }
-
-        public IPcmTrack OpenTrack(string path, int sampleRate, int channels) => new Track(path);
-    }
-
-    private sealed class Audio : IAudioSystem
-    {
-        public List<AudioDevice> Devices { get; } = [new AudioDevice("id-1", "Alto-falantes (Realtek)")];
-
-        public event Action? DevicesChanged
-        {
-            add { }
-            remove { }
-        }
-
-        public event Action? DefaultDeviceChanged
-        {
-            add { }
-            remove { }
-        }
-
-        public event Action? SessionCreated
-        {
-            add { }
-            remove { }
-        }
-
-        public IReadOnlyList<AudioDevice> ActiveRenderDevices() => Devices;
-
-        public DefaultDevices GetDefaultDevices() => new("id-1", "id-1", "id-1");
-
-        public bool SetDefaultRenderDevice(string deviceId) => true;
-
-        public bool SetMasterVolume(string deviceId, int percent, bool muted) => true;
-
-        public IReadOnlyList<AudioSessionInfo> GetSessions(string deviceId) => [];
-
-        public bool SetSessionVolume(string deviceId, string sessionKey, int percent, bool muted) => true;
-
-        public void WatchSessions(string? deviceId)
-        {
-        }
-
-        public void Dispose()
-        {
-        }
-    }
-
-    private sealed class Files : IMediaFileSystem
-    {
-        public bool DirectoryExists(string folder) => true;
-
-        public IEnumerable<string> EnumerateFiles(string folder) => ["/m/Amazing Grace - Josh.flac", "/m/Be Still - Rivers.flac", "/m/notes.txt"];
-    }
-
-    private sealed class Metadata : ITrackMetadataReader
-    {
-        public TrackInfo Read(string path) => new(path, System.IO.Path.GetFileName(path), "Song", "Artist");
-    }
-
     private readonly SettingsRig _rig = new();
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 10, 25, 10, 0, 0, TimeSpan.Zero));
-    private readonly Audio _audio = new();
-    private readonly Backend _backend = new();
+    private readonly FakeAudio _audio = new();
+    private readonly FakePlayerBackend _backend = new();
     private readonly PlaylistLibrary _library;
     private readonly MusicPlayer _player;
     private readonly AlarmScheduler _alarms;
@@ -134,8 +24,8 @@ public sealed class PlayerViewModelTests : IDisposable
 
     public PlayerViewModelTests()
     {
-        _library = new PlaylistLibrary(new Files(), _ => null, _clock, action => action());
-        _player = new MusicPlayer(_rig.Settings, _library, _backend, _audio, new Metadata(), _clock, null, action => action(), new Random(1));
+        _library = new PlaylistLibrary(new FakeFiles(), _ => null, _clock, action => action());
+        _player = new MusicPlayer(_rig.Settings, _library, _backend, _audio, new FakeMetadata(), _clock, null, action => action(), new Random(1));
         _alarms = new AlarmScheduler(_rig.Settings, _player, _clock);
         _player.Start();
         _vm = new PlayerViewModel(_rig.Settings, _player, _alarms, _audio, action => action(), action => action(), _clock);

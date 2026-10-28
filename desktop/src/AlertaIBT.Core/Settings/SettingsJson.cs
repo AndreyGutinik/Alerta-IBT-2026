@@ -109,6 +109,7 @@ public static partial class SettingsJson
                     LastHistoryClearAt = ReadTime(system, "lastHistoryClearAt"),
                     SitePendingClear = ReadBool(system, "sitePendingClear") ?? defaults.System.SitePendingClear,
                     AutoUpdate = ReadBool(system, "autoUpdate") ?? defaults.System.AutoUpdate,
+                    AlertsEnabled = ReadBool(system, "alertsEnabled") ?? defaults.System.AlertsEnabled,
                     UpdateAttemptVersion = ReadString(system, "updateAttemptVersion"),
                     UpdateAttemptSince = ReadTime(system, "updateAttemptSince"),
                     UpdateAttempts = ReadInt(system, "updateAttempts") ?? defaults.System.UpdateAttempts,
@@ -139,6 +140,11 @@ public static partial class SettingsJson
                     LockOutput = ReadBool(audio, "lockOutput") ?? defaults.Audio.LockOutput,
                     OutputDeviceId = ReadString(audio, "outputDeviceId"),
                     OutputDeviceName = ReadString(audio, "outputDeviceName"),
+                    OutputMatch = ReadStrings(audio, "outputMatch") ?? defaults.Audio.OutputMatch,
+                    HolyricsRoute = ReadBool(audio, "holyricsRoute") ?? defaults.Audio.HolyricsRoute,
+                    HolyricsDeviceId = ReadString(audio, "holyricsDeviceId"),
+                    HolyricsDeviceName = ReadString(audio, "holyricsDeviceName"),
+                    HolyricsMatch = ReadStrings(audio, "holyricsMatch") ?? defaults.Audio.HolyricsMatch,
                 },
                 Player = new PlayerSettings
                 {
@@ -205,6 +211,7 @@ public static partial class SettingsJson
                 ["lastHistoryClearAt"] = n.System.LastHistoryClearAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
                 ["sitePendingClear"] = n.System.SitePendingClear,
                 ["autoUpdate"] = n.System.AutoUpdate,
+                ["alertsEnabled"] = n.System.AlertsEnabled,
                 ["updateAttemptVersion"] = n.System.UpdateAttemptVersion,
                 ["updateAttemptSince"] = n.System.UpdateAttemptSince?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
                 ["updateAttempts"] = n.System.UpdateAttempts,
@@ -241,6 +248,11 @@ public static partial class SettingsJson
                 ["lockOutput"] = n.Audio.LockOutput,
                 ["outputDeviceId"] = n.Audio.OutputDeviceId,
                 ["outputDeviceName"] = n.Audio.OutputDeviceName,
+                ["outputMatch"] = new JsonArray(n.Audio.OutputMatch.Select(word => (JsonNode)JsonValue.Create(word)!).ToArray()),
+                ["holyricsRoute"] = n.Audio.HolyricsRoute,
+                ["holyricsDeviceId"] = n.Audio.HolyricsDeviceId,
+                ["holyricsDeviceName"] = n.Audio.HolyricsDeviceName,
+                ["holyricsMatch"] = new JsonArray(n.Audio.HolyricsMatch.Select(word => (JsonNode)JsonValue.Create(word)!).ToArray()),
             },
             ["player"] = new JsonObject
             {
@@ -333,6 +345,7 @@ public static partial class SettingsJson
                 LastHistoryClearAt = system.LastHistoryClearAt?.ToUniversalTime(),
                 SitePendingClear = system.SitePendingClear,
                 AutoUpdate = system.AutoUpdate,
+                AlertsEnabled = system.AlertsEnabled,
                 UpdateAttemptVersion = NullIfBlank(system.UpdateAttemptVersion),
                 UpdateAttemptSince = system.UpdateAttemptSince?.ToUniversalTime(),
                 UpdateAttempts = Math.Max(0, system.UpdateAttempts),
@@ -367,6 +380,11 @@ public static partial class SettingsJson
                 LockOutput = audio.LockOutput,
                 OutputDeviceId = NullIfBlank(audio.OutputDeviceId),
                 OutputDeviceName = NullIfBlank(audio.OutputDeviceName),
+                OutputMatch = NormalizeWords(audio.OutputMatch) ?? AudioSettings.DefaultOutputWords,
+                HolyricsRoute = audio.HolyricsRoute,
+                HolyricsDeviceId = NullIfBlank(audio.HolyricsDeviceId),
+                HolyricsDeviceName = NullIfBlank(audio.HolyricsDeviceName),
+                HolyricsMatch = NormalizeWords(audio.HolyricsMatch) ?? AudioSettings.DefaultHolyricsWords,
             },
             Player = NormalizePlayer(player),
         };
@@ -518,6 +536,10 @@ public static partial class SettingsJson
                 ReadString(item, "lastFiredOn")))
             .ToList();
     }
+
+    // The words of a name rule: blanks and repeats (any case) dropped; null (missing) means "use the default". An emptied list is kept.
+    private static List<string>? NormalizeWords(IReadOnlyList<string>? words) =>
+        words?.Select(NullIfBlank).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
     private static int ClampVolume(int volume) => Math.Clamp(volume, AudioSettings.MinVolume, AudioSettings.MaxVolume);
 
