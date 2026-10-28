@@ -609,19 +609,22 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Button
-                                x:Name="StopButton"
+                            <Border
                                 HorizontalAlignment="Left"
-                                AutomationProperties.Name="Parar"
-                                Command="{Binding Player.StopCommand}"
-                                Style="{StaticResource TransportButton}"
-                                ToolTip="Parar (com fade)">
-                                <Path
-                                    Width="14"
-                                    Height="14"
-                                    Data="{StaticResource LucideSquare}"
-                                    Style="{StaticResource LucideIcon}" />
-                            </Button>
+                                Style="{StaticResource HeroDim}">
+                                <Button
+                                    x:Name="StopButton"
+                                    AutomationProperties.Name="Parar"
+                                    Command="{Binding Player.StopCommand}"
+                                    Style="{StaticResource TransportButton}"
+                                    ToolTip="Parar (com fade)">
+                                    <Path
+                                        Width="14"
+                                        Height="14"
+                                        Data="{StaticResource LucideSquare}"
+                                        Style="{StaticResource LucideIcon}" />
+                                </Button>
+                            </Border>
                             <StackPanel
                                 x:Name="TransportCenter"
                                 Grid.Column="1"
