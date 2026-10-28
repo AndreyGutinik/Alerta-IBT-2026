@@ -28,8 +28,7 @@ public sealed class TelegramEngine : IDisposable
     private readonly ILogger _logger;
     private readonly TimeProvider _clock;
     private readonly TelegramJournal? _journal;
-    private readonly Channel<(string Text, TgMessage Message)> _inbox = Channel.CreateUnbounded<(string, TgMessage)>(
-        new UnboundedChannelOptions { SingleReader = true });
+    private Channel<(string Text, TgMessage Message)> _inbox = NewInbox();
 
     private CancellationTokenSource? _stop;
     private Task? _pollerTask;
@@ -67,7 +66,7 @@ public sealed class TelegramEngine : IDisposable
         _journal = journal;
     }
 
-    /// <summary>Starts polling and handling messages.</summary>
+    /// <summary>Starts polling and handling messages. It can be called again after <see cref="StopAsync"/> (the master switch "Alertas ligados").</summary>
     public void Start()
     {
         if (Interlocked.Exchange(ref _started, 1) != 0)
@@ -75,19 +74,21 @@ public sealed class TelegramEngine : IDisposable
             return;
         }
 
+        _inbox = NewInbox();
+        var inbox = _inbox;
         _stop = new CancellationTokenSource();
         var stop = _stop.Token;
         _poller.MessageReceived += OnMessage;
         _poller.StateChanged += OnState;
         OnState(_poller.State);
-        _consumerTask = Task.Run(() => ConsumeAsync(stop), CancellationToken.None);
+        _consumerTask = Task.Run(() => ConsumeAsync(inbox, stop), CancellationToken.None);
         _pollerTask = Task.Run(() => RunPollerAsync(stop), CancellationToken.None);
     }
 
     /// <summary>Stops polling and handling messages.</summary>
     public async Task StopAsync()
     {
-        var stop = _stop;
+        var stop = Interlocked.Exchange(ref _stop, null);
         if (stop is null)
         {
             return;
@@ -117,14 +118,20 @@ public sealed class TelegramEngine : IDisposable
         {
             _logger.LogError(ex, "Erro ao parar o Telegram");
         }
+        finally
+        {
+            stop.Dispose();
+            _pollerTask = null;
+            _consumerTask = null;
+            Volatile.Write(ref _started, 0); // ready for another Start
+        }
     }
 
     /// <inheritdoc />
-    public void Dispose()
-    {
-        StopAsync().GetAwaiter().GetResult();
-        _stop?.Dispose();
-    }
+    public void Dispose() => StopAsync().GetAwaiter().GetResult();
+
+    private static Channel<(string Text, TgMessage Message)> NewInbox() =>
+        Channel.CreateUnbounded<(string, TgMessage)>(new UnboundedChannelOptions { SingleReader = true });
 
     // Raised on the polling thread: only hands the message over, never throws.
     private void OnMessage(string text, TgMessage message)
@@ -179,11 +186,11 @@ public sealed class TelegramEngine : IDisposable
         }
     }
 
-    private async Task ConsumeAsync(CancellationToken stop)
+    private async Task ConsumeAsync(Channel<(string Text, TgMessage Message)> inbox, CancellationToken stop)
     {
         try
         {
-            await foreach (var (text, message) in _inbox.Reader.ReadAllAsync(stop).ConfigureAwait(false))
+            await foreach (var (text, message) in inbox.Reader.ReadAllAsync(stop).ConfigureAwait(false))
             {
                 try
                 {

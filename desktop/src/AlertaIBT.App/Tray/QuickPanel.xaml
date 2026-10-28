@@ -157,6 +157,32 @@
         </Border.Effect>
 
         <StackPanel>
+            <!-- With the alerts off (the master switch) only the note and the player row stay. -->
+            <Grid
+                x:Name="AlertsOffNote"
+                Visibility="{Binding AlertsOff, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal">
+                    <Border
+                        Width="8"
+                        Height="8"
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        Background="{StaticResource IbtMutedBrush}"
+                        CornerRadius="4" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        FontSize="12"
+                        Foreground="{StaticResource IbtMutedBrush}"
+                        Text="Alertas desligados"
+                        ToolTip="Ligue de novo em Configurações, Sistema, Alertas." />
+                </StackPanel>
+            </Grid>
+
+            <StackPanel
+                x:Name="AlertsPart"
+                Visibility="{Binding AlertsOn, Converter={StaticResource BoolToVisibility}}">
             <!-- Line 1: Telegram, Site and LED with their dots, and the state pill at the right. -->
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -453,6 +479,8 @@
                         Style="{StaticResource LucideIcon}" />
                 </Button>
             </Grid>
+
+            </StackPanel>
 
             <!-- The music player: one compact row, in the tree only while "Player ligado" is on (otherwise nothing is added, not even a margin). -->
             <ContentControl

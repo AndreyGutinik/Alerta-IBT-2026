@@ -43,6 +43,11 @@ public interface IAlertGateway
 
     /// <summary>"Limpar historico": empties the history of the PC, the site and the Telegram group. Never throws; asks nothing.</summary>
     Task<HistoryClearResult> ClearHistoryAsync(CancellationToken ct);
+
+    /// <summary>The master switch "Alertas ligados": turns the alert side on or off (the "Ligar os alertas" button of the Início tab). Does nothing by default.</summary>
+    void SetAlertsEnabled(bool on)
+    {
+    }
 }
 
 /// <summary>The real <see cref="IAlertGateway"/>: the PC is the operator, so free text is allowed and a repeated plate only warns.</summary>
@@ -79,4 +84,7 @@ public sealed class AlertGateway(AlertService alerts, AlertRuntime runtime, Hist
 
     /// <inheritdoc />
     public Task<HistoryClearResult> ClearHistoryAsync(CancellationToken ct) => history.ClearAllAsync(ct);
+
+    /// <inheritdoc />
+    public void SetAlertsEnabled(bool on) => runtime.SetAlertsEnabled(on);
 }

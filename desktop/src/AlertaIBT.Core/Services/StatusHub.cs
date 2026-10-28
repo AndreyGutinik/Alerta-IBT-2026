@@ -142,6 +142,9 @@ public sealed class StatusHub : INotifyPropertyChanged
     /// <summary>Whether the overlay is paused (the sermon).</summary>
     public bool Paused => Snapshot(i => i.Paused);
 
+    /// <summary>Whether the alert part of the app is on (the master switch "Alertas ligados"); the Telegram, site and bar dots are gray "Desligado" while it is off.</summary>
+    public bool AlertsOn => Snapshot(i => !i.AlertsOff);
+
     /// <summary>Whether an alert is on the bar.</summary>
     public bool Showing => Snapshot(i => i.Showing);
 
@@ -254,6 +257,9 @@ public sealed class StatusHub : INotifyPropertyChanged
     /// <summary>Sets whether the overlay is paused.</summary>
     public void SetPaused(bool paused) => Change(i => i with { Paused = paused });
 
+    /// <summary>Sets whether the alert part of the app is on (see <see cref="AlertsOn"/>).</summary>
+    public void SetAlertsOn(bool on) => Change(i => i with { AlertsOff = !on });
+
     /// <summary>Sets whether an alert is on the bar.</summary>
     public void SetShowing(bool showing) => Change(i => i with { Showing = showing });
 
@@ -278,7 +284,9 @@ public sealed class StatusHub : INotifyPropertyChanged
         Raise([nameof(LastError), nameof(LastErrorAt)]);
     }
 
-    private static StatusIndicator TelegramDot(Inputs i) => i.Telegram switch
+    private static readonly StatusIndicator AlertsOffDot = new(StatusLight.Gray, "Desligado", "Os alertas est\U000000E3o desligados (Configura\U000000E7\U000000F5es, Sistema, Alertas).");
+
+    private static StatusIndicator TelegramDot(Inputs i) => i.AlertsOff ? AlertsOffDot : i.Telegram switch
     {
         TelegramState.NotConfigured => new(StatusLight.Gray, "N\U000000E3o configurado", "Falta o token do bot ou o ID do chat."),
         TelegramState.Connecting => new(StatusLight.Yellow, "Conectando", "Conectando ao Telegram."),
@@ -292,7 +300,7 @@ public sealed class StatusHub : INotifyPropertyChanged
         _ => new(StatusLight.Gray, "?", string.Empty),
     };
 
-    private static StatusIndicator SiteDot(Inputs i) => i.Site switch
+    private static StatusIndicator SiteDot(Inputs i) => i.AlertsOff ? AlertsOffDot : i.Site switch
     {
         SiteState.Connecting => new(StatusLight.Yellow, "Conectando", "Conectando ao site."),
         SiteState.Online => new(StatusLight.Green, "Conectado", "Recebendo os avisos enviados pelo site."),
@@ -308,6 +316,11 @@ public sealed class StatusHub : INotifyPropertyChanged
 
     private static StatusIndicator BarDot(Inputs i)
     {
+        if (i.AlertsOff)
+        {
+            return AlertsOffDot;
+        }
+
         if (i.CaptureExcluded == false)
         {
             return new(
@@ -439,6 +452,7 @@ public sealed class StatusHub : INotifyPropertyChanged
             AddIfChanged(names, nameof(TelegramState), before.Telegram, after.Telegram);
             AddIfChanged(names, nameof(GeminiState), before.Gemini, after.Gemini);
             AddIfChanged(names, nameof(Paused), before.Paused, after.Paused);
+            AddIfChanged(names, nameof(AlertsOn), !before.AlertsOff, !after.AlertsOff);
             AddIfChanged(names, nameof(Showing), before.Showing, after.Showing);
             AddIfChanged(names, nameof(LedPresent), before.LedPresent, after.LedPresent);
             AddIfChanged(names, nameof(Pill), PillOf(before), PillOf(after));
@@ -508,6 +522,8 @@ public sealed class StatusHub : INotifyPropertyChanged
         public CorrectionMode Correction { get; init; } = CorrectionMode.Gemini;
 
         public bool Paused { get; init; }
+
+        public bool AlertsOff { get; init; }
 
         public bool Showing { get; init; }
 

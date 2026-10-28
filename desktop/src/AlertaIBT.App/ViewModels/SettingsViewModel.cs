@@ -103,6 +103,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _clearHistoryWeekly;
 
     [ObservableProperty]
+    private bool _alertsEnabled = true;
+
+    [ObservableProperty]
     private bool _autoUpdate;
 
     [ObservableProperty]
@@ -494,6 +497,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    // "Alertas ligados": takes effect at once (saved now; the alert runtime starts or stops the bar, Telegram and the site).
+    partial void OnAlertsEnabledChanged(bool value)
+    {
+        if (!_quiet)
+        {
+            _saver.Queue("system.alertsEnabled", s => s with { System = s.System with { AlertsEnabled = value } });
+            _saver.FlushNow();
+        }
+    }
+
     // "Limpar historico toda segunda-feira, 00:00": saved like the other switches (the scheduler reads the setting every time it looks).
     partial void OnClearHistoryWeeklyChanged(bool value)
     {
@@ -613,6 +626,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             Foreground.Set(bar.Foreground);
             SiteEnabled = settings.Site.Enabled;
             ClearHistoryWeekly = settings.System.ClearHistoryWeekly;
+            AlertsEnabled = settings.System.AlertsEnabled;
             AutoUpdate = settings.System.AutoUpdate;
             SiteUrl.Set(settings.Site.DatabaseUrl);
             SiteApiKey.Set(settings.Site.ApiKey);
@@ -705,7 +719,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     private void RefreshMouseLock()
     {
-        if (_disposed || MouseLockEnabled == _settings.Current.MouseLock.Enabled)
+        if (_disposed || (MouseLockEnabled == _settings.Current.MouseLock.Enabled && AlertsEnabled == _settings.Current.System.AlertsEnabled))
         {
             return;
         }
@@ -714,6 +728,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             MouseLockEnabled = _settings.Current.MouseLock.Enabled;
+            AlertsEnabled = _settings.Current.System.AlertsEnabled; // the "Ligar os alertas" button of Inicio also changes it
         }
         finally
         {

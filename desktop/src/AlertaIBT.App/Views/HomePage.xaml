@@ -193,6 +193,7 @@
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -202,6 +203,7 @@
             <Button
                 x:Name="PauseButton"
                 HorizontalAlignment="Right"
+                IsEnabled="{Binding AlertsOn}"
                 AutomationProperties.Name="{Binding Composer.PauseTip}"
                 Command="{Binding Composer.TogglePauseCommand}"
                 Style="{StaticResource PauseToggleButton}">
@@ -216,7 +218,70 @@
             </Button>
         </Grid>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <!-- The master switch is off: a clear banner, and the button that turns the alerts on again. -->
+        <Border
+            x:Name="AlertsOffBanner"
+            Grid.Row="1"
+            Margin="0,0,0,12"
+            Padding="12,10"
+            Background="#14FFD87A"
+            BorderBrush="#59FFD87A"
+            BorderThickness="1"
+            CornerRadius="12"
+            Visibility="{Binding AlertsOff, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Path
+                    Width="20"
+                    Height="20"
+                    Margin="0,0,12,0"
+                    VerticalAlignment="Center"
+                    Data="{StaticResource LucideTriangleAlert}"
+                    Style="{StaticResource LucideIcon}"
+                    TextElement.Foreground="{StaticResource IbtWarnBrush}" />
+                <StackPanel
+                    Grid.Column="1"
+                    VerticalAlignment="Center">
+                    <TextBlock
+                        FontSize="14"
+                        FontWeight="Bold"
+                        Foreground="{StaticResource IbtWarnBrush}"
+                        Text="Alertas desligados" />
+                    <TextBlock
+                        Margin="0,3,0,0"
+                        FontSize="12"
+                        Foreground="{StaticResource IbtMutedBrush}"
+                        Text="A barra no LED, o Telegram, o site e a API do overlay estão parados. O som continua funcionando."
+                        TextWrapping="Wrap" />
+                </StackPanel>
+                <Button
+                    x:Name="TurnAlertsOnButton"
+                    Grid.Column="2"
+                    Margin="12,0,0,0"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Ligar os alertas"
+                    Command="{Binding TurnAlertsOnCommand}"
+                    Style="{StaticResource IbtPrimaryButton}">
+                    <StackPanel Orientation="Horizontal">
+                        <Path
+                            Width="15"
+                            Height="15"
+                            Data="{StaticResource LucidePower}"
+                            Style="{StaticResource LucideIcon}" />
+                        <TextBlock Margin="6,0,0,0" Text="Ligar os alertas" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+
+        <ScrollViewer
+            Grid.Row="2"
+            IsEnabled="{Binding AlertsOn}"
+            VerticalScrollBarVisibility="Auto">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="1.1*" />

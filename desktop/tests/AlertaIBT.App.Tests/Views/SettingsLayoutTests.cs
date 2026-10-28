@@ -168,15 +168,15 @@ public sealed class SettingsLayoutTests
 
     [Theory]
     [MemberData(nameof(WindowWidths))]
-    public void The_five_sections_exist_in_order_each_with_its_title(double width)
+    public void The_six_sections_exist_in_order_each_with_its_title(double width)
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(width);
             var page = rig.Page;
 
-            var sections = new[] { page.MouseSection, page.QuickPanelSection, page.HistorySection, page.UpdatesSection, page.SystemSection };
-            Assert.Equal(["Mouse", "Painel r\U000000E1pido", "Hist\U000000F3rico", "Atualiza\U000000E7\U000000F5es", "Sistema"], sections.Select(s => (string)s.Header));
+            var sections = new[] { page.AlertsSection, page.MouseSection, page.QuickPanelSection, page.HistorySection, page.UpdatesSection, page.SystemSection };
+            Assert.Equal(["Alertas", "Mouse", "Painel r\U000000E1pido", "Hist\U000000F3rico", "Atualiza\U000000E7\U000000F5es", "Sistema"], sections.Select(s => (string)s.Header));
 
             // The title is drawn at the top of its card.
             foreach (var section in sections)
@@ -187,7 +187,8 @@ public sealed class SettingsLayoutTests
                 Assert.True(rig.BoundsOf(title).Bottom <= rig.BoundsOf(section).Top + 40);
             }
 
-            // Mouse, Painel rapido and Historico go down the right column; Atualizacoes and Sistema share the row under it.
+            // Alertas, Mouse, Painel rapido and Historico go down the right column; Atualizacoes and Sistema share the row under it.
+            Assert.True(rig.BoundsOf(page.MouseSection).Top > rig.BoundsOf(page.AlertsSection).Bottom);
             Assert.True(rig.BoundsOf(page.QuickPanelSection).Top > rig.BoundsOf(page.MouseSection).Bottom);
             Assert.True(rig.BoundsOf(page.HistorySection).Top > rig.BoundsOf(page.QuickPanelSection).Bottom);
             Assert.True(rig.BoundsOf(page.UpdatesSection).Top > rig.BoundsOf(page.HistorySection).Bottom);
@@ -205,6 +206,8 @@ public sealed class SettingsLayoutTests
 
             var expected = new (FrameworkElement Control, SettingsSection Section)[]
             {
+                (page.AlertsSwitch, page.AlertsSection),
+                (page.AlertsOffHint, page.AlertsSection),
                 (page.MouseLockSwitch, page.MouseSection),
                 (page.MouseLockHotkeyBox, page.MouseSection),
                 (page.MouseLockHotkeyHintLine, page.MouseSection),
@@ -223,11 +226,11 @@ public sealed class SettingsLayoutTests
                 Assert.Same(section, SectionOf(control));
             }
 
-            // Nine rows, each in one of the five sections, in the order of the owner's list.
+            // Ten rows, each in one of the six sections, in the order of the owner's list.
             var rows = rig.Find<SettingRow>().ToList();
-            Assert.Equal(9, rows.Count);
+            Assert.Equal(10, rows.Count);
             Assert.Equal(
-                ["Mouse", "Mouse", "Mouse", "Painel r\U000000E1pido", "Hist\U000000F3rico", "Atualiza\U000000E7\U000000F5es", "Atualiza\U000000E7\U000000F5es", "Sistema", "Sistema"],
+                ["Alertas", "Mouse", "Mouse", "Mouse", "Painel r\U000000E1pido", "Hist\U000000F3rico", "Atualiza\U000000E7\U000000F5es", "Atualiza\U000000E7\U000000F5es", "Sistema", "Sistema"],
                 rows.Select(r => (string)SectionOf(r)!.Header));
 
             // No switch, box or button sits in a section outside a row.
@@ -250,6 +253,7 @@ public sealed class SettingsLayoutTests
             var page = rig.Page;
             Control[] order =
             [
+                page.AlertsSwitch,
                 page.MouseLockSwitch,
                 page.MouseLockHotkeyBox,
                 page.TripleCtrlSwitch,
@@ -296,13 +300,13 @@ public sealed class SettingsLayoutTests
             }
 
             // The sections of a column are as wide as each other, so their rows have one width.
-            foreach (var column in new[] { new[] { page.MouseSection, page.QuickPanelSection, page.HistorySection }, new[] { page.UpdatesSection }, new[] { page.SystemSection } })
+            foreach (var column in new[] { new[] { page.AlertsSection, page.MouseSection, page.QuickPanelSection, page.HistorySection }, new[] { page.UpdatesSection }, new[] { page.SystemSection } })
             {
                 Assert.Single(rows.Where(r => column.Contains(SectionOf(r)!)).Select(r => Math.Round(rig.BoundsOf(r).Width, 1)).Distinct());
             }
 
             // Inside a section each row starts where the one before ended.
-            foreach (var section in new[] { page.MouseSection, page.UpdatesSection, page.SystemSection })
+            foreach (var section in new[] { page.AlertsSection, page.MouseSection, page.UpdatesSection, page.SystemSection })
             {
                 var inSection = rows.Where(r => ReferenceEquals(SectionOf(r), section)).ToList();
                 for (var i = 1; i < inSection.Count; i++)
@@ -312,6 +316,7 @@ public sealed class SettingsLayoutTests
             }
 
             // The switches share one right edge, and every shortcut box has one width.
+            Assert.Equal(rig.BoundsOf(page.MouseLockSwitch).Right, rig.BoundsOf(page.AlertsSwitch).Right, 1);
             Assert.Equal(rig.BoundsOf(page.MouseLockSwitch).Right, rig.BoundsOf(page.TripleCtrlSwitch).Right, 1);
             Assert.Equal(rig.BoundsOf(page.MouseLockSwitch).Right, rig.BoundsOf(page.ClearHistorySwitch).Right, 1);
             Assert.Equal(rig.BoundsOf(page.MouseLockHotkeyBox).Width, rig.BoundsOf(page.HotkeyBox).Width, 1);

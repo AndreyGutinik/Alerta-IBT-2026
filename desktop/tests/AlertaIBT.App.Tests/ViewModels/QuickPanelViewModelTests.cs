@@ -504,6 +504,10 @@ internal sealed class FakeGateway(TimeProvider clock) : IAlertGateway
 
     public void TogglePause() => Toggles++;
 
+    public List<bool> AlertSwitches { get; } = [];
+
+    public void SetAlertsEnabled(bool on) => AlertSwitches.Add(on);
+
     public int Skips { get; private set; }
 
     public List<(string Id, int Delta)> Moves { get; } = [];

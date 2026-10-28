@@ -35,6 +35,7 @@ public sealed class AlertRuntime : IDisposable
     private readonly HistoryClearScheduler _weekly;
     private readonly GeminiHealthMonitor _gemini;
     private readonly ILogger<AlertRuntime> _logger;
+    private readonly AlertsSwitch _switch;
     private int _started;
     private int _stopped;
 
@@ -75,7 +76,29 @@ public sealed class AlertRuntime : IDisposable
         _weekly = weekly;
         _gemini = gemini;
         _logger = logger;
+
+        // The master switch "Alertas ligados": the queue (and with it the bar), Telegram and the site start and stop together. The API,
+        // the history, the player and the rest keep running.
+        _switch = new AlertsSwitch(
+            () => _settings.Current.System.AlertsEnabled,
+            [
+                new AlertsPart("o servico de avisos", _alerts.Start, _alerts.StopAsync),
+                new AlertsPart("o Telegram", _telegram.Start, _telegram.StopAsync),
+                new AlertsPart("o site", () => _site.Apply(_settings.Current), StopSiteAsync),
+            ],
+            _hub,
+            _logger);
     }
+
+    /// <summary>Whether the alert side (queue, bar, Telegram, site) is running: the master switch "Alertas ligados" is on and has taken effect.</summary>
+    public bool AlertsOn => _switch.IsOn;
+
+    /// <summary>Waits until every change of the master switch asked so far has been carried out (for tests).</summary>
+    public Task AlertsSettledAsync() => _switch.SettledAsync();
+
+    /// <summary>Turns the master switch on or off (the setting; the parts follow in the background). Used by the "Ligar os alertas" button.</summary>
+    public void SetAlertsEnabled(bool on) =>
+        _settings.Update(s => s.System.AlertsEnabled == on ? s : s with { System = s.System with { AlertsEnabled = on } });
 
     /// <summary>The alert service, for the windows.</summary>
     public AlertService Alerts => _alerts;
@@ -105,10 +128,8 @@ public sealed class AlertRuntime : IDisposable
         _led.LedChanged += UpdateLed;
 
         _offline.Warm();
-        Guarded("o servico de avisos", _alerts.Start);
-        Guarded("o Telegram", _telegram.Start);
+        Guarded("os alertas", _switch.Initialize); // the queue, Telegram and the site, unless "Alertas ligados" is off
         Guarded("a API local", () => _http.Start());
-        Guarded("o site", () => _site.Apply(_settings.Current));
 
         // The first Gemini probe comes a few seconds later, so it does not compete with the work above.
         Guarded("o monitor do Gemini", _gemini.Start);
@@ -149,6 +170,7 @@ public sealed class AlertRuntime : IDisposable
         _led.LedChanged -= UpdateLed;
         try
         {
+            _switch.Dispose();
             _weekly.Dispose();
             _gemini.Dispose();
             _telegram.Dispose();
@@ -179,7 +201,13 @@ public sealed class AlertRuntime : IDisposable
     private void OnSettingsChanged(AppSettings settings)
     {
         _hub.SetCorrectionMode(ModeOf(settings));
-        Guarded("o site", () => _site.Apply(settings));
+        Guarded("os alertas", _switch.Request);
+
+        // With the alerts off the site stays off whatever its own settings say; the switch applies them when it turns on.
+        if (settings.System.AlertsEnabled)
+        {
+            Guarded("o site", () => _site.Apply(settings));
+        }
 
         // A new key, model or correction switch is checked right away (debounced inside the monitor).
         Guarded("o monitor do Gemini", _gemini.OnSettingsChanged);
@@ -205,6 +233,14 @@ public sealed class AlertRuntime : IDisposable
         {
             _logger.LogError(ex, "Erro ao limpar o historico do site");
         }
+    }
+
+    // The alerts went off: the connector gets the settings with the site switched off, and the call waits until it has really let go.
+    private async Task StopSiteAsync()
+    {
+        var current = _settings.Current;
+        _site.Apply(current with { Site = current.Site with { Enabled = false } });
+        await _site.SettledAsync().ConfigureAwait(false);
     }
 
     private void OnCaptureExcludedChanged() => _hub.SetCaptureExcluded(_overlay.CaptureExcluded);

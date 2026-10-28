@@ -65,6 +65,7 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
     private int _sending;
     private bool _disposed;
     private HotkeyStatus _hotkey = HotkeyStatus.None;
+    private bool _alertsOn = true;
 
     [ObservableProperty]
     private StatusChip _telegram = new("Telegram", "LucideSend", StatusLight.Gray, "Telegram");
@@ -166,6 +167,12 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
 
     /// <summary>The music player (the row of previous, play/pause, next and the track title), or <c>null</c>.</summary>
     public PlayerViewModel? Player { get; }
+
+    /// <summary>Whether the alerts are on (the master switch "Alertas ligados"); off hides the alert part of the panel and keeps the player row.</summary>
+    public bool AlertsOn => _alertsOn;
+
+    /// <summary>The opposite of <see cref="AlertsOn"/>, for the note "Alertas desligados".</summary>
+    public bool AlertsOff => !_alertsOn;
 
     /// <summary>Whether the player row is shown: the player is on ("Player ligado"). Never shown when there is no player.</summary>
     public bool ShowPlayer => Player is { IsEnabled: true };
@@ -551,6 +558,14 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
         if (_disposed)
         {
             return;
+        }
+
+        var alertsOn = _hub.AlertsOn;
+        if (alertsOn != _alertsOn)
+        {
+            _alertsOn = alertsOn;
+            OnPropertyChanged(nameof(AlertsOn));
+            OnPropertyChanged(nameof(AlertsOff));
         }
 
         Telegram = Chip("Telegram", "LucideSend", _hub.Telegram);

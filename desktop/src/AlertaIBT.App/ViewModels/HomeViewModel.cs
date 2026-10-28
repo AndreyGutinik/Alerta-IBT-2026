@@ -225,6 +225,8 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         _logger = logger ?? NullLogger.Instance;
 
         SkipCommand = new RelayCommand(Skip);
+        TurnAlertsOnCommand = new RelayCommand(() => _gateway.SetAlertsEnabled(true));
+        Composer.PropertyChanged += OnComposerChanged;
         ClearQueueCommand = new RelayCommand(ClearQueue);
         ClearHistoryCommand = new AsyncRelayCommand(ClearHistoryAsync);
 
@@ -244,6 +246,15 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     /// <summary>"Próxima" and "Encerrar atual": both end the alert on the bar now.</summary>
     public IRelayCommand SkipCommand { get; }
 
+    /// <summary>Whether the alerts are on (the master switch "Alertas ligados" of Configurações).</summary>
+    public bool AlertsOn => Composer.AlertsOn;
+
+    /// <summary>Whether the banner "Alertas desligados" is shown.</summary>
+    public bool AlertsOff => Composer.AlertsOff;
+
+    /// <summary>The "Ligar os alertas" button of the banner: turns the master switch on (the bar, Telegram and the site start again).</summary>
+    public IRelayCommand TurnAlertsOnCommand { get; }
+
     /// <summary>The trash button of the queue: removes every waiting alert, asking nothing.</summary>
     public IRelayCommand ClearQueueCommand { get; }
 
@@ -252,6 +263,16 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     /// nothing, and tells what it did in <see cref="HistoryNoticeText"/> for a few seconds. Not offered again while it runs.
     /// </summary>
     public IAsyncRelayCommand ClearHistoryCommand { get; }
+
+    // The composer follows the status hub; the banner of the master switch follows the composer.
+    private void OnComposerChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(QuickPanelViewModel.AlertsOn) or nameof(QuickPanelViewModel.AlertsOff))
+        {
+            OnPropertyChanged(nameof(AlertsOn));
+            OnPropertyChanged(nameof(AlertsOff));
+        }
+    }
 
     /// <summary>Whether the result line of the history is shown.</summary>
     public bool HasHistoryNotice => HistoryNoticeText.Length > 0;
@@ -335,6 +356,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         }
 
         _gateway.Queue.Changed -= OnQueueChanged;
+        Composer.PropertyChanged -= OnComposerChanged;
     }
 
     /// <summary>TELEGRAM, SITE or PC.</summary>

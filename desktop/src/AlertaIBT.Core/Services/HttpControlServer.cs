@@ -42,6 +42,7 @@ public sealed class HttpControlServer : IDisposable
     private readonly IOverlayControl _overlay;
     private readonly IPlayerControl? _player;
     private readonly Func<string?>? _nextAlarm;
+    private readonly Func<bool>? _alertsOn;
     private readonly StatusHub? _hub;
     private readonly ILogger _logger;
     private readonly TimeProvider _clock;
@@ -59,6 +60,7 @@ public sealed class HttpControlServer : IDisposable
     /// <param name="clock">Times the retries.</param>
     /// <param name="player">What the <c>/player/...</c> routes drive; without it they answer 404 like any unknown route.</param>
     /// <param name="nextAlarm">The "next alarm" line for <c>/player/status</c>; may be <c>null</c>.</param>
+    /// <param name="alertsOn">Whether the alerts are on (the master switch); the <c>/overlay/...</c> routes answer "alertas desligados" while it says no. Always on when <c>null</c>.</param>
     public HttpControlServer(
         IOverlayControl overlay,
         StatusHub? hub,
@@ -66,7 +68,8 @@ public sealed class HttpControlServer : IDisposable
         int port = DefaultPort,
         TimeProvider? clock = null,
         IPlayerControl? player = null,
-        Func<string?>? nextAlarm = null)
+        Func<string?>? nextAlarm = null,
+        Func<bool>? alertsOn = null)
     {
         ArgumentNullException.ThrowIfNull(overlay);
         ArgumentNullException.ThrowIfNull(logger);
@@ -76,6 +79,7 @@ public sealed class HttpControlServer : IDisposable
         _overlay = overlay;
         _player = player;
         _nextAlarm = nextAlarm;
+        _alertsOn = alertsOn;
         _hub = hub;
         _logger = logger;
         _clock = clock ?? TimeProvider.System;
@@ -261,6 +265,17 @@ public sealed class HttpControlServer : IDisposable
             }
 
             var intent = OverlayIntent.Parse(method, rawUrl);
+            if (intent != OverlayIntentKind.NotFound && _alertsOn is not null && !_alertsOn())
+            {
+                // The alerts are switched off (a temple that only wants the sound): nothing is paused, resumed or reported, and the answer says why.
+                _logger.LogInformation("HTTP {Method} {Url}: alertas desligados", method, rawUrl);
+                Respond(
+                    context.Response,
+                    HttpStatusCode.OK,
+                    new Dictionary<string, object?> { ["success"] = false, ["disabled"] = true, ["message"] = "alertas desligados" });
+                return Task.CompletedTask;
+            }
+
             var matched = IsFallback(rawUrl, intent) ? intent == OverlayIntentKind.Off ? "fallback-off" : "fallback-on" : null;
             switch (intent)
             {

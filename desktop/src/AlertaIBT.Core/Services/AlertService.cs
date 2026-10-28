@@ -70,6 +70,7 @@ public sealed class AlertService : IOverlayControl, IDisposable
     private Task? _loop;
     private ITimer? _expireTimer;
     private int _started;
+    private int _hooked;
     private bool _disposed;
 
     /// <param name="queue">The queue (its state is kept on disk by <see cref="QueueStore"/>).</param>
@@ -130,18 +131,17 @@ public sealed class AlertService : IOverlayControl, IDisposable
     public bool IsPaused => _queue.IsPaused;
 
     /// <summary>
-    /// Starts the background loop and the expiry timer. Alerts restored from disk that waited too long expire now.
+    /// Starts the background loop and the expiry timer. Alerts restored from disk that waited too long expire now. It can be called again
+    /// after <see cref="StopAsync"/> (the master switch "Alertas ligados"): the queue is kept, so the alerts that waited play again.
     /// </summary>
     public void Start()
     {
-        if (Interlocked.Exchange(ref _started, 1) != 0)
+        if (_disposed || Interlocked.Exchange(ref _started, 1) != 0)
         {
             return;
         }
 
-        _queue.Changed += OnQueueChanged;
-        _display.LedPresenceChanged += OnLedPresenceChanged;
-        _pipeline.GeminiHealthChanged += OnGeminiHealthChanged;
+        Hook();
 
         // The alerts restored from disk were already told about the LED before the restart.
         foreach (var item in _queue.ToSnapshot().Pending)
@@ -166,6 +166,7 @@ public sealed class AlertService : IOverlayControl, IDisposable
     /// </summary>
     public async Task StopAsync()
     {
+        Unhook();
         _expireTimer?.Dispose();
         _expireTimer = null;
         var stop = _stop;
@@ -186,6 +187,38 @@ public sealed class AlertService : IOverlayControl, IDisposable
         {
             Fail("parar o servico de avisos", ex);
         }
+        finally
+        {
+            // Ready for another Start (the master switch turned on again).
+            _loop = null;
+            _stop = null;
+            stop.Dispose();
+            Volatile.Write(ref _started, 0);
+        }
+    }
+
+    private void Hook()
+    {
+        if (Interlocked.Exchange(ref _hooked, 1) != 0)
+        {
+            return;
+        }
+
+        _queue.Changed += OnQueueChanged;
+        _display.LedPresenceChanged += OnLedPresenceChanged;
+        _pipeline.GeminiHealthChanged += OnGeminiHealthChanged;
+    }
+
+    private void Unhook()
+    {
+        if (Interlocked.Exchange(ref _hooked, 0) == 0)
+        {
+            return;
+        }
+
+        _queue.Changed -= OnQueueChanged;
+        _display.LedPresenceChanged -= OnLedPresenceChanged;
+        _pipeline.GeminiHealthChanged -= OnGeminiHealthChanged;
     }
 
     /// <inheritdoc />
@@ -197,9 +230,7 @@ public sealed class AlertService : IOverlayControl, IDisposable
         }
 
         _disposed = true;
-        _queue.Changed -= OnQueueChanged;
-        _display.LedPresenceChanged -= OnLedPresenceChanged;
-        _pipeline.GeminiHealthChanged -= OnGeminiHealthChanged;
+        Unhook();
         try
         {
             StopAsync().Wait(TimeSpan.FromSeconds(3));
@@ -208,8 +239,6 @@ public sealed class AlertService : IOverlayControl, IDisposable
         {
             Fail("encerrar o servico de avisos", ex);
         }
-
-        _stop?.Dispose();
     }
 
     /// <summary>

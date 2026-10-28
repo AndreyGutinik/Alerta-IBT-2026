@@ -540,6 +540,39 @@
 
                     <!-- Sistema, in sections: each one a card with its title, one SettingRow per setting. -->
                     <local:SettingsSection
+                        x:Name="AlertsSection"
+                        Header="Alertas"
+                        Style="{StaticResource SettingsSectionStyle}">
+                        <local:SettingRow
+                            x:Name="AlertsRow"
+                            Title="Alertas ligados (barra no LED, Telegram, site e API do overlay)"
+                            Info="Desligado, o app só cuida do som: a barra no LED, o Telegram, o site e a API do overlay (/overlay) ficam parados e o painel rápido esconde a parte dos avisos.&#10;Serve para o templo menor, que não usa o telão. O player, o som, o travamento do mouse, o histórico e as atualizações continuam funcionando.&#10;Ligando de novo, tudo volta a funcionar sozinho."
+                            Style="{StaticResource SettingRowStyle}">
+                            <ToggleButton
+                                x:Name="AlertsSwitch"
+                                AutomationProperties.Name="Alertas ligados"
+                                IsChecked="{Binding AlertsEnabled, Mode=TwoWay}"
+                                Style="{StaticResource IbtSwitch}" />
+                            <local:SettingRow.Footer>
+                                <TextBlock
+                                    x:Name="AlertsOffHint"
+                                    Text="Alertas desligados: a barra, o Telegram, o site e a API do overlay estão parados. O som continua.">
+                                    <TextBlock.Style>
+                                        <Style BasedOn="{StaticResource IbtHint}" TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AlertsEnabled}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </local:SettingRow.Footer>
+                        </local:SettingRow>
+                    </local:SettingsSection>
+
+                    <local:SettingsSection
                         x:Name="MouseSection"
                         Header="Mouse"
                         Style="{StaticResource SettingsSectionStyle}">
