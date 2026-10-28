@@ -224,7 +224,48 @@ O travamento prende o cursor no **monitor principal do Windows**, para ele não 
 - [ ] **Atualização**: com o travamento ligado, quando o app reiniciar para se atualizar o mouse fica livre no reinício e volta preso ao abrir.
 - [ ] **Privacidade**: no Diagnóstico o único registro do Ctrl 3 vezes é `Ctrl x3: mouse centralizado`; nenhuma tecla aparece em lugar nenhum.
 
-## 17. Depois que tudo passou
+## 17. Som (volumes e saídas)
+
+A aba **Som** (barra lateral, depois de Configurações) cuida do volume e de **por onde sai cada som**. Nada aqui foi ouvido com o WING de verdade (o PC de desenvolvimento não tem a mesa), então esta parte é para conferir **de ouvido** na igreja. Antes: a mesa **WING** ligada por USB e o Holyrics aberto.
+
+- [ ] **Qualidade (uma vez)**: Windows > Configurações > Sistema > Som > Mais configurações de som > aba Reprodução > cada saída do WING (**Out 1-2** e **Out 3-4**) > Propriedades > Avançado: escolher **24 bits, 48000 Hz** (o formato da mesa). Assim o Windows não reamostra a música.
+- [ ] **Volumes ao abrir**: fechar o app e abrir (ou reiniciar o PC). Uns 6 s depois, no misturador de volume do Windows (clique direito no alto-falante > Abrir misturador de volume): **Volume geral 80%**, **Holyrics (javaw) 100%** assim que ele tocar, **Sons do Windows 0%**. Na aba Som, a linha embaixo de "Aplicar agora" diz o que foi aplicado.
+- [ ] **A cada vez que o programa abre**: fechar o Holyrics e abrir de novo: o volume dele volta ao da lista (não só na primeira vez). Mudar o volume do Holyrics à mão no misturador e **não** mexer em nada: o app não corrige de novo até o Holyrics fechar e abrir.
+- [ ] **Aplicar agora**: mudar o volume geral à mão, clicar **Aplicar agora**: volta ao valor da aba. Com "Ajustar o som ao iniciar" desligado, o app não mexe em volume nenhum sozinho (só em Aplicar agora).
+- [ ] **Mudo**: marcar "Mudo" em uma linha e **Aplicar agora**: o programa fica mudo no misturador. Desmarcar e aplicar de novo.
+- [ ] **Saída padrão do Windows (travada no WING)**: deixar "Travar a saída padrão neste dispositivo" ligado e a saída em "Automático (WING)". Com o WING ligado, a **saída padrão do Windows vira o WING**. Trocar a saída padrão à mão para outro aparelho: em até 1 s o app **põe de volta** no WING (no máximo 3 vezes por minuto, para não brigar com o Windows). Desligar a chave: o app para de mexer.
+- [ ] **WING desligado**: tirar o cabo USB. Na aba Som a linha diz "**WING ... desconectado, aguardando**" e o app **não troca nada**. Religar: a saída volta ao WING e o volume é posto de novo.
+- [ ] **Escolher a saída por nome**: a lista mostra as saídas ligadas e, se for o caso, a lembrada marcada **(desconectado)**. Escolher outra e voltar a **Automático** funciona; um aparelho escolhido é lembrado também em outra porta USB.
+- [ ] **Holyrics na saída 1-2**: com "Definir a saída do Holyrics" ligado (saída em "Automático (WING + 1-2)"), abrir o Holyrics e tocar um som: no Windows > Som > Misturador de volume, o Holyrics aparece com **Dispositivo de saída = WING Out 1-2**, e o som sai **só** pelas saídas 1-2 da mesa. A linha da aba Som diz "Holyrics toca em ...". Desligar a chave: o app **nunca mais mexe** nessa saída (o que já está gravado no Windows fica como está).
+- [ ] **Privacidade e log**: no Diagnóstico só aparecem nomes de aparelhos, nomes de programas e porcentagens (por exemplo "Som: Holyrics 100%").
+
+## 18. Player e despertadores
+
+O player toca a pasta de música da igreja (padrão: `C:\Users\gutni\Music\Mornye\Igreja`, trocável em **Som > Player > Lista de músicas**). Sai pelo **Out 3-4** do WING; o Holyrics continua no **Out 1-2** ao mesmo tempo (modo compartilhado do Windows).
+
+- [ ] **Tocar**: **Player ligado**, botão tocar: a música sai **só pelo Out 3-4** (na aba, a linha diz "Saída do player: WING ... Out 3-4"). Anterior, tocar/pausar, parar e próxima funcionam; **embaralhar** liga e desliga; **repetir** passa por desligado, toda a lista e esta música. A barra fina e o tempo andam.
+- [ ] **Saídas ao mesmo tempo**: tocar o player e um som do Holyrics: cada um na sua saída (1-2 e 3-4), sem estalo e sem um atrapalhar o outro. Abrir o misturador do Windows: o app aparece com o volume dele; o volume do player na aba Som mexe **só no player**.
+- [ ] **WING desligado**: tirar o cabo durante a música: a linha diz "desconectado, tocando na saída padrão" (ou espera) e a música volta sozinha no 3-4 quando o WING volta (na troca de música).
+- [ ] **Fades**: "Ao parar" em **5 s**: pausar e parar descem o volume em 5 s e depois silêncio; **3 s** e **seco** (para na hora, sem estalo). "Tocar" depois de uma pausa começa **outra** música.
+- [ ] **Holyrics: contagem regressiva do culto**: no Holyrics, na contagem que termina e abre o culto, chamar `http://127.0.0.1:8787/player/pause` (GET ou POST, no mesmo gatilho do `/overlay/off`, se for o caso): a música **desce em 5 s e para**. Conferir também `/player/play`, `/player/stop`, `/player/next`, `/player/previous` e `/player/status` no navegador (a resposta é JSON; com o player desligado diz `player desligado`).
+- [ ] **Teclas de mídia**: com "Teclas de mídia controlam o player" ligado, play/pausa, próxima, anterior e parar do teclado comandam o player. Com Spotify ou Chrome abertos eles também reagem (o app não engole a tecla). Desligar a chave: o player ignora.
+- [ ] **Listas (pastas)**: **+** escolhe uma pasta e cria a lista com o nome dela; o lápis renomeia; a lixeira tira a lista (as músicas ficam); **Trocar a pasta** muda a pasta; **Atualizar** lê a pasta de novo. Copiar uma música nova para a pasta: aparece em até 2 s sem parar a música.
+- [ ] **Despertador**: o de domingo vem às **18:00**, "não iniciar depois de" **18:25**, só domingo, e a linha "**Próximo despertador: domingo 18:00**" confere. Mudar a hora (tem que ser hh:mm completo), clicar nos dias (D S T Q Q S S), trocar a lista, ligar e desligar um despertador, **Adicionar despertador** e a lixeira.
+- [ ] **Disparo**: pôr um despertador 2 minutos adiante: a música começa na hora, **embaralhada**, repetindo a lista, com a subida de volume escolhida em "Ao começar pelo despertador" (5 s, 3 s ou seco). O despertador **nunca para** a música que já está tocando. Fechar e abrir o app no mesmo dia: **não** dispara de novo.
+- [ ] **Abrir o PC atrasado**: com o app fechado na hora, abrir às 18:10: a música começa **na hora que abre**; abrir às 18:30: **não** começa.
+- [ ] **Player desligado**: a chave "Player ligado" desligada para tudo na hora, os despertadores não disparam e o `/player/...` responde `player desligado`. O painel rápido (um clique na bandeja) mostra a linha do player (anterior, tocar/pausar, próxima e o título) **só com o player ligado**.
+- [ ] **Uso de recursos**: 2 horas de música seguidas: olhar CPU e memória do app no Gerenciador de Tarefas e se há estalos na troca de música.
+
+## 19. Alertas desligados (templo menor)
+
+Em **Configurações > Sistema > Alertas**, a chave "**Alertas ligados (barra no LED, Telegram, site e API do overlay)**" vem **ligada**. Desligada, o app só cuida do **som**: serve para o templo menor, que não usa o telão.
+
+- [ ] **Desligar**: a barra no LED some (se havia um aviso passando, ele volta para a fila), o **Telegram** e o **site** param (as bolinhas ficam cinza "Desligado"), e a fila não anda. A aba **Início** mostra o aviso **"Alertas desligados"** com o botão **Ligar os alertas**. O painel rápido (um clique na bandeja) esconde a parte dos avisos e deixa só a linha "Alertas desligados" e a do player.
+- [ ] **API do overlay**: `http://127.0.0.1:8787/overlay/on`, `/overlay/off` e `/overlay/status` respondem **200** com `{"success":false,"disabled":true,"message":"alertas desligados"}` e **não pausam nada**. As rotas `/player/...` continuam respondendo normalmente.
+- [ ] **O resto continua**: player, aba Som, travamento do mouse, histórico e atualizações funcionam com os alertas desligados. O app abre desligado (a chave é lembrada).
+- [ ] **Ligar de novo**: pela chave ou pelo botão **Ligar os alertas** da aba Início: a barra, o Telegram e o site voltam sozinhos (as bolinhas ficam verdes em instantes), os avisos que esperavam na fila passam, e as rotas `/overlay/...` voltam às respostas de sempre.
+
+## 20. Depois que tudo passou
 
 - [ ] **Desinstalar o Alerta-IBT antigo (Electron)**: Configurações do Windows > Aplicativos > "Avisos de Estacionamento - IBT" (Alerta-IBT).
 - [ ] Conferir que o `AlertaIBT` continua no início do Windows e que o antigo não aparece mais lá.

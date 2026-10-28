@@ -67,6 +67,10 @@ O atalho pode ser trocado em Configurações > Sistema. Se outro programa já us
 
 **Bloqueador de mouse:** em Configurações > Sistema, a chave "Travar o mouse na tela principal" (ou o atalho **Ctrl+Alt+M**, ou o item do menu da bandeja) prende o cursor no monitor principal do Windows, para ele não parar no LED nem no retorno. Apertar **Ctrl três vezes** rápido leva o cursor ao centro da tela principal, com o travamento ligado ou não. O app só conta os Ctrl: não grava o que é digitado.
 
+**Som:** a aba **Som** põe o volume do Windows, do Holyrics, do player e dos sons do sistema ao abrir o PC e a cada vez que o programa abre; escolhe por onde sai o som (a saída padrão do Windows, travada no WING; o player, no Out 3-4; o Holyrics, no Out 1-2, pela saída por programa do Windows) e tem o **player de música** (listas = pastas, embaralhar, repetir, fades de 5 s, 3 s ou seco) com **despertadores** (horário, dias da semana e "não iniciar depois de"). O Holyrics controla o player pela API local (`/player/play`, `/player/pause`, `/player/stop`, `/player/next`, `/player/previous`, `/player/status`) e as teclas de mídia do teclado também.
+
+**Alertas desligáveis:** em Configurações > Sistema, a chave "Alertas ligados" liga e desliga a barra no LED, o Telegram, o site e a API do overlay de uma vez (para o templo menor, que só quer o som). Desligada, a aba Início avisa e tem o botão para ligar; `/overlay/on`, `/overlay/off` e `/overlay/status` respondem `{"success":false,"disabled":true,"message":"alertas desligados"}`.
+
 **Limpar histórico:** o botão no cabeçalho do **Histórico** (Início) apaga, sem perguntar, o histórico do PC e do site e as mensagens do bot no Telegram com menos de 48 h (o bot precisa ser administrador do grupo com "Excluir mensagens"). Não mexe na fila nem no que está passando. Toda segunda-feira, 00:00, isso acontece sozinho (se o PC estava desligado, na próxima vez que ligar); dá para desligar em Configurações > Sistema.
 
 ## Pregação (Holyrics)
@@ -77,7 +81,9 @@ O Holyrics chama a API local do app quando entra o slide da pregação:
 - `http://127.0.0.1:8787/overlay/on` volta ao normal (sem mensagem).
 - `http://127.0.0.1:8787/overlay/status` mostra o estado.
 
-São as mesmas rotas do app antigo; o gatilho do Holyrics não muda. O botão **Pausar** do painel e da janela faz a mesma coisa.
+São as mesmas rotas do app antigo; o gatilho do Holyrics não muda. O botão **Pausar** do painel e da janela faz a mesma coisa. Com os alertas desligados (Configurações > Sistema > Alertas) essas três rotas respondem `{"success":false,"disabled":true,"message":"alertas desligados"}`.
+
+Para o fim da contagem regressiva do culto, o Holyrics também pode chamar `http://127.0.0.1:8787/player/pause`: a música do player desce em 5 s e para.
 
 ## O que significam as bolinhas
 
