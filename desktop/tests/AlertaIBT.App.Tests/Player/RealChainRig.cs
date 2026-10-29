@@ -88,6 +88,8 @@ internal sealed class RealChainBackend(Dictionary<string, string> realFiles, int
 
     public List<string> Opened { get; } = [];
 
+    public TrackProfile? Analyze(string path, int sampleRate, int channels) => _real.Analyze(realFiles[path], sampleRate, channels);
+
     public IPcmTrack OpenTrack(string path, int sampleRate, int channels)
     {
         Opened.Add(path);

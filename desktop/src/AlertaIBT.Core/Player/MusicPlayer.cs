@@ -30,6 +30,12 @@ public interface IPlayerBackend
 
     /// <summary>Opens a file as float samples in the given format: decoded as it is (24-bit stays 24-bit) and, when the rate differs, resampled with the best quality. Throws when it cannot be read.</summary>
     IPcmTrack OpenTrack(string path, int sampleRate, int channels);
+
+    /// <summary>
+    /// Finds where the sound of a file really starts and ends (leading silence, quiet tail) by decoding only its head and its tail; the answer is
+    /// cached per file. <c>null</c> (the default) means "unknown": the header lengths are used. May take tens of milliseconds: never on the audio thread.
+    /// </summary>
+    TrackProfile? Analyze(string path, int sampleRate, int channels) => null;
 }
 
 /// <summary>
@@ -87,6 +93,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     private bool _pausedSeeked;
     private IPcmTrack? _preloaded;
     private string? _preloadedPath;
+    private bool _preloadedSkipped;
     private string? _preloading;
     private string? _preloadFailed;
     private int _trackToken;
@@ -572,6 +579,14 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
             return;
         }
 
+        if (_preloaded is not null && string.Equals(wanted, _preloadedPath, StringComparison.OrdinalIgnoreCase) && _preloadedSkipped != (Options.CrossfadeSeconds > 0))
+        {
+            // The crossfade was switched on or off: the waiting track must (or must not) have its leading silence skipped.
+            session.Mixer.ClearNext();
+            _preloaded = null;
+            _preloadedPath = null;
+        }
+
         if (string.Equals(wanted, _preloadedPath, StringComparison.OrdinalIgnoreCase)
             || string.Equals(wanted, _preloading, StringComparison.OrdinalIgnoreCase)
             || string.Equals(wanted, _preloadFailed, StringComparison.OrdinalIgnoreCase))
@@ -606,9 +621,22 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     private void PreloadNext(Session session, int token, int preload, string path)
     {
         IPcmTrack? pcm = null;
+        TrackProfile? profile = null;
+        var skipped = false;
         try
         {
             pcm = _backend.OpenTrack(path, session.Mixer.SampleRate, session.Mixer.Channels);
+            if (Options.CrossfadeSeconds > 0)
+            {
+                // With a crossfade the new track enters at its first sound, not at its leading silence.
+                profile = SafeAnalyze(path, session);
+                if (profile is { } p && p.EffectiveStart >= TimeSpan.FromMilliseconds(100) && p.EffectiveStart < p.RealDuration)
+                {
+                    pcm.Seek(p.EffectiveStart);
+                }
+
+                skipped = true;
+            }
         }
         catch (Exception ex)
         {
@@ -633,9 +661,10 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
                 && string.Equals(_queue.PeekAuto(), path, StringComparison.OrdinalIgnoreCase))
             {
                 _preloadedPaths.AddOrUpdate(pcm, path);
-                session.Mixer.SetNext(pcm);
+                session.Mixer.SetNext(pcm, profile);
                 _preloaded = pcm;
                 _preloadedPath = path;
+                _preloadedSkipped = skipped;
                 pcm = null;
             }
 
@@ -643,6 +672,38 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         });
 
         pcm?.Dispose();
+    }
+
+    // Where the sound of `path` really starts and ends; null when the backend cannot say (then the header lengths are used).
+    private TrackProfile? SafeAnalyze(string path, Session session)
+    {
+        try
+        {
+            return _backend.Analyze(path, session.Mixer.SampleRate, session.Mixer.Channels);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nao foi possivel medir o inicio e o fim de {File}", Path.GetFileName(path));
+            return null;
+        }
+    }
+
+    // Measures the track that just started (off the lock) so a crossfade at its end is anchored on its last sound, not on its quiet tail.
+    private void AnalyzeCurrent(Session session, IPcmTrack pcm, string path)
+    {
+        if (Options.CrossfadeSeconds <= 0)
+        {
+            return;
+        }
+
+        _post(() =>
+        {
+            var profile = SafeAnalyze(path, session);
+            if (profile is not null)
+            {
+                session.Mixer.SetProfile(pcm, profile);
+            }
+        });
     }
 
     private void OnOutputFailed(Session session, Exception? error)
@@ -708,6 +769,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
                 }
 
                 _pausedSeeked = false;
+                AnalyzeCurrent(session, pcm, path);
 
                 _current = info;
                 _state = PlayerState.Playing;
@@ -904,6 +966,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     // Makes the queue, the volume and the master switch match the settings (idempotent).
     private void ApplyOptions(PlayerSettings options)
     {
+        var crossfadeBefore = _applied?.CrossfadeSeconds ?? 0;
         if (!options.Equals(_applied))
         {
             _applied = options;
@@ -914,6 +977,10 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         _queue.Repeat = PlayerRepeatText.Parse(options.Repeat);
         _session?.Mixer.SetVolume(options.Volume / 100f, options.StartMuted);
         _session?.Mixer.SetCrossfade(options.CrossfadeSeconds);
+        if (options.CrossfadeSeconds > 0 && !(crossfadeBefore > 0) && _session is { } running && running.Mixer.Track is { } playing && _current is { } now)
+        {
+            AnalyzeCurrent(running, playing, now.Path); // the crossfade was just switched on: measure the track that is already playing
+        }
 
         if (!string.Equals(_playlist, options.CurrentPlaylist, StringComparison.Ordinal))
         {

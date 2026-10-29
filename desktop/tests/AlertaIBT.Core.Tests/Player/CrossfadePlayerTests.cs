@@ -107,6 +107,37 @@ public sealed class CrossfadePlayerTests : IDisposable
     }
 
     [Fact]
+    public void The_crossfade_is_anchored_on_the_last_sound_of_the_track_and_the_next_one_skips_its_leading_silence()
+    {
+        // Track 01 has its last sound at 3.0 s of its 4 s; track 02 starts to sound at 0.5 s.
+        Backend.ProfileFor = path => path.Contains("track 01")
+            ? new TrackProfile(TimeSpan.Zero, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(4))
+            : new TrackProfile(TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(4));
+        _rig.Change(p => p with { CrossfadeSeconds = 1 });
+        Player.Play();
+
+        Pull(1.9);
+        Assert.Equal("track 01", TrackName);
+        Pull(0.2); // 2.1 s: the overlap began at 2.0 s (3.0 minus 1), not at 3.0 s
+
+        Assert.Equal("track 02", TrackName);
+        Assert.InRange(Player.GetStatus().Position.TotalSeconds, 0.55, 0.7); // it started at its first sound (0.5 s)
+        Assert.Contains(Backend.Tracks, t => t.Path.Contains("track 02") && t.Position >= TimeSpan.FromSeconds(0.5));
+    }
+
+    [Fact]
+    public void Without_a_crossfade_nothing_is_measured_and_the_next_track_starts_at_zero()
+    {
+        Backend.ProfileFor = _ => new TrackProfile(TimeSpan.FromSeconds(0.5), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(4));
+        Player.Play();
+
+        Pull(0.1);
+
+        Assert.Empty(Backend.Analyzed);
+        Assert.Equal("track 01", TrackName);
+    }
+
+    [Fact]
     public void In_the_middle_of_the_overlap_both_tracks_are_heard()
     {
         _rig.Change(p => p with { CrossfadeSeconds = 2 });

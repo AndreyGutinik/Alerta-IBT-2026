@@ -111,6 +111,17 @@ internal sealed class FakePlayerBackend : IPlayerBackend
 
     public Exception? OutputError { get; set; }
 
+    /// <summary>Where the sound of a file really starts and ends (null: the backend cannot say, the header lengths are used).</summary>
+    public Func<string, TrackProfile?>? ProfileFor { get; set; }
+
+    public List<string> Analyzed { get; } = [];
+
+    public TrackProfile? Analyze(string path, int sampleRate, int channels)
+    {
+        Analyzed.Add(path);
+        return ProfileFor?.Invoke(path);
+    }
+
     public HashSet<string> BadFiles { get; } = [];
 
     public List<FakeOutput> Outputs { get; } = [];

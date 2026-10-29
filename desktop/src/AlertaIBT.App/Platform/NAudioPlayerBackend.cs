@@ -98,6 +98,23 @@ public sealed class NAudioPlayerBackend : IPlayerBackend
         }
     }
 
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long Stamp, TrackProfile Profile)> _profiles = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <inheritdoc />
+    public TrackProfile? Analyze(string path, int sampleRate, int channels)
+    {
+        var info = new System.IO.FileInfo(path);
+        var stamp = info.Exists ? info.LastWriteTimeUtc.Ticks ^ info.Length : 0;
+        if (_profiles.TryGetValue(path, out var cached) && cached.Stamp == stamp)
+        {
+            return cached.Profile;
+        }
+
+        var profile = TrackAnalyzer.Analyze(() => OpenTrack(path, sampleRate, channels), sampleRate, channels);
+        _profiles[path] = (stamp, profile);
+        return profile;
+    }
+
     // Pulls the player's mixer as 32-bit float at the device's rate and channel count.
     private sealed class SourceWaveProvider : WaveProvider32
     {

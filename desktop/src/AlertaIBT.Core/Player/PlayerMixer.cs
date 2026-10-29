@@ -63,8 +63,10 @@ public sealed class PlayerMixer : IPcmSource
     private long _trackBase;
     private long _trackRead;
     private long _trackLength;
+    private long _trackAnchor = -1;
     private IPcmTrack? _next;
     private long _nextLength;
+    private TrackProfile? _nextProfile;
     private IPcmTrack? _outgoing;
     private long _overlapTotal;
     private long _overlapDone;
@@ -259,7 +261,9 @@ public sealed class PlayerMixer : IPcmSource
     /// Hands over the track that follows the current one, already decoded: it takes over with no gap when the current one ends (or is mixed in
     /// over the last seconds when a crossfade is set). A track that was waiting is disposed. Disposing is up to the mixer from here on.
     /// </summary>
-    public void SetNext(IPcmTrack track)
+    /// <param name="track">The decoded next track (already positioned at its effective start when a crossfade is wanted).</param>
+    /// <param name="profile">Where its sound really starts and ends (null: the header lengths are used).</param>
+    public void SetNext(IPcmTrack track, TrackProfile? profile = null)
     {
         ArgumentNullException.ThrowIfNull(track);
 
@@ -268,10 +272,35 @@ public sealed class PlayerMixer : IPcmSource
         {
             old = _next;
             _next = track;
-            _nextLength = ToSamples(track.Duration);
+            _nextProfile = profile;
+            var length = profile is null ? track.Duration : Max(track.Duration, profile.RealDuration);
+            _nextLength = Math.Max(0, ToSamples(length) - ToSamples(track.Position));
         }
 
         old?.Dispose();
+    }
+
+    /// <summary>Tells the mixer where the sound of the current track really ends (found after it started playing); ignored when <paramref name="track"/> is no longer the current one.</summary>
+    public void SetProfile(IPcmTrack track, TrackProfile? profile)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+
+        lock (_gate)
+        {
+            if (ReferenceEquals(_track, track) && profile is not null)
+            {
+                ApplyProfile(profile);
+            }
+        }
+    }
+
+    private static TimeSpan Max(TimeSpan a, TimeSpan b) => a > b ? a : b;
+
+    // Caller holds the lock.
+    private void ApplyProfile(TrackProfile profile)
+    {
+        _trackLength = Math.Max(_trackLength, ToSamples(profile.RealDuration));
+        _trackAnchor = ToSamples(Max(TimeSpan.Zero, profile.EffectiveEnd));
     }
 
     /// <summary>Drops the track that was waiting (it is disposed). A crossfade that already started is not touched.</summary>
@@ -282,6 +311,7 @@ public sealed class PlayerMixer : IPcmSource
         {
             old = _next;
             _next = null;
+            _nextProfile = null;
         }
 
         old?.Dispose();
@@ -456,6 +486,7 @@ public sealed class PlayerMixer : IPcmSource
         }
 
         _next = null;
+        _nextProfile = null;
         _outgoing = null;
         _overlapTotal = 0;
         _overlapDone = 0;
@@ -466,12 +497,17 @@ public sealed class PlayerMixer : IPcmSource
     }
 
     // Caller holds the lock. Makes `track` the current one: where it starts and how long it is, in samples.
-    private void Attach(IPcmTrack? track)
+    private void Attach(IPcmTrack? track, TrackProfile? profile = null)
     {
         _track = track;
         _trackRead = 0;
         _trackBase = track is null ? 0 : ToSamples(track.Position);
         _trackLength = track is null ? 0 : ToSamples(track.Duration);
+        _trackAnchor = -1;
+        if (track is not null && profile is not null)
+        {
+            ApplyProfile(profile);
+        }
     }
 
     private long ToSamples(TimeSpan time) => (long)Math.Round(Math.Max(0, time.TotalSeconds) * SampleRate) * Channels;
@@ -479,13 +515,14 @@ public sealed class PlayerMixer : IPcmSource
     // Caller holds the lock. The samples of overlap that apply now (0 when there is no crossfade or the lengths are not known).
     private long OverlapSamples()
     {
-        if (_crossfadeSeconds <= 0 || _trackLength <= 0)
+        if (_crossfadeSeconds <= 0 || (_trackAnchor < 0 ? _trackLength : _trackAnchor) <= 0)
         {
             return 0;
         }
 
         var perSecond = (double)SampleRate * Channels;
-        var seconds = ClampCrossfade(_crossfadeSeconds, TimeSpan.FromSeconds(_trackLength / perSecond), TimeSpan.FromSeconds(_nextLength / perSecond));
+        var outLength = _trackAnchor >= 0 ? _trackAnchor : _trackLength;
+        var seconds = ClampCrossfade(_crossfadeSeconds, TimeSpan.FromSeconds(Math.Max(0, outLength) / perSecond), TimeSpan.FromSeconds(_nextLength / perSecond));
         return (long)Math.Round(seconds * SampleRate) * Channels;
     }
 
@@ -517,7 +554,7 @@ public sealed class PlayerMixer : IPcmSource
                 var overlap = OverlapSamples();
                 if (overlap > 0)
                 {
-                    var remaining = _trackLength - (_trackBase + _trackRead);
+                    var remaining = (_trackAnchor >= 0 ? _trackAnchor : _trackLength) - (_trackBase + _trackRead);
                     if (remaining <= overlap)
                     {
                         StartOverlap(remaining, overlap, ref advanced);
@@ -542,8 +579,9 @@ public sealed class PlayerMixer : IPcmSource
                 {
                     // Gapless: the rest of this very buffer already comes from the next track.
                     (dropped ??= []).Add(current);
-                    Attach(_next);
+                    Attach(_next, _nextProfile);
                     _next = null;
+                    _nextProfile = null;
                     _endRaised = false;
                     (advanced ??= []).Add(_track!);
                     continue;
@@ -570,8 +608,9 @@ public sealed class PlayerMixer : IPcmSource
         _overlapTotal = Math.Max(Channels, length);
         _overlapDone = 0;
         _outgoing = _track;
-        Attach(_next);
+        Attach(_next, _nextProfile);
         _next = null;
+        _nextProfile = null;
         _endRaised = false;
         (advanced ??= []).Add(_track!);
     }
