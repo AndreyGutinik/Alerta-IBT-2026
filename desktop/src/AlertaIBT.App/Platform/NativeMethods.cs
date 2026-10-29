@@ -19,6 +19,11 @@ internal static class NativeMethods
     public const uint SWP_NOZORDER = 0x0004;
     public const uint SWP_NOACTIVATE = 0x0010;
     public const uint SWP_SHOWWINDOW = 0x0040;
+    public const uint SWP_HIDEWINDOW = 0x0080;
+    public const uint LWA_ALPHA = 0x2;
+    public const uint GW_HWNDNEXT = 2;
+    public const uint GW_HWNDPREV = 3;
+    public const int WM_ERASEBKGND = 0x0014;
 
     public const int WM_MOUSEACTIVATE = 0x0021;
     public const int WM_NCHITTEST = 0x0084;
@@ -52,6 +57,9 @@ internal static class NativeMethods
     public static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new(-4);
 
     public static readonly IntPtr HWND_TOPMOST = new(-1);
+
+    /// <summary>Puts the window at the bottom of the z-order of its band (below every other non-topmost window).</summary>
+    public static readonly IntPtr HWND_BOTTOM = new(1);
 
     public delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdc, ref RECT rect, IntPtr data);
 
@@ -111,6 +119,15 @@ internal static class NativeMethods
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool SetWindowPos(IntPtr hWnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool SetLayeredWindowAttributes(IntPtr hWnd, uint colorKey, byte alpha, uint flags);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetWindow(IntPtr hWnd, uint command);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsWindowVisible(IntPtr hWnd);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint affinity);
