@@ -32,6 +32,9 @@ public sealed record AppSettings
 
     /// <summary>The music player: playlists, alarms, fades, output and volume.</summary>
     public PlayerSettings Player { get; init; } = new();
+
+    /// <summary>The NDI camera on the telao (receive only).</summary>
+    public NdiSettings Ndi { get; init; } = new();
 }
 
 /// <summary>How the bar looks and moves.</summary>

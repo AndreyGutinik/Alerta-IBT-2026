@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using AlertaIBT.Core.Http;
+using AlertaIBT.Core.Ndi;
 using AlertaIBT.Core.Player;
 using Microsoft.Extensions.Logging;
 
@@ -41,6 +42,7 @@ public sealed class HttpControlServer : IDisposable
 
     private readonly IOverlayControl _overlay;
     private readonly IPlayerControl? _player;
+    private readonly INdiControl? _ndi;
     private readonly Func<string?>? _nextAlarm;
     private readonly Func<bool>? _alertsOn;
     private readonly StatusHub? _hub;
@@ -60,6 +62,7 @@ public sealed class HttpControlServer : IDisposable
     /// <param name="clock">Times the retries.</param>
     /// <param name="player">What the <c>/player/...</c> routes drive; without it they answer 404 like any unknown route.</param>
     /// <param name="nextAlarm">The "next alarm" line for <c>/player/status</c>; may be <c>null</c>.</param>
+    /// <param name="ndi">What the <c>/ndi/...</c> routes drive (the telao camera); without it they answer 404. Independent of <paramref name="alertsOn"/>.</param>
     /// <param name="alertsOn">Whether the alerts are on (the master switch); the <c>/overlay/...</c> routes answer "alertas desligados" while it says no. Always on when <c>null</c>.</param>
     public HttpControlServer(
         IOverlayControl overlay,
@@ -69,7 +72,8 @@ public sealed class HttpControlServer : IDisposable
         TimeProvider? clock = null,
         IPlayerControl? player = null,
         Func<string?>? nextAlarm = null,
-        Func<bool>? alertsOn = null)
+        Func<bool>? alertsOn = null,
+        INdiControl? ndi = null)
     {
         ArgumentNullException.ThrowIfNull(overlay);
         ArgumentNullException.ThrowIfNull(logger);
@@ -78,6 +82,7 @@ public sealed class HttpControlServer : IDisposable
 
         _overlay = overlay;
         _player = player;
+        _ndi = ndi;
         _nextAlarm = nextAlarm;
         _alertsOn = alertsOn;
         _hub = hub;
@@ -264,6 +269,13 @@ public sealed class HttpControlServer : IDisposable
                 return Task.CompletedTask;
             }
 
+            // The NDI camera owns /ndi; it does not depend on the alerts switch.
+            if (_ndi is not null && NdiIntent.IsNdiPath(rawUrl))
+            {
+                HandleNdi(context.Response, method, rawUrl, _ndi);
+                return Task.CompletedTask;
+            }
+
             var intent = OverlayIntent.Parse(method, rawUrl);
             if (intent != OverlayIntentKind.NotFound && _alertsOn is not null && !_alertsOn())
             {
@@ -322,6 +334,37 @@ public sealed class HttpControlServer : IDisposable
         }
 
         return Task.CompletedTask;
+    }
+
+    private void HandleNdi(HttpListenerResponse response, string method, string rawUrl, INdiControl ndi)
+    {
+        var intent = NdiIntent.Parse(method, rawUrl);
+        if (intent == NdiIntentKind.NotFound)
+        {
+            _logger.LogInformation("HTTP {Method} {Url}: rota desconhecida", method, rawUrl);
+            Respond(
+                response,
+                HttpStatusCode.NotFound,
+                new Dictionary<string, object?>
+                {
+                    ["success"] = false,
+                    ["error"] = "not_found",
+                    ["received"] = new Dictionary<string, object?> { ["method"] = method, ["url"] = rawUrl },
+                });
+            return;
+        }
+
+        if (intent == NdiIntentKind.Status)
+        {
+            _logger.LogDebug("HTTP {Method} {Url}", method, rawUrl);
+        }
+        else
+        {
+            _logger.LogInformation("HTTP {Method} {Url}: ndi {Intent}", method, rawUrl, intent);
+        }
+
+        // 200 whether it worked or not: success:false with the reason is the answer (for example "runtime NDI ausente").
+        Respond(response, HttpStatusCode.OK, NdiIntent.Execute(intent, ndi));
     }
 
     private void HandlePlayer(HttpListenerResponse response, string method, string rawUrl, IPlayerControl player)

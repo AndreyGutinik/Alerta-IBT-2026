@@ -1,11 +1,13 @@
 using System.Windows;
 using AlertaIBT.App.Hosting;
+using AlertaIBT.App.Ndi;
 using AlertaIBT.App.Overlay;
 using AlertaIBT.App.Platform;
 using AlertaIBT.App.Services;
 using AlertaIBT.App.Tray;
 using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Input;
+using AlertaIBT.Core.Ndi;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Services;
 using AlertaIBT.Core.Settings;
@@ -34,8 +36,13 @@ public sealed class AppShell : IDisposable
     private readonly MusicPlayer _player;
     private readonly AlarmScheduler _alarms;
     private readonly AudioController _audio;
+    private readonly NdiService _ndi;
+    private readonly NdiTelaoHost _ndiHost;
+    private readonly Func<MessageWindow, INdiHotkeyRegistry> _ndiRegistryFactory;
 
     private MessageWindow? _messages;
+    private INdiHotkeyRegistry? _ndiRegistry;
+    private NdiHotkeyController? _ndiHotkeys;
     private HotkeyService? _hotkeys;
     private HotkeyService? _mouseHotkeys;
     private MouseLockSignals? _mouseSignals;
@@ -57,7 +64,10 @@ public sealed class AppShell : IDisposable
         MouseLockController mouse,
         MusicPlayer player,
         AlarmScheduler alarms,
-        AudioController audio)
+        AudioController audio,
+        NdiService ndi,
+        NdiTelaoHost ndiHost,
+        Func<MessageWindow, INdiHotkeyRegistry> ndiRegistryFactory)
     {
         _logger = logger;
         _settings = settings;
@@ -72,6 +82,9 @@ public sealed class AppShell : IDisposable
         _player = player;
         _alarms = alarms;
         _audio = audio;
+        _ndi = ndi;
+        _ndiHost = ndiHost;
+        _ndiRegistryFactory = ndiRegistryFactory;
     }
 
     /// <summary>The user wants the quick panel (tray click or the hotkey). Raised on the UI thread.</summary>
@@ -97,6 +110,12 @@ public sealed class AppShell : IDisposable
 
     /// <summary>The sound rules of the "Som" tab (started by <see cref="Start"/>).</summary>
     public AudioController Audio => _audio;
+
+    /// <summary>The NDI telao engine (commands, status, events), for the NDI tab.</summary>
+    public NdiService Ndi => _ndi;
+
+    /// <summary>The NDI shortcuts (F1-F4, Ctrl+Space) and their conflicts; valid after <see cref="Start"/>.</summary>
+    public NdiHotkeyController? NdiHotkeys => _ndiHotkeys;
 
     /// <summary>The tray icon, so other parts can add menu items or notifications.</summary>
     public TrayService Tray => _tray;
@@ -171,6 +190,18 @@ public sealed class AppShell : IDisposable
         {
             _logger.LogWarning(ex, "Nao foi possivel iniciar o som");
         }
+
+        // NDI -> telao: the layer is OFF at every start (it is never saved); the shortcuts exist only while their setting is on.
+        _ndiHost.Start();
+        _messages.DisplayChanged += _ndiHost.NotifyDisplayChanged;
+        _ndiRegistry = _ndiRegistryFactory(_messages);
+        _ndiHotkeys = new NdiHotkeyController(_ndiRegistry, _ndi, _logger);
+        if (_ndiRegistry is NdiHotkeyRegistry realRegistry)
+        {
+            realRegistry.Pressed += id => _ndiHotkeys?.OnHotkey(id);
+        }
+
+        _ndiHotkeys.Apply(_settings.Current.Ndi.ShortcutsEnabled);
 
         _settings.Changed += OnSettingsChanged;
 
@@ -269,6 +300,9 @@ public sealed class AppShell : IDisposable
         _alarms.Dispose();
         _player.Dispose(); // the sound stops at once, before the slow parts
         _audio.Dispose();
+        _ndiHotkeys?.Dispose();
+        (_ndiRegistry as IDisposable)?.Dispose();
+        _ndiHost.Dispose(); // hides the camera window before anything slow runs
         _mouseHotkeys?.Dispose();
         _overlay.Dispose(); // first: it ends the pass in progress, so stopping the alert service does not wait for the UI thread
         _runtime.Dispose();
@@ -307,6 +341,7 @@ public sealed class AppShell : IDisposable
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             _hotkey?.Apply(changed.System.Hotkey);
+            _ndiHotkeys?.Apply(_settings.Current.Ndi.ShortcutsEnabled);
 
             // The newest settings, not this snapshot: two quick toggles must end on the last one.
             _mouse.ApplySettings(_settings.Current.MouseLock);

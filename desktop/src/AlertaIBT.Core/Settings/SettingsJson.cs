@@ -73,6 +73,7 @@ public static partial class SettingsJson
             var mouseLock = Section(root, "mouseLock");
             var audio = Section(root, "audio");
             var player = Section(root, "player");
+            var ndi = Section(root, "ndi");
 
             var settings = new AppSettings
             {
@@ -165,6 +166,15 @@ public static partial class SettingsJson
                     Playlists = ReadPlaylists(player) ?? defaults.Player.Playlists,
                     AlarmsEnabled = ReadBool(player, "alarmsEnabled") ?? defaults.Player.AlarmsEnabled,
                     Alarms = ReadAlarms(player) ?? defaults.Player.Alarms,
+                },
+                Ndi = new NdiSettings
+                {
+                    ShortcutsEnabled = ReadBool(ndi, "shortcutsEnabled") ?? defaults.Ndi.ShortcutsEnabled,
+                    FixedIps = ReadStrings(ndi, "fixedIps") ?? defaults.Ndi.FixedIps,
+                    Cameras = ReadCameras(ndi) ?? defaults.Ndi.Cameras,
+                    MonitorLocked = ReadBool(ndi, "monitorLocked") ?? defaults.Ndi.MonitorLocked,
+                    MonitorDeviceName = ReadString(ndi, "monitorDeviceName") ?? defaults.Ndi.MonitorDeviceName,
+                    HideFromCapture = ReadBool(ndi, "hideFromCapture") ?? defaults.Ndi.HideFromCapture,
                 },
             };
             return (Normalize(settings), false);
@@ -288,6 +298,20 @@ public static partial class SettingsJson
                     ["lastFiredOn"] = alarm.LastFiredOn,
                 }).ToArray()),
             },
+            ["ndi"] = new JsonObject
+            {
+                ["shortcutsEnabled"] = n.Ndi.ShortcutsEnabled,
+                ["fixedIps"] = new JsonArray(n.Ndi.FixedIps.Select(ip => (JsonNode)JsonValue.Create(ip)!).ToArray()),
+                ["cameras"] = new JsonArray(n.Ndi.Cameras.Select(camera => (JsonNode)new JsonObject
+                {
+                    ["name"] = camera.Name,
+                    ["source"] = camera.Source,
+                    ["verticalPosition"] = camera.VerticalPosition,
+                }).ToArray()),
+                ["monitorLocked"] = n.Ndi.MonitorLocked,
+                ["monitorDeviceName"] = n.Ndi.MonitorDeviceName,
+                ["hideFromCapture"] = n.Ndi.HideFromCapture,
+            },
         };
         return root.ToJsonString(WriteOptions);
     }
@@ -312,6 +336,7 @@ public static partial class SettingsJson
         var mouseLock = s.MouseLock ?? d.MouseLock;
         var audio = s.Audio ?? d.Audio;
         var player = s.Player ?? d.Player;
+        var ndi = s.Ndi ?? d.Ndi;
 
         return new AppSettings
         {
@@ -390,7 +415,51 @@ public static partial class SettingsJson
                 HolyricsMatch = NormalizeWords(audio.HolyricsMatch) ?? AudioSettings.DefaultHolyricsWords,
             },
             Player = NormalizePlayer(player),
+            Ndi = NormalizeNdi(ndi),
         };
+    }
+
+    // The NDI part held usable: exactly six slots (missing ones filled with the defaults), position 0..100, no blank or repeated fixed address.
+    private static NdiSettings NormalizeNdi(NdiSettings n)
+    {
+        var d = new NdiSettings();
+        var cameras = new List<NdiCameraSlot>(NdiSettings.SlotCount);
+        var given = n.Cameras ?? d.Cameras;
+        for (var i = 0; i < NdiSettings.SlotCount; i++)
+        {
+            var fallback = d.Cameras[i];
+            var slot = i < given.Count ? given[i] : null;
+            cameras.Add(slot is null
+                ? fallback
+                : new NdiCameraSlot(
+                    NullIfBlank(slot.Name) ?? fallback.Name,
+                    NullIfBlank(slot.Source) ?? string.Empty,
+                    Math.Clamp(slot.VerticalPosition, 0, 100)));
+        }
+
+        return new NdiSettings
+        {
+            ShortcutsEnabled = n.ShortcutsEnabled,
+            FixedIps = NormalizeWords(n.FixedIps) ?? d.FixedIps,
+            Cameras = cameras,
+            MonitorLocked = n.MonitorLocked,
+            MonitorDeviceName = NullIfBlank(n.MonitorDeviceName) ?? string.Empty,
+            HideFromCapture = n.HideFromCapture,
+        };
+    }
+
+    private static List<NdiCameraSlot>? ReadCameras(JsonElement ndi)
+    {
+        if (Find(ndi, "cameras") is not { ValueKind: JsonValueKind.Array } list)
+        {
+            return null;
+        }
+
+        return list.EnumerateArray()
+            .Select(item => item.ValueKind == JsonValueKind.Object
+                ? new NdiCameraSlot(ReadString(item, "name") ?? string.Empty, ReadString(item, "source") ?? string.Empty, ReadInt(item, "verticalPosition") ?? NdiSettings.DefaultVerticalPosition)
+                : new NdiCameraSlot(string.Empty, string.Empty))
+            .ToList();
     }
 
     // The player held usable. Empty lists are kept (the owner removed everything); only a missing (null) list gets the defaults.

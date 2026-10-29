@@ -1,6 +1,7 @@
 using System.IO;
 using System.Net.Http;
 using System.Windows;
+using AlertaIBT.App.Ndi;
 using AlertaIBT.App.Overlay;
 using AlertaIBT.App.Platform;
 using AlertaIBT.App.Services;
@@ -12,6 +13,7 @@ using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Firebase;
 using AlertaIBT.Core.Input;
+using AlertaIBT.Core.Ndi;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Screens;
@@ -155,10 +157,33 @@ public static class AppHost
             provider.GetRequiredService<ILogger<MouseLockController>>(),
             provider.GetRequiredService<MediaKeyRouter>()));
         ConfigurePlayer(services);
+        ConfigureNdi(services);
         services.AddSingleton<TrayService>();
         services.AddSingleton<AppShell>();
         ConfigureQuickPanel(services);
         ConfigureMainWindow(services, paths);
+    }
+
+    // NDI -> telao (receive only): the runtime is loaded from the NDI Tools folder at run time (never shipped), nothing is shown until the layer is turned on.
+    private static void ConfigureNdi(IServiceCollection services)
+    {
+        services.AddSingleton<INdiRuntime>(provider => NdiLibrary.Load(provider.GetRequiredService<ILogger<NdiLibrary>>()));
+        services.AddSingleton(provider => new NdiService(
+            provider.GetRequiredService<INdiRuntime>(),
+            provider.GetRequiredService<SettingsService>(),
+            TimeProvider.System,
+            provider.GetRequiredService<ILogger<NdiService>>()));
+        services.AddSingleton<INdiControl>(provider => provider.GetRequiredService<NdiService>());
+        services.AddSingleton(provider => new NdiTelaoHost(
+            provider.GetRequiredService<NdiService>(),
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<ILedSource>(),
+            provider.GetRequiredService<IUiDispatcher>(),
+            MonitorService.Enumerate,
+            provider.GetRequiredService<ILogger<NdiTelaoHost>>()));
+
+        // The shortcuts register on the shell's message window; a test swaps this factory so no real global hotkey is taken.
+        services.AddSingleton<Func<MessageWindow, INdiHotkeyRegistry>>(_ => window => new NdiHotkeyRegistry(window));
     }
 
     // The music player: nothing here touches a device or a folder until the shell starts it (tests replace the backend and the audio system).
@@ -538,7 +563,8 @@ public static class AppHost
             null,
             provider.GetRequiredService<MusicPlayer>(),
             () => provider.GetRequiredService<AlarmScheduler>().NextAlarmText,
-            () => provider.GetRequiredService<SettingsService>().Current.System.AlertsEnabled));
+            () => provider.GetRequiredService<SettingsService>().Current.System.AlertsEnabled,
+            provider.GetRequiredService<NdiService>()));
         services.AddSingleton<AlertRuntime>();
     }
 }
