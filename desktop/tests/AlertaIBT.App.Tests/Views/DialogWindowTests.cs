@@ -22,7 +22,7 @@ public sealed class DialogWindowTests
             Assert.NotEqual(IntPtr.Zero, handle);
             Assert.False(box.IsVisible);
             Assert.True(CaptureExclusion.IsExcluded(handle));
-            Assert.Equal("Sair do Alerta-IBT?", box.Title);
+            Assert.Equal("Sair do IBT Controller?", box.Title);
             Assert.Equal("Sair", box.PrimaryButtonText);
         });
     }

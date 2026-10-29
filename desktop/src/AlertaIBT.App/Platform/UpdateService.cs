@@ -331,7 +331,7 @@ public sealed class UpdateService : IUpdateStatus, IDisposable
         try
         {
             _arguments = arguments ?? [];
-            _logger.LogInformation("Alerta-IBT {Version} (instalado: {Installed})", _client.CurrentVersion, _client.IsInstalled);
+            _logger.LogInformation("IBT Controller {Version} (instalado: {Installed})", _client.CurrentVersion, _client.IsInstalled);
             if (!_client.IsInstalled)
             {
                 return; // development build: there is nothing to update

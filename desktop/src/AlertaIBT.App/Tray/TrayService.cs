@@ -17,7 +17,7 @@ namespace AlertaIBT.App.Tray;
 /// </summary>
 public sealed class TrayService : IDisposable
 {
-    private const string AppName = "Alerta-IBT";
+    private const string AppName = "IBT Controller";
 
     private readonly TaskbarIcon _icon;
     private readonly MenuItem _pauseItem;

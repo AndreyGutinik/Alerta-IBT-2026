@@ -1,7 +1,7 @@
 namespace AlertaIBT.App.Platform;
 
 /// <summary>
-/// Only one Alerta-IBT per Windows session. A second copy does not start: it asks the first one to show its window and exits.
+/// Only one IBT Controller per Windows session. A second copy does not start: it asks the first one to show its window and exits.
 /// The lock is a named mutex, so it is owned by the thread that took it; take it and release it on the same thread (the
 /// UI thread in the app).
 /// </summary>

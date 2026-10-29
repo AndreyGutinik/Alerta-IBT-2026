@@ -1,6 +1,6 @@
-# Política de privacidade do Alerta-IBT
+# Política de privacidade do IBT Controller
 
-O Alerta-IBT mostra avisos curtos de estacionamento no LED da igreja. Esta página diz, sem rodeios, que dados o app e o site tratam e para onde eles vão.
+O IBT Controller mostra avisos curtos de estacionamento no LED da igreja. Esta página diz, sem rodeios, que dados o app e o site tratam e para onde eles vão.
 
 ## O que é tratado
 
@@ -14,7 +14,7 @@ O Alerta-IBT mostra avisos curtos de estacionamento no LED da igreja. Esta pági
 | Serviço | O que recebe | Para quê |
 |---|---|---|
 | **Telegram** | As mensagens do grupo e as respostas do bot | Receber avisos e responder a quem enviou |
-| **Google Gemini** (plano grátis) | O texto do aviso (carro, cor, placa, motivo) | Corrigir ortografia e organizar o aviso. **No plano grátis o Google pode usar os textos para melhorar os produtos dele.** Dá para desligar em Configurações → Correção; o corretor offline continua funcionando |
+| **Google Gemini** (plano grátis) | O texto do aviso (carro, cor, placa, motivo) | Corrigir ortografia e organizar o aviso. **No plano grátis o Google pode usar os textos para melhorar os produtos dele.** Dá para desligar em Início → Correção (ícone «Só offline»); o corretor offline continua funcionando |
 | **Firebase / Google Cloud** (`alertaibt`) | Conta Google (nome, e-mail), os avisos enviados pelo site e o estado do telão | Entrar no site, enviar e acompanhar avisos. Pedidos finalizados são apagados do banco em até 24 h e pela limpeza semanal |
 | **GitHub** | Nada do uso do app | Só entrega as atualizações do instalador |
 

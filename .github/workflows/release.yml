@@ -1,6 +1,6 @@
 name: release-windows
 
-# Builds, tests and packs the Alerta-IBT 8 installer with Velopack and publishes it as a GitHub Release.
+# Builds, tests and packs the IBT Controller 8 installer with Velopack and publishes it as a GitHub Release.
 # Runs when a stable tag vX.Y.Z is pushed (or by hand). Nothing here runs on a normal push.
 # Pre-releases (tags like vX.Y.Z-pre.N) do not match and are published by hand (see docs/PROXIMOS-PASSOS.md).
 on:
@@ -75,6 +75,6 @@ jobs:
           --repoUrl https://github.com/${{ github.repository }}
           --outputDir artifacts/Releases
           --tag v${{ steps.version.outputs.version }}
-          --releaseName "Alerta-IBT ${{ steps.version.outputs.version }}"
+          --releaseName "IBT Controller ${{ steps.version.outputs.version }}"
           --token ${{ secrets.GITHUB_TOKEN }}
           --publish

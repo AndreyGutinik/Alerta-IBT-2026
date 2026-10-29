@@ -84,7 +84,7 @@ Se a conta já existe mas não há senha guardada neste computador, o script par
 
 ## 5. Ligar o app do PC ao site
 
-No app do PC (**Alerta-IBT**): **Configurações** → bloco **Site** (abaixo do Telegram).
+No app do PC (**IBT Controller**): **Configurações** → bloco **Site** (abaixo do Telegram).
 
 1. **URL do banco**: `https://alertaibt-default-rtdb.firebaseio.com`.
 2. **Chave da API (web)**: a de `artifacts\credenciais-pc.txt` (ou de `web/.env`, `VITE_FIREBASE_API_KEY`).

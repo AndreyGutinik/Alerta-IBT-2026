@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Builds the Alerta-IBT installer (Setup.exe) and the update packages with Velopack. Does NOT publish anything.
+  Builds the IBT Controller installer (Setup.exe) and the update packages with Velopack. Does NOT publish anything.
 
 .DESCRIPTION
   1. dotnet publish: self-contained, ReadyToRun, win-x64 (the church PC needs no .NET installed).
@@ -52,7 +52,7 @@ try {
   $csprojVersion = ([xml](Get-Content -LiteralPath $project -Raw)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
   if (-not $Version) { $Version = $csprojVersion }
   if ($Version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') { throw "Versao invalida: '$Version' (use x.y.z ou x.y.z-pre.N)." }
-  Write-Host "[pack] Alerta-IBT $Version (csproj: $csprojVersion)" -ForegroundColor Cyan
+  Write-Host "[pack] IBT Controller $Version (csproj: $csprojVersion)" -ForegroundColor Cyan
 
   Invoke-Native 'dotnet tool restore' { dotnet tool restore }
 
@@ -77,7 +77,7 @@ try {
   Write-Host '[pack] empacotando com vpk...' -ForegroundColor Cyan
   Invoke-Native 'vpk pack' {
     dotnet vpk pack --packId $PackId --packVersion $Version --packDir $publishDir --mainExe $MainExe `
-      --packTitle 'Alerta-IBT' --packAuthors 'IBT' --icon $icon --runtime win-x64 --outputDir $releasesDir
+      --packTitle 'IBT Controller' --packAuthors 'IBT' --icon $icon --runtime win-x64 --outputDir $releasesDir
   }
 
   Write-Host ''

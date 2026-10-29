@@ -1,4 +1,6 @@
-# Alerta-IBT 8
+# IBT Controller 8
+
+(Antes chamado Alerta-IBT. O identificador interno, a pasta `%AppData%AlertaIBT`, o repositório e o site `alertaibt.web.app` continuam com o nome antigo, para a atualização automática e as configurações seguirem funcionando.)
 
 Aplicativo do PC do telão da igreja. Mostra avisos (principalmente de carros no estacionamento) numa **barra no topo do LED 2560x768**, sem aparecer na transmissão (OBS, NDI ou print do Windows).
 
@@ -20,14 +22,14 @@ O app **sempre abre escondido na bandeja**, seja pelo Windows, pelo atalho do me
 
 **Atualizações:** ao abrir, o app espera 5 s, procura uma versão nova nas Releases do GitHub (**pré-lançamentos incluídos**: vale sempre a mais alta) e, achando, baixa e **instala e reinicia sozinho quando está ocioso**: nada na fila, nada na barra, sem pregação pausada e sem envio em andamento. Se estiver ocupado, deixa a versão baixada e instala assim que ficar ocioso (e, de qualquer jeito, na próxima abertura). Procura de novo a cada 30 minutos, então um PC que fica ligado por dias também atualiza. Reinicia com os mesmos argumentos (na bandeja, se estava na bandeja) e salva a fila antes. Em **Configurações → Sistema** há o interruptor "Atualizar automaticamente ao abrir", a versão, o botão **Verificar agora** e a linha com o resultado da última verificação. Sem internet, nada acontece e nada dá erro; uma atualização que falha não é repetida mais de 2 vezes em 24 h. Versões instaladas antes da 8.0.1 não se atualizam sozinhas para ela (veja `docs/PROXIMOS-PASSOS.md`).
 
-**Desinstalar:** Configurações do Windows > Aplicativos > Alerta-IBT. Isso também tira o app do início do Windows. Suas configurações em `%AppData%\AlertaIBT` ficam guardadas (apague essa pasta para começar do zero).
+**Desinstalar:** Configurações do Windows > Aplicativos > IBT Controller. Isso também tira o app do início do Windows. Suas configurações em `%AppData%\AlertaIBT` ficam guardadas (apague essa pasta para começar do zero).
 
 ## Configurar (uma vez)
 
 Abra a janela (dois cliques no ícone da bandeja ou **Abrir**).
 
 - **Configurações > Telegram:** cole o **token** do bot e o **ID do chat** do grupo. Os dois ficam atrás de um cadeado ("Trocar" abre para editar). O token é guardado criptografado.
-- **Correção > chave do Gemini:** cole a chave grátis do [Google AI Studio](https://aistudio.google.com/apikey). Sem chave, o app corrige só offline (funciona, mas a bolinha do Gemini fica azul "Offline"). Atenção: no plano grátis o Google pode usar os textos enviados para melhorar os produtos dele. Os textos são só carro, cor, placa e motivo.
+- **Início > Correção (seção que abre pela seta) > chave do Gemini:** cole a chave grátis do [Google AI Studio](https://aistudio.google.com/apikey). Sem chave, o app corrige só offline (funciona, mas a bolinha do Gemini fica azul "Offline"). Atenção: no plano grátis o Google pode usar os textos enviados para melhorar os produtos dele. Os textos são só carro, cor, placa e motivo.
 - **Configurações > Barra no LED:** posição (topo ou rodapé), tamanho e velocidade, com prévia ao vivo. O botão **Mostrar barra 3 s no LED** testa na tela de verdade.
 
 Tudo salva sozinho (aparece "Salvo às hh:mm"). Não existe botão Salvar.

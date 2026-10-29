@@ -69,14 +69,14 @@ public sealed class MouseLockShellTests : IDisposable
             Assert.True(shell.MouseLock.IsLocked);
             Assert.Equal(new AlertaIBT.Core.Screens.ScreenRect(0, 0, 1920, 1080), _cursor.Clip);
             Assert.True(tray.MouseLockItem.IsChecked);
-            Assert.Equal("Alerta-IBT - mouse travado", tray.ToolTip);
+            Assert.Equal("IBT Controller - mouse travado", tray.ToolTip);
             Assert.True(settings.Current.MouseLock.Enabled);
 
             Click(tray.MouseLockItem);
 
             Assert.False(shell.MouseLock.IsLocked);
             Assert.False(tray.MouseLockItem.IsChecked);
-            Assert.Equal("Alerta-IBT", tray.ToolTip);
+            Assert.Equal("IBT Controller", tray.ToolTip);
             Assert.False(settings.Current.MouseLock.Enabled);
         });
     }

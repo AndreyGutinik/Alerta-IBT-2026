@@ -107,10 +107,10 @@ public partial class App : Application
         catch (Exception ex)
         {
             // A start that fails must not leave a live process without a tray icon holding the lock.
-            logger.LogCritical(ex, "Falha ao iniciar o Alerta-IBT");
+            logger.LogCritical(ex, "Falha ao iniciar o IBT Controller");
             if (_host is null)
             {
-                Serilog.Log.Fatal(ex, "Falha ao iniciar o Alerta-IBT");
+                Serilog.Log.Fatal(ex, "Falha ao iniciar o IBT Controller");
             }
 
             _instance?.Dispose();
@@ -141,7 +141,7 @@ public partial class App : Application
                 }
                 catch (Exception ex)
                 {
-                    _host.Services.GetRequiredService<ILogger<App>>().LogError(ex, "Erro ao encerrar o Alerta-IBT");
+                    _host.Services.GetRequiredService<ILogger<App>>().LogError(ex, "Erro ao encerrar o IBT Controller");
                 }
                 finally
                 {

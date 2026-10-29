@@ -81,21 +81,21 @@ public sealed class TrayServiceTests
         WpfTestHost.Run(() =>
         {
             using var tray = new TrayService();
-            Assert.Equal("Alerta-IBT", tray.ToolTip);
+            Assert.Equal("IBT Controller", tray.ToolTip);
 
             tray.SetMouseLocked(true);
-            Assert.Equal("Alerta-IBT - mouse travado", tray.ToolTip);
+            Assert.Equal("IBT Controller - mouse travado", tray.ToolTip);
 
             tray.SetPaused(true);
-            Assert.Equal("Alerta-IBT - pausado - mouse travado", tray.ToolTip);
+            Assert.Equal("IBT Controller - pausado - mouse travado", tray.ToolTip);
 
             tray.SetHotkeyWarning("Atalho em uso");
-            Assert.Equal("Alerta-IBT - pausado - mouse travado\nAtalho em uso", tray.ToolTip);
+            Assert.Equal("IBT Controller - pausado - mouse travado\nAtalho em uso", tray.ToolTip);
 
             tray.SetHotkeyWarning(null);
             tray.SetPaused(false);
             tray.SetMouseLocked(false);
-            Assert.Equal("Alerta-IBT", tray.ToolTip);
+            Assert.Equal("IBT Controller", tray.ToolTip);
         });
     }
 
@@ -146,20 +146,20 @@ public sealed class TrayServiceTests
         WpfTestHost.Run(() =>
         {
             using var tray = new TrayService();
-            Assert.Equal("Alerta-IBT", tray.ToolTip);
+            Assert.Equal("IBT Controller", tray.ToolTip);
 
             tray.SetHotkeyWarning("Atalho Ctrl+Alt+Espa\U000000E7o em uso por outro programa");
-            Assert.Equal("Alerta-IBT\nAtalho Ctrl+Alt+Espa\U000000E7o em uso por outro programa", tray.ToolTip);
+            Assert.Equal("IBT Controller\nAtalho Ctrl+Alt+Espa\U000000E7o em uso por outro programa", tray.ToolTip);
 
             tray.SetPaused(true);
-            Assert.Equal("Alerta-IBT - pausado\nAtalho Ctrl+Alt+Espa\U000000E7o em uso por outro programa", tray.ToolTip);
+            Assert.Equal("IBT Controller - pausado\nAtalho Ctrl+Alt+Espa\U000000E7o em uso por outro programa", tray.ToolTip);
 
             tray.SetHotkeyWarning(null);
-            Assert.Equal("Alerta-IBT - pausado", tray.ToolTip);
+            Assert.Equal("IBT Controller - pausado", tray.ToolTip);
 
             tray.SetPaused(false);
             tray.SetHotkeyWarning("  ");
-            Assert.Equal("Alerta-IBT", tray.ToolTip);
+            Assert.Equal("IBT Controller", tray.ToolTip);
         });
     }
 
@@ -171,17 +171,17 @@ public sealed class TrayServiceTests
             using var tray = new TrayService();
 
             tray.SetUpdateNotice("Baixando a atualiza\U000000E7\U000000E3o 8.0.1-pre.2\U00002026");
-            Assert.Equal("Alerta-IBT\nBaixando a atualiza\U000000E7\U000000E3o 8.0.1-pre.2\U00002026", tray.ToolTip);
+            Assert.Equal("IBT Controller\nBaixando a atualiza\U000000E7\U000000E3o 8.0.1-pre.2\U00002026", tray.ToolTip);
 
             tray.SetPaused(true);
             tray.SetHotkeyWarning("Atalho em uso");
             tray.SetUpdateNotice("Instalando e reiniciando\U00002026");
-            Assert.Equal("Alerta-IBT - pausado\nAtalho em uso\nInstalando e reiniciando\U00002026", tray.ToolTip);
+            Assert.Equal("IBT Controller - pausado\nAtalho em uso\nInstalando e reiniciando\U00002026", tray.ToolTip);
 
             tray.SetUpdateNotice(null);
             tray.SetHotkeyWarning(null);
             tray.SetPaused(false);
-            Assert.Equal("Alerta-IBT", tray.ToolTip);
+            Assert.Equal("IBT Controller", tray.ToolTip);
         });
     }
 

@@ -1,4 +1,4 @@
-# Projeto: Alerta-IBT
+# Projeto: IBT Controller (antes Alerta-IBT)
 
 ## Objetivo
 
@@ -18,7 +18,7 @@ A regra antiga "não trocar a stack" (versão Electron) foi **revogada** pelo do
 
 ## Nome do app e do instalador
 
-App: Alerta-IBT. Pacote Velopack: `AlertaIBT` (instalador `AlertaIBT-win-Setup.exe`), publicado nas Releases de `AndreyGutinik/Alerta-IBT-2026`.
+App: IBT Controller (nome visível; id interno AlertaIBT). Pacote Velopack: `AlertaIBT` (instalador `AlertaIBT-win-Setup.exe`), publicado nas Releases de `AndreyGutinik/Alerta-IBT-2026`.
 
 ## Funcionalidades
 
@@ -27,7 +27,7 @@ App: Alerta-IBT. Pacote Velopack: `AlertaIBT` (instalador `AlertaIBT-win-Setup.e
 - Telegram por long polling (grupo, prefixo `#`), com respostas no grupo (exibido, faltou campo, repetido, LED desligado, expirado, pausa).
 - Formato `MODELO COR | PLACA: ABC-1234 | MOTIVO`, placas antiga e Mercosul, aviso livre.
 - Correção: Gemini grátis com trava de segurança, corretor offline (Hunspell), regras fixas do usuário.
-- Painel rápido na bandeja (clique e atalho global), janela com Início, Correção e Configurações, autosave.
+- Painel rápido na bandeja (clique e atalho global), janela com Início (com a Correção numa seção dobrável), Som e Configurações, autosave.
 - API local `127.0.0.1:8787` (`/overlay/status|on|off`) para o Holyrics pausar na pregação.
 - Início com o Windows sempre; instância única; atualização automática pelas Releases.
 

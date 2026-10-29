@@ -1,4 +1,4 @@
-# Checklist do teste na igreja (Alerta-IBT 8.0.0)
+# Checklist do teste na igreja (IBT Controller 8.0.2)
 
 Roteiro para testar o app novo no **PC do telão** (o PC do Holyrics, com o LED 2560x768). Marque cada item. Se algo falhar, anote o que viu e copie o log em **Configurações > Diagnóstico > Copiar logs**.
 
@@ -26,7 +26,7 @@ Tempo estimado: 1h30 com calma. Levar: o instalador, o celular com o Telegram, o
 ## 2. Instalar e primeira abertura
 
 - [ ] Rodar o `Setup.exe`. Se o Windows mostrar "O Windows protegeu o computador" (instalador sem assinatura), clicar em **Mais informações > Executar assim mesmo**.
-- [ ] O app abre sozinho, com a **janela** (primeira vez), escura, com a fonte Marble e os acentos certos (Ã, Ç, É), a barra lateral com Início, Correção e Configurações e, embaixo, cinco linhas pequenas de status.
+- [ ] O app abre sozinho, com a **janela** (primeira vez), escura, com a fonte Marble e os acentos certos (Ã, Ç, É), a barra lateral com Início, Som e Configurações e, embaixo, cinco linhas pequenas de status.
 - [ ] Clicar no **X** da janela: ela some e o app **continua na bandeja** (o ícone perto do relógio).
 - [ ] Abrir o app de novo pelo Menu Iniciar: **não** nasce um segundo ícone nem um segundo processo; a janela volta para a frente.
 - [ ] Se o app antigo estava no início do Windows (ou aberto), apareceu **um aviso único** sobre ele, com o botão para tirá-lo do início do Windows. Responder **Sim**. (O aviso não volta mais.)
@@ -51,9 +51,9 @@ Tempo estimado: 1h30 com calma. Levar: o instalador, o celular com o Telegram, o
 ### Chave grátis do Gemini
 
 - [ ] Entrar em **aistudio.google.com/apikey** com a conta Google e criar uma **chave de API** (plano grátis, sem cartão). Lembrete: no plano grátis o Google pode usar os textos enviados para melhorar os produtos dele (aqui só vão carro, cor, placa e motivo).
-- [ ] Em **Correção**: colar a chave (vira bolinhas); o seletor fica em **Gemini**. Esperar "Salvo".
+- [ ] Em **Início > Correção** (seção fechada, abre pela seta): colar a chave (vira bolinhas); o ícone de **Gemini** fica aceso (verde). Esperar "Salvo".
 - [ ] **Testar um aviso com a chave.** No painel rápido ou em Início, digitar `prata corolla bra2e19 vidro abrto` e esperar cerca de 0,7 s: a prévia deve aparecer **verde** ("Vai aparecer assim: COROLLA PRATA | PLACA: BRA-2E19 | VIDRO ABERTO") e a bolinha do **Gemini** ficar **verde "Online"**.
-- [ ] **Bolinha do Gemini sem digitar nada.** Abrir o app com a chave salva: em cerca de 10 s a bolinha do **Gemini** (lateral e aba Correção) sai de cinza e fica **verde "Online"** (passa antes por amarelo "Verificando"); passar o mouse mostra "Gemini conectado há N min". Sem chave: cinza **"Sem chave"** ("Chave do Gemini não configurada"). Tirar a rede: na próxima verificação (30 s, 1 min, 2 min... a cada falha, até 30 min) a bolinha fica azul **"Offline"** com o motivo ("Offline: tempo esgotado"). Chave errada: azul com o motivo do Google (ex.: "Offline: HTTP 403 PERMISSION_DENIED"). Trocar a chave ou o modelo em Correção refaz a verificação em ~3 s. A verificação é **uma** pergunta mínima ("ok") no máximo a cada 30 min, e nenhuma enquanto avisos reais estiverem sendo corrigidos; no Diagnóstico aparece `Gemini: conectado (modelo ..., N ms)`.
+- [ ] **Bolinha do Gemini sem digitar nada.** Abrir o app com a chave salva: em cerca de 10 s a bolinha do **Gemini** (lateral e cabeçalho da seção Correção, em Início) sai de cinza e fica **verde "Online"** (passa antes por amarelo "Verificando"); passar o mouse mostra "Gemini conectado há N min". Sem chave: cinza **"Sem chave"** ("Chave do Gemini não configurada"). Tirar a rede: na próxima verificação (30 s, 1 min, 2 min... a cada falha, até 30 min) a bolinha fica azul **"Offline"** com o motivo ("Offline: tempo esgotado"). Chave errada: azul com o motivo do Google (ex.: "Offline: HTTP 403 PERMISSION_DENIED"). Trocar a chave ou o modelo em Correção refaz a verificação em ~3 s. A verificação é **uma** pergunta mínima ("ok") no máximo a cada 30 min, e nenhuma enquanto avisos reais estiverem sendo corrigidos; no Diagnóstico aparece `Gemini: conectado (modelo ..., N ms)`.
 - [ ] **Atenção: se a bolinha do Gemini ficar azul "Offline" depois de digitar um aviso válido (e a prévia mostrar "(offline)"), o Gemini NÃO está funcionando.** O app continua funcionando offline, mas agora diz o motivo no log: abrir **Configurações > Diagnóstico** e procurar as linhas que começam com `Gemini`. Cada falha deixa **uma linha** com o motivo e o modelo (nunca a chave nem o texto digitado), e o mesmo motivo só aparece **uma vez por minuto**. Exemplos exatos do que pode aparecer:
   - `Gemini falhou: HTTP 403 PERMISSION_DENIED: API key not valid. Please pass a valid API key. (modelo gemini-3.5-flash-lite)` : chave errada ou com restrição.
   - `Gemini falhou: HTTP 429 RESOURCE_EXHAUSTED: <mensagem do Google> (modelo gemini-3.5-flash-lite)` : cota do plano grátis acabou, esperar. (A parte `RESOURCE_EXHAUSTED: ...` é o corpo da resposta do Google; se o Google não mandar corpo, a linha fica só `HTTP 429`.)
@@ -65,11 +65,11 @@ Tempo estimado: 1h30 com calma. Levar: o instalador, o celular com o Telegram, o
   - `Gemini: recusou o texto (blockReason SAFETY) (modelo gemini-3.5-flash-lite)` : o Gemini recusou um texto impróprio.
   - `Gemini offline: os avisos usam so o corretor offline` e `Gemini online` : as mudanças de estado da bolinha.
 
-  Conferir a chave e o **modelo** em Correção > Avançado (vazio = padrão `gemini-3.5-flash-lite`) e anotar a linha do log para eu corrigir.
+  Conferir a chave e o **modelo** em Configurações > Modelo do Gemini (vazio = padrão `gemini-3.5-flash-lite`) e anotar a linha do log para eu corrigir.
 - [ ] Mandar um texto ofensivo com a chave configurada: **nada** passa na barra, o grupo recebe `❌ ... conteúdo impróprio.` e o histórico mostra a linha ❌.
 - [ ] Tirar o Wi-Fi/cabo de rede e mandar um aviso: a prévia sai azul "(offline)", o aviso passa corrigido pelo dicionário offline e o Gemini fica azul "Offline". Religar a rede: volta a verde sozinho no próximo aviso.
 - [ ] Colar uma chave com espaço ou curta: recusada com a dica.
-- [ ] Em Correção, desligar a correção automática: a bolinha do Gemini fica cinza "Desligada". Ligar de novo e escolher **Só offline**: azul "Offline". Voltar para Gemini.
+- [ ] Em Início > Correção, desligar a correção automática: a bolinha do Gemini fica cinza "Desligada". Ligar de novo e tocar no ícone **Só offline**: azul "Offline". Voltar para Gemini.
 - [ ] Regras fixas: digitar `abrto => aberto`, uma linha inválida (`sem seta`): o aviso diz "1 regra · 1 linha ignorada". Reiniciar o app e conferir que as escolhas ficaram.
 
 ## 4. LED e barra (o item mais importante)
@@ -220,7 +220,7 @@ O travamento prende o cursor no **monitor principal do Windows**, para ele não 
 - [ ] **Desligar e religar um monitor** (cabo do LED ou do retorno) com o travamento ligado: em até 1 s o mouse continua preso à tela principal. No Diagnóstico, uma linha "Travamento do mouse refeito" é normal.
 - [ ] **Trocar o monitor principal** no Windows (Configurações > Sistema > Tela > escolher o monitor > "Tornar este meu vídeo principal"): em até 1 s o mouse fica preso ao **novo** principal, e Ctrl 3 vezes leva ao centro dele. Voltar o principal ao que era.
 - [ ] **UAC, bloqueio e área de trabalho remota**: com o travamento ligado, abrir um aviso do UAC (instalador), bloquear e desbloquear o Windows (Win+L) e conectar/desconectar por área de trabalho remota: depois de voltar, o mouse continua preso (ou volta a prender em até 1 s). **Ctrl+Alt+Del** solta o mouse por conta própria do Windows e ele volta a prender sozinho.
-- [ ] **Matar o processo**: com o travamento ligado, Gerenciador de Tarefas > Finalizar tarefa em "Alerta-IBT". O Windows deve soltar o mouse sozinho (ele passa a andar pelos 3 monitores). Se não soltar, anotar; Ctrl+Alt+Del solta, e reabrir o app e desligar a chave também.
+- [ ] **Matar o processo**: com o travamento ligado, Gerenciador de Tarefas > Finalizar tarefa em "IBT Controller". O Windows deve soltar o mouse sozinho (ele passa a andar pelos 3 monitores). Se não soltar, anotar; Ctrl+Alt+Del solta, e reabrir o app e desligar a chave também.
 - [ ] **Atualização**: com o travamento ligado, quando o app reiniciar para se atualizar o mouse fica livre no reinício e volta preso ao abrir.
 - [ ] **Privacidade**: no Diagnóstico o único registro do Ctrl 3 vezes é `Ctrl x3: mouse centralizado`; nenhuma tecla aparece em lugar nenhum.
 
@@ -278,7 +278,7 @@ Em **Configurações > Sistema > Alertas**, a chave "**Alertas ligados (barra no
 |---|---|
 | Telegram vermelho "Conflito" | Outro programa lendo o mesmo bot (o app antigo). Fechar o antigo. |
 | HTTP/API "Porta ocupada" | O app antigo (porta 8787). Fechar o antigo; o novo toma a porta em até 30 s. |
-| Gemini azul "Offline" com internet e chave | O Gemini não está funcionando: log do Diagnóstico, modelo em Correção > Avançado, chave. |
+| Gemini azul "Offline" com internet e chave | O Gemini não está funcionando: log do Diagnóstico, modelo em Configurações > Modelo do Gemini, chave. |
 | Barra vermelha | A barra não conseguiu se esconder da captura: log do Diagnóstico. |
 | Barra não aparece | LED desligado ou sem 2560x768 (bolinha LED vermelha), app pausado (pílula "Pausada"), ou o aviso foi recusado (histórico). |
 | Bolinha Site vermelha ou "PC offline" no celular | Seção "Se der erro" de `docs/SITE-COMO-PUBLICAR.md` (login, regras, internet do PC). |

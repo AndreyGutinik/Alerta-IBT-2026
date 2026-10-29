@@ -75,7 +75,7 @@ Os testes do App (`TestIsolation`, módulo inicial) definem as duas com nomes ú
 
 ### Início do app
 
-O app **sempre** abre escondido na bandeja (`StartupPlan.Decide`): a janela só aparece na primeira abertura após instalar (não existia `settings.json`) e quando uma segunda abertura acorda a instância que já roda. Abertura manual (sem `--tray`) mostra um aviso "Alerta-IBT está na bandeja"; `--tray` continua aceito e o valor do Run do Windows não mudou. Nada no caminho da bandeja chama `Show`/`Activate`.
+O app **sempre** abre escondido na bandeja (`StartupPlan.Decide`): a janela só aparece na primeira abertura após instalar (não existia `settings.json`) e quando uma segunda abertura acorda a instância que já roda. Abertura manual (sem `--tray`) mostra um aviso "IBT Controller está na bandeja"; `--tray` continua aceito e o valor do Run do Windows não mudou. Nada no caminho da bandeja chama `Show`/`Activate`.
 
 ### Ícones
 

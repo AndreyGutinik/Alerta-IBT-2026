@@ -179,7 +179,7 @@ public sealed class AppShell : IDisposable
 
         var chosen = plan ?? StartupPlan.Decide(_arguments, firstRun: false, alreadyRunning: false);
         _logger.LogInformation(
-            "Alerta-IBT iniciado (janela: {Window}, aviso na bandeja: {Balloon}, LED de teste: {TestLed})",
+            "IBT Controller iniciado (janela: {Window}, aviso na bandeja: {Balloon}, LED de teste: {TestLed})",
             chosen.ShowWindow,
             chosen.ShowTrayBalloon,
             _arguments.TestLed);

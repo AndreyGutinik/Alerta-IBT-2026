@@ -90,7 +90,7 @@ public sealed class StartupPlanTests : IDisposable
     [Fact]
     public void The_balloon_text_is_Alerta_IBT_esta_na_bandeja()
     {
-        Assert.Equal("Alerta-IBT est\U000000E1 na bandeja", StartupPlan.BalloonMessage);
+        Assert.Equal("IBT Controller est\U000000E1 na bandeja", StartupPlan.BalloonMessage);
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public sealed class StartupPlanTests : IDisposable
             shell.ApplyStartupPlan(StartupPlan.Decide(Args(tray: false), firstRun: false, alreadyRunning: false), (t, m) => balloons.Add((t, m)));
 
             Assert.Equal(0, windows); // no Show/Activate path: Holyrics and OBS keep the focus
-            Assert.Equal([("Alerta-IBT", "Alerta-IBT est\U000000E1 na bandeja")], balloons);
+            Assert.Equal([("IBT Controller", "IBT Controller est\U000000E1 na bandeja")], balloons);
         });
     }
 
