@@ -5,17 +5,11 @@
     xmlns:theme="clr-namespace:AlertaIBT.App.Theme">
 
     <!--
-        The cards of the settings-like tabs (Configuracoes, Som): a titled card (SettingsSection) with one SettingRow per setting.
+        The design system of the tabs (Inicio, Som, Configuracoes) and of the tray panel: cards (CardSection), blocks (IbtBlock, SettingRow), icon buttons.
         Needs AppTheme.xaml, LucideIcons.xaml and Controls.xaml, merged before this file.
     -->
 
-        <Style x:Key="SectionTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13.5" />
-            <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-        </Style>
-
-        <!-- The (i) in a section: put the text in ToolTip. -->
+        <!-- The (i) in a card header or a row: put the text in ToolTip. -->
         <Style
             x:Key="SectionInfo"
             BasedOn="{StaticResource IbtInfoIcon}"
@@ -23,84 +17,6 @@
             <Setter Property="Margin" Value="6,0,0,0" />
             <Setter Property="ToolTipService.InitialShowDelay" Value="150" />
             <Setter Property="ToolTipService.ShowDuration" Value="30000" />
-        </Style>
-
-        <!-- A titled card: the title, then its rows (SettingRow). -->
-        <Style x:Key="SettingsSectionStyle" TargetType="local:SettingsSection">
-            <Setter Property="Margin" Value="0,12,0,0" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="local:SettingsSection">
-                        <Border Style="{StaticResource IbtCard}">
-                            <StackPanel>
-                                <StackPanel Margin="0,0,0,8">
-                                    <TextBlock
-                                        x:Name="SectionHeader"
-                                        Style="{StaticResource SectionTitle}"
-                                        Text="{TemplateBinding Header}" />
-                                    <TextBlock
-                                        x:Name="SectionSubtitle"
-                                        Margin="0,3,0,0"
-                                        FontSize="11.5"
-                                        Foreground="{StaticResource IbtMutedBrush}"
-                                        Text="{TemplateBinding Subtitle}"
-                                        TextWrapping="Wrap" />
-                                </StackPanel>
-                                <ContentPresenter />
-                            </StackPanel>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="Subtitle" Value="">
-                                <Setter TargetName="SectionSubtitle" Property="Visibility" Value="Collapsed" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- One setting: title (and (i)) on the left, the control on the right, hints under both, a thin line above. -->
-        <Style x:Key="SettingRowStyle" TargetType="local:SettingRow">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="local:SettingRow">
-                        <Border
-                            MinHeight="46"
-                            Padding="0,10"
-                            BorderBrush="{StaticResource IbtLineBrush}"
-                            BorderThickness="0,1,0,0">
-                            <StackPanel>
-                                <local:SplitRowPanel>
-                                    <TextBlock
-                                        x:Name="RowTitle"
-                                        FontSize="12.5"
-                                        TextWrapping="Wrap">
-                                        <Run Text="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}" /><InlineUIContainer BaselineAlignment="Center">
-                                            <Border
-                                                x:Name="InfoIcon"
-                                                AutomationProperties.Name="Dicas"
-                                                Style="{StaticResource SectionInfo}"
-                                                ToolTip="{Binding Info, RelativeSource={RelativeSource TemplatedParent}}">
-                                                <Path
-                                                    Width="15"
-                                                    Height="15"
-                                                    Data="{StaticResource LucideInfo}"
-                                                    Style="{StaticResource LucideIcon}" />
-                                            </Border>
-                                        </InlineUIContainer></TextBlock>
-                                    <ContentPresenter VerticalAlignment="Center" />
-                                </local:SplitRowPanel>
-                                <ContentPresenter Content="{TemplateBinding Footer}" />
-                            </StackPanel>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="Info" Value="{x:Null}">
-                                <Setter TargetName="InfoIcon" Property="Visibility" Value="Collapsed" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
     <!-- A round toggle chip (the weekdays of an alarm, shuffle): off is quiet, on is the green of the church. -->
@@ -411,7 +327,7 @@
            Surfaces     IbtSurfaceCard, IbtBlock, IbtDivider, IbtCardSectionStyle (the CardSection control)
            Icons        IbtRowIcon (18 px, quiet), IbtHeaderIcon (18 px)
            Buttons      IbtToolButton, IbtDangerToolButton (32 px, icon only), IbtAddTile (dashed plus block)
-           Toggles      IbtIconToggle -> IbtLockToggle, IbtPinToggle, IbtMuteToggle, IbtPowerToggle (32 px, icon only)
+           Toggles      IbtIconToggle -> IbtLockToggle, IbtPinToggle, IbtMuteToggle, IbtPowerToggle, IbtGeminiToggle, IbtOfflineToggle (32 px, icon only)
            Inputs       IbtSegmentedFrame + IbtSegItem, IbtNumberBox, IbtDayDot, IbtComboBox (32 px)
            Status       IbtDotHost (a 20 px hit area for a dot with a tooltip) + IbtStatusDot
            Layout       theme:AdaptiveGrid (cells that stack when narrow), theme:Motion.FadeOnShow, theme:RevealHost (used by IbtExpander)
@@ -731,10 +647,22 @@
                             Data="{Binding (theme:IconToggle.OffGeometry), RelativeSource={RelativeSource TemplatedParent}}"
                             Style="{StaticResource LucideIcon}"
                             TextElement.Foreground="{TemplateBinding Foreground}" />
+                        <!-- The "on" drawing is its own path (a trigger that sets Data from a binding came out empty when the toggle starts checked). -->
+                        <Path
+                            x:Name="GlyphOn"
+                            Width="16"
+                            Height="16"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Data="{Binding (theme:IconToggle.OnGeometry), RelativeSource={RelativeSource TemplatedParent}}"
+                            Style="{StaticResource LucideIcon}"
+                            TextElement.Foreground="{TemplateBinding Foreground}"
+                            Visibility="Collapsed" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Glyph" Property="Data" Value="{Binding (theme:IconToggle.OnGeometry), RelativeSource={RelativeSource TemplatedParent}}" />
+                            <Setter TargetName="Glyph" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="GlyphOn" Property="Visibility" Value="Visible" />
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Wash" Property="Visibility" Value="Visible" />
@@ -790,6 +718,17 @@
         </Style.Triggers>
     </Style>
 
+    <!-- The correction mode (Inicio > Correcao), next to the Gemini key: Gemini on, and "so offline". One sparkle and one crossed wifi; green when on. -->
+    <Style x:Key="IbtGeminiToggle" BasedOn="{StaticResource IbtIconToggle}" TargetType="ToggleButton">
+        <Setter Property="theme:IconToggle.OnGeometry" Value="{StaticResource LucideSparkles}" />
+        <Setter Property="theme:IconToggle.OffGeometry" Value="{StaticResource LucideSparkles}" />
+    </Style>
+
+    <Style x:Key="IbtOfflineToggle" BasedOn="{StaticResource IbtIconToggle}" TargetType="ToggleButton">
+        <Setter Property="theme:IconToggle.OnGeometry" Value="{StaticResource LucideWifiOff}" />
+        <Setter Property="theme:IconToggle.OffGeometry" Value="{StaticResource LucideWifiOff}" />
+    </Style>
+
     <!-- Choices in one frame (5 s, 3 s, seco): the frame, and one item per choice (RadioButtons of one group). -->
     <Style x:Key="IbtSegmentedFrame" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource IbtInsetBrush}" />
@@ -841,6 +780,17 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- A one-line text box, 32 px high like the icon buttons next to it (the Gemini key, the Telegram token, the site fields). -->
+    <Style x:Key="IbtFieldInput" BasedOn="{StaticResource IbtInput}" TargetType="TextBox">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="8,6" />
+    </Style>
+
+    <Style x:Key="IbtFieldPassword" BasedOn="{StaticResource IbtPasswordInput}" TargetType="PasswordBox">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="8,6" />
     </Style>
 
     <!-- A box for a number or a time: 32 px high, centered, one width. -->
@@ -904,5 +854,68 @@
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="ToolTipService.InitialShowDelay" Value="150" />
         <Setter Property="ToolTipService.ShowDuration" Value="30000" />
+    </Style>
+
+    <!--
+        One setting of a card, as a block (lighter surface, thin border, 10 px radius): the icon and the title (and the (i)) on the left, the control on
+        the right, the hints under both. Put the rows of a card in one StackPanel with Margin="0,0,0,-8"; the rows leave 8 px under themselves.
+    -->
+    <Style x:Key="SettingRowStyle" TargetType="local:SettingRow">
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:SettingRow">
+                    <Border
+                        MinHeight="56"
+                        Padding="16,12"
+                        Style="{StaticResource IbtBlock}">
+                        <StackPanel>
+                            <local:SplitRowPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Path
+                                        x:Name="RowIcon"
+                                        Margin="0,0,12,0"
+                                        Data="{TemplateBinding Icon}"
+                                        Style="{StaticResource IbtRowIcon}" />
+                                    <TextBlock
+                                        x:Name="RowTitle"
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        FontSize="12.5"
+                                        TextWrapping="Wrap">
+                                        <Run Text="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}" /><InlineUIContainer BaselineAlignment="Center">
+                                            <Border
+                                                x:Name="InfoIcon"
+                                                AutomationProperties.Name="Dicas"
+                                                Style="{StaticResource SectionInfo}"
+                                                ToolTip="{Binding Info, RelativeSource={RelativeSource TemplatedParent}}">
+                                                <Path
+                                                    Width="15"
+                                                    Height="15"
+                                                    Data="{StaticResource LucideInfo}"
+                                                    Style="{StaticResource LucideIcon}" />
+                                            </Border>
+                                        </InlineUIContainer></TextBlock>
+                                </Grid>
+                                <ContentPresenter VerticalAlignment="Center" />
+                            </local:SplitRowPanel>
+                            <ContentPresenter Content="{TemplateBinding Footer}" />
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Icon" Value="{x:Null}">
+                            <Setter TargetName="RowIcon" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="Info" Value="{x:Null}">
+                            <Setter TargetName="InfoIcon" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 </ResourceDictionary>

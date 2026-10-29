@@ -1,43 +1,23 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace AlertaIBT.App.Views;
 
 /// <summary>
-/// A titled card of the Configurações page: the title on top (and, when <see cref="Subtitle"/> has text, one muted line that says what the
-/// card is for) and the <see cref="SettingRow"/> list below it.
-/// </summary>
-public sealed class SettingsSection : HeaderedContentControl
-{
-    /// <summary>The one muted line under the title; empty shows nothing.</summary>
-    public static readonly DependencyProperty SubtitleProperty =
-        DependencyProperty.Register(nameof(Subtitle), typeof(string), typeof(SettingsSection), new PropertyMetadata(string.Empty));
-
-    /// <summary>Builds the section; it never takes the keyboard focus (only the controls in its rows do).</summary>
-    public SettingsSection()
-    {
-        Focusable = false;
-        IsTabStop = false;
-    }
-
-    /// <summary>The one muted line under the title; empty shows nothing.</summary>
-    public string Subtitle
-    {
-        get => (string)GetValue(SubtitleProperty);
-        set => SetValue(SubtitleProperty, value);
-    }
-}
-
-/// <summary>
-/// One setting: the title (with an optional (i) tooltip) on the left, the control (<see cref="ContentControl.Content"/>) on the right
-/// and, under both, an optional line of hints (<see cref="Footer"/>). A thin line above separates it from the row before. Every row of
-/// every section uses this one template, so they line up.
+/// One setting, drawn as a block of the design system (a lighter surface with a thin border): the icon and the title (with an optional (i)
+/// tooltip) on the left, the control (<see cref="ContentControl.Content"/>) on the right and, under both, an optional line of hints
+/// (<see cref="Footer"/>). Every row of every card uses this one template, so they line up.
 /// </summary>
 public sealed class SettingRow : ContentControl
 {
     /// <summary>The text on the left.</summary>
     public static readonly DependencyProperty TitleProperty =
         DependencyProperty.Register(nameof(Title), typeof(string), typeof(SettingRow), new PropertyMetadata(string.Empty));
+
+    /// <summary>The icon in front of the title (a Lucide geometry); null shows none.</summary>
+    public static readonly DependencyProperty IconProperty =
+        DependencyProperty.Register(nameof(Icon), typeof(Geometry), typeof(SettingRow), new PropertyMetadata(null));
 
     /// <summary>The text of the (i) icon after the title; null shows no icon.</summary>
     public static readonly DependencyProperty InfoProperty =
@@ -52,6 +32,13 @@ public sealed class SettingRow : ContentControl
     {
         Focusable = false;
         IsTabStop = false;
+    }
+
+    /// <summary>The icon in front of the title.</summary>
+    public Geometry? Icon
+    {
+        get => (Geometry?)GetValue(IconProperty);
+        set => SetValue(IconProperty, value);
     }
 
     /// <summary>The text on the left.</summary>

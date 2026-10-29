@@ -176,7 +176,7 @@ public sealed class AlertsOffUiTests
     }
 
     [Fact]
-    public void The_alerts_card_has_the_switch_the_long_title_and_the_off_hint_only_while_off()
+    public void The_alerts_card_has_the_switch_the_short_title_with_the_long_words_in_the_tooltip_and_the_off_hint_only_while_off()
     {
         WpfTestHost.Run(() =>
         {
@@ -187,7 +187,8 @@ public sealed class AlertsOffUiTests
             Layout(page, 1000);
 
             Assert.Equal("Alertas", page.AlertsSection.Header);
-            Assert.Equal("Alertas ligados (barra no LED, Telegram, site e API do overlay)", page.AlertsRow.Title);
+            Assert.Equal("Alertas ligados", page.AlertsRow.Title);
+            Assert.Contains("Barra no LED, Telegram, site e API do overlay.", page.AlertsRow.Info, StringComparison.Ordinal); // the long words are the tooltip
             Assert.True(page.AlertsSwitch.IsChecked);
             Assert.Equal(Visibility.Collapsed, page.AlertsOffHint.Visibility);
 

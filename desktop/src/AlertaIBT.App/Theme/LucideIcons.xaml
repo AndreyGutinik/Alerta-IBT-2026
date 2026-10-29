@@ -126,6 +126,22 @@
     <Geometry x:Key="LucidePinOff">M 12 17 V 22 M 15 9.34 V 7 A 1 1 0 0 1 16 6 A 2 2 0 0 0 16 2 H 7.89 M 2 2 L 22 22 M 9 9 V 10.76 A 2 2 0 0 1 7.89 12.55 L 6.11 13.45 A 2 2 0 0 0 5 15.24 V 16 A 1 1 0 0 0 6 17 H 17</Geometry>
     <Geometry x:Key="LucideKeyboard">M 10 8 H 10.01 M 12 12 H 12.01 M 14 8 H 14.01 M 16 12 H 16.01 M 18 8 H 18.01 M 6 8 H 6.01 M 7 16 H 17 M 8 12 H 8.01 M 4 4 H 20 A 2 2 0 0 1 22 6 V 18 A 2 2 0 0 1 20 20 H 4 A 2 2 0 0 1 2 18 V 6 A 2 2 0 0 1 4 4 Z</Geometry>
 
+    <!-- Início, Configurações and the tray panel (same source and conventions). -->
+    <Geometry x:Key="LucideMouse">M 12 2 A 7 7 0 0 1 19 9 V 15 A 7 7 0 0 1 5 15 V 9 A 7 7 0 0 1 12 2 Z M 12 6 V 10</Geometry>
+    <Geometry x:Key="LucideHistory">M 3 12 A 9 9 0 1 0 12 3 A 9.75 9.75 0 0 0 5.26 5.74 L 3 8 M 3 3 V 8 H 8 M 12 7 V 12 L 16 14</Geometry>
+    <Geometry x:Key="LucideMessageSquare">M 21 15 A 2 2 0 0 1 19 17 H 7 L 3 21 V 5 A 2 2 0 0 1 5 3 H 19 A 2 2 0 0 1 21 5 Z</Geometry>
+    <Geometry x:Key="LucideList">M 8 6 H 21 M 8 12 H 21 M 8 18 H 21 M 3 6 H 3.01 M 3 12 H 3.01 M 3 18 H 3.01</Geometry>
+    <Geometry x:Key="LucideShieldCheck">M 20 13 C 20 18 16.5 20.5 12.34 21.95 A 1 1 0 0 1 11.66 21.95 C 7.5 20.5 4 18 4 13 V 6 A 1 1 0 0 1 5 5 C 7 5 9.5 3.8 11.24 2.28 A 1.17 1.17 0 0 1 12.76 2.28 C 14.51 3.81 17 5 19 5 A 1 1 0 0 1 20 6 Z M 9 12 L 11 14 L 15 10</Geometry>
+    <Geometry x:Key="LucideSlidersHorizontal">M 21 4 H 14 M 10 4 H 3 M 21 12 H 12 M 8 12 H 3 M 21 20 H 16 M 12 20 H 3 M 14 2 V 6 M 8 10 V 14 M 16 18 V 22</Geometry>
+    <Geometry x:Key="LucidePanelBottom">M 5 3 H 19 A 2 2 0 0 1 21 5 V 19 A 2 2 0 0 1 19 21 H 5 A 2 2 0 0 1 3 19 V 5 A 2 2 0 0 1 5 3 Z M 3 15 H 21</Geometry>
+    <Geometry x:Key="LucideKeyRound">M 2.586 17.414 A 2 2 0 0 0 2 18.828 V 21 A 1 1 0 0 0 3 22 H 6 A 1 1 0 0 0 7 21 V 20 A 1 1 0 0 1 8 19 H 9 A 1 1 0 0 0 10 18 V 17 A 1 1 0 0 1 11 16 H 11.172 A 2 2 0 0 0 12.586 15.414 L 13.4 14.6 A 6.5 6.5 0 1 0 9.4 10.6 Z M 16.5 7.5 H 16.51</Geometry>
+
+    <Geometry x:Key="LucideGauge">M 12 14 L 16 10 M 3.34 19 A 10 10 0 1 1 20.66 19</Geometry>
+    <Geometry x:Key="LucideMoveVertical">M 12 2 V 22 M 15 19 L 12 22 L 9 19 M 15 5 L 12 2 L 9 5</Geometry>
+    <Geometry x:Key="LucideEye">M 2.062 12.348 A 1 1 0 0 1 2.062 11.652 A 10.75 10.75 0 0 1 21.938 11.652 A 1 1 0 0 1 21.938 12.348 A 10.75 10.75 0 0 1 2.062 12.348 Z M 15 12 A 3 3 0 1 1 9 12 A 3 3 0 0 1 15 12 Z</Geometry>
+    <Geometry x:Key="LucideType">M 4 7 V 4 H 20 V 7 M 9 20 H 15 M 12 4 V 20</Geometry>
+    <Geometry x:Key="LucideChevronDown">M 6 9 L 12 15 L 18 9</Geometry>
+
     <!-- Authored in the Lucide style (24 grid, 2 px round stroke): three bars that fall (the fade when it stops) and three that rise (the fade when an alarm starts). -->
     <Geometry x:Key="IbtFadeOut">M 5 21 V 3 M 12 21 V 8 M 19 21 V 14</Geometry>
     <Geometry x:Key="IbtFadeIn">M 5 21 V 14 M 12 21 V 8 M 19 21 V 3</Geometry>

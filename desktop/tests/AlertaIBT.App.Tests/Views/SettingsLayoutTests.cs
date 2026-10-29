@@ -6,6 +6,7 @@ using System.Windows.Media.Imaging;
 using AlertaIBT.App.Tests.ViewModels;
 using AlertaIBT.App.ViewModels;
 using AlertaIBT.App.Views;
+using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Settings;
@@ -13,7 +14,7 @@ using AlertaIBT.Core.Settings;
 namespace AlertaIBT.App.Tests.Views;
 
 // The real Configuracoes page laid out at three window widths (the window is 900 wide at the least). Set ALERTAIBT_RENDER_DIR to also
-// get PNG pictures of the whole page (every width, Sistema cards included) to look at.
+// get PNG pictures of the whole page (every width, the folded areas open too) to look at.
 public sealed class SettingsLayoutTests
 {
     private static readonly double[] Widths = [900, 1100, 1600];
@@ -53,7 +54,9 @@ public sealed class SettingsLayoutTests
         public void Layout(double width)
         {
             Width = width;
-            var size = new Size(width, 2600);
+            var size = new Size(width, 4600);
+            Root.Width = width;
+            Root.Height = 4600;
             Root.InvalidateMeasure();
             Root.Measure(size);
             Root.Arrange(new Rect(new Point(0, 0), size));
@@ -120,7 +123,7 @@ public sealed class SettingsLayoutTests
 
     public static TheoryData<double> WindowWidths => new(Widths);
 
-    private static SettingsSection? SectionOf(DependencyObject element) => AncestorOf<SettingsSection>(element);
+    private static CardSection? SectionOf(DependencyObject element) => AncestorOf<CardSection>(element);
 
     private static SettingRow? RowOf(DependencyObject element) => AncestorOf<SettingRow>(element);
 
@@ -137,13 +140,28 @@ public sealed class SettingsLayoutTests
         return null;
     }
 
+    private static Brush Resource(string key) => (Brush)Application.Current.FindResource(key);
+
+    private static double Luminance(Brush brush)
+    {
+        var c = ((SolidColorBrush)brush).Color;
+        return (0.2126 * c.R) + (0.7152 * c.G) + (0.0722 * c.B);
+    }
+
+    private static Border CardBorder(CardSection section) => (Border)VisualTreeHelper.GetChild(section, 0);
+
+    private static Border BlockOf(SettingRow row) => (Border)VisualTreeHelper.GetChild(row, 0);
+
     private static TextBlock TitleOf(SettingRow row) => (TextBlock)row.Template.FindName("RowTitle", row);
 
     private static Border IconOf(SettingRow row) => (Border)row.Template.FindName("InfoIcon", row);
 
-    private static Border LineOf(SettingRow row) => (Border)VisualTreeHelper.GetChild(row, 0);
-
     private static bool Overlap(Rect a, Rect b) => a.Width > 0 && a.Height > 0 && b.Width > 0 && b.Height > 0 && a.IntersectsWith(Rect.Inflate(b, -0.5, -0.5));
+
+    private static CardSection[] LeftCards(SettingsPage page) => [page.BarSection, page.PreviewSection, page.TelegramSection, page.SiteSection];
+
+    private static CardSection[] RightCards(SettingsPage page) =>
+        [page.AlertsSection, page.MouseSection, page.QuickPanelSection, page.HistorySection, page.UpdatesSection, page.GeminiSection, page.SystemSection];
 
     // The title and the control of a row: the two children of its panel.
     private static (FrameworkElement Title, FrameworkElement Control) PartsOf(Rig rig, SettingRow row)
@@ -168,56 +186,126 @@ public sealed class SettingsLayoutTests
 
     [Theory]
     [MemberData(nameof(WindowWidths))]
-    public void The_six_sections_exist_in_order_each_with_its_title(double width)
+    public void The_eleven_cards_exist_each_with_a_header_and_an_icon_and_go_down_two_columns_or_one(double width)
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(width);
             var page = rig.Page;
+            var left = LeftCards(page);
+            var right = RightCards(page);
 
-            var sections = new[] { page.AlertsSection, page.MouseSection, page.QuickPanelSection, page.HistorySection, page.UpdatesSection, page.SystemSection };
-            Assert.Equal(["Alertas", "Mouse", "Painel r\U000000E1pido", "Hist\U000000F3rico", "Atualiza\U000000E7\U000000F5es", "Sistema"], sections.Select(s => (string)s.Header));
+            Assert.Equal(
+                ["Barra no LED", "Pr\U000000E9via no LED", "Telegram", "Site", "Alertas", "Mouse", "Painel r\U000000E1pido", "Hist\U000000F3rico", "Atualiza\U000000E7\U000000F5es", "Modelo do Gemini", "Sistema"],
+                left.Concat(right).Select(s => (string)s.Header));
+            Assert.All(left.Concat(right), s => Assert.NotNull(s.Icon));
 
-            // The title is drawn at the top of its card.
-            foreach (var section in sections)
+            // The title and its icon are drawn at the top of the card.
+            foreach (var section in left.Concat(right))
             {
-                var title = (TextBlock)section.Template.FindName("SectionHeader", section);
+                var title = (TextBlock)section.Template.FindName("HeaderText", section);
+                var icon = (System.Windows.Shapes.Path)section.Template.FindName("HeaderIcon", section);
                 Assert.Equal((string)section.Header, title.Text);
                 Assert.True(rig.BoundsOf(title).Top >= rig.BoundsOf(section).Top);
-                Assert.True(rig.BoundsOf(title).Bottom <= rig.BoundsOf(section).Top + 40);
+                Assert.True(rig.BoundsOf(title).Bottom <= rig.BoundsOf(section).Top + 64);
+                Assert.True(rig.BoundsOf(icon).Right <= rig.BoundsOf(title).Left);
             }
 
-            // Alertas, Mouse, Painel rapido and Historico go down the right column; Atualizacoes and Sistema share the row under it.
-            Assert.True(rig.BoundsOf(page.MouseSection).Top > rig.BoundsOf(page.AlertsSection).Bottom);
-            Assert.True(rig.BoundsOf(page.QuickPanelSection).Top > rig.BoundsOf(page.MouseSection).Bottom);
-            Assert.True(rig.BoundsOf(page.HistorySection).Top > rig.BoundsOf(page.QuickPanelSection).Bottom);
-            Assert.True(rig.BoundsOf(page.UpdatesSection).Top > rig.BoundsOf(page.HistorySection).Bottom);
-            Assert.Equal(rig.BoundsOf(page.UpdatesSection).Top, rig.BoundsOf(page.SystemSection).Top, 1);
+            // Each column goes down in order, with 24 px between the cards.
+            foreach (var column in new[] { left, right })
+            {
+                for (var i = 1; i < column.Length; i++)
+                {
+                    Assert.Equal(rig.BoundsOf(column[i - 1]).Bottom + 24, rig.BoundsOf(column[i]).Top, 1);
+                }
+            }
+
+            // Two columns from about 1000 px of window; one under it (the left column, then the right).
+            if (width >= 1100)
+            {
+                Assert.Equal(2, page.Columns.Columns);
+                Assert.True(rig.BoundsOf(page.RightColumn).Left >= rig.BoundsOf(page.LeftColumn).Right + 24 - 0.5);
+                Assert.Equal(rig.BoundsOf(page.BarSection).Top, rig.BoundsOf(page.AlertsSection).Top, 1);
+            }
+            else
+            {
+                Assert.Equal(1, page.Columns.Columns);
+                Assert.True(rig.BoundsOf(page.AlertsSection).Top >= rig.BoundsOf(page.SiteSection).Bottom);
+            }
+
+            // The diagnostics card is folded at the bottom, under both columns.
+            Assert.True(rig.BoundsOf(page.DiagnosticsCard).Top >= Math.Max(rig.BoundsOf(left[^1]).Bottom, rig.BoundsOf(right[^1]).Bottom) + 24 - 0.5);
         });
     }
 
     [Fact]
-    public void Every_control_lives_in_the_section_it_belongs_to_and_nothing_is_outside_a_row()
+    public void The_cards_are_lighter_than_the_page_with_a_thin_border_and_the_settings_are_blocks_lighter_again()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(1100);
             var page = rig.Page;
 
-            var expected = new (FrameworkElement Control, SettingsSection Section)[]
+            Assert.True(Luminance(Resource("IbtSurfaceBrush")) >= Luminance(Resource("IbtBackgroundBrush")) + 8);
+            Assert.True(Luminance(Resource("IbtSurfaceRaisedBrush")) > Luminance(Resource("IbtSurfaceBrush")) + 4);
+
+            foreach (var section in LeftCards(page).Concat(RightCards(page)))
             {
+                var border = CardBorder(section);
+                Assert.Same(Resource("IbtSurfaceBrush"), border.Background);
+                Assert.Equal(new Thickness(1), border.BorderThickness);
+                Assert.Equal(12, border.CornerRadius.TopLeft);
+                Assert.Equal(new Thickness(24), border.Padding);
+            }
+
+            foreach (var row in rig.Find<SettingRow>())
+            {
+                var block = BlockOf(row);
+                Assert.Same(Resource("IbtSurfaceRaisedBrush"), block.Background);
+                Assert.Equal(new Thickness(1), block.BorderThickness);
+                Assert.Equal(10, block.CornerRadius.TopLeft);
+            }
+
+            Assert.Same(Resource("IbtSurfaceBrush"), page.DiagnosticsCard.Background);
+        });
+    }
+
+    [Fact]
+    public void Every_control_lives_in_the_card_it_belongs_to_and_every_row_has_an_icon()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100);
+            var page = rig.Page;
+
+            var expected = new (FrameworkElement Control, CardSection Section)[]
+            {
+                (page.TopOption, page.BarSection),
+                (page.BottomOption, page.BarSection),
+                (page.SizeSlider, page.BarSection),
+                (page.SpeedSlider, page.BarSection),
+                (page.BarAdvanced, page.BarSection),
+                (page.Preview, page.PreviewSection),
+                (page.ShowBarButton, page.PreviewSection),
+                (page.TokenLockedBox, page.TelegramSection),
+                (page.TokenLockButton, page.TelegramSection),
+                (page.ChatBox, page.TelegramSection),
+                (page.SiteSwitch, page.SiteSection),
+                (page.SiteUrlBox, page.SiteSection),
+                (page.SiteApiKeyBox, page.SiteSection),
+                (page.SiteEmailBox, page.SiteSection),
+                (page.SitePasswordLockedBox, page.SiteSection),
                 (page.AlertsSwitch, page.AlertsSection),
-                (page.AlertsOffHint, page.AlertsSection),
                 (page.MouseLockSwitch, page.MouseSection),
                 (page.MouseLockHotkeyBox, page.MouseSection),
-                (page.MouseLockHotkeyHintLine, page.MouseSection),
-                (page.MouseLockHotkeyProblemLine, page.MouseSection),
                 (page.TripleCtrlSwitch, page.MouseSection),
                 (page.HotkeyBox, page.QuickPanelSection),
                 (page.ClearHistorySwitch, page.HistorySection),
                 (page.AutoUpdateSwitch, page.UpdatesSection),
                 (page.CheckUpdateButton, page.UpdatesSection),
                 (page.UpdateResultLine, page.UpdatesSection),
+                (page.ModelBox, page.GeminiSection),
+                (page.ResetModelButton, page.GeminiSection),
                 (page.HideFromLiveRow, page.SystemSection),
                 (page.SiteStatusRow, page.SystemSection),
             };
@@ -226,54 +314,63 @@ public sealed class SettingsLayoutTests
                 Assert.Same(section, SectionOf(control));
             }
 
-            // Ten rows, each in one of the six sections, in the order of the owner's list.
+            // The settings that are a row, in the order of the page, each in its card and each with an icon.
             var rows = rig.Find<SettingRow>().ToList();
-            Assert.Equal(10, rows.Count);
+            Assert.Equal(11, rows.Count);
             Assert.Equal(
-                ["Alertas", "Mouse", "Mouse", "Mouse", "Painel r\U000000E1pido", "Hist\U000000F3rico", "Atualiza\U000000E7\U000000F5es", "Atualiza\U000000E7\U000000F5es", "Sistema", "Sistema"],
+                ["Barra no LED", "Alertas", "Mouse", "Mouse", "Mouse", "Painel r\U000000E1pido", "Hist\U000000F3rico", "Atualiza\U000000E7\U000000F5es", "Atualiza\U000000E7\U000000F5es", "Sistema", "Sistema"],
                 rows.Select(r => (string)SectionOf(r)!.Header));
-
-            // No switch, box or button sits in a section outside a row.
-            foreach (var section in rig.Find<SettingsSection>())
-            {
-                var loose = Descendants(section)
-                    .Where(d => d is System.Windows.Controls.Primitives.ToggleButton or Button or TextBox)
-                    .Where(d => RowOf(d) is null);
-                Assert.Empty(loose);
-            }
+            Assert.All(rows, r => Assert.NotNull(r.Icon));
         });
     }
 
     [Fact]
-    public void The_keyboard_goes_through_the_sistema_controls_top_to_bottom_and_rows_and_sections_take_no_focus()
+    public void The_model_of_gemini_is_its_own_card_with_the_default_and_a_reset_icon()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(1100);
             var page = rig.Page;
+
+            Assert.Equal(GeminiPrompt.DefaultModel, page.ModelBox.Text);
+            Assert.Equal("Voltar ao modelo padr\U000000E3o", page.ResetModelButton.ToolTip);
+            Assert.Equal("Voltar ao modelo padr\U000000E3o", AutomationProperties.GetName(page.ResetModelButton));
+
+            page.ModelBox.Text = "gemini-9-teste";
+            rig.Layout(1100);
+            Assert.Equal("gemini-9-teste", rig.ViewModel.Correction.Model);
+            page.ResetModelButton.Command.Execute(null);
+            Assert.Equal(GeminiPrompt.DefaultModel, rig.ViewModel.Correction.Model);
+            Assert.Equal(GeminiPrompt.DefaultModel, page.ModelBox.Text);
+        });
+    }
+
+    [Fact]
+    public void The_keyboard_goes_through_the_controls_top_to_bottom_and_rows_and_cards_take_no_focus()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1600);
+            var page = rig.Page;
+
+            // The visual tree order is the tab order (no TabIndex is set): the left column, then the right one.
             Control[] order =
             [
-                page.AlertsSwitch,
-                page.MouseLockSwitch,
-                page.MouseLockHotkeyBox,
-                page.TripleCtrlSwitch,
-                page.HotkeyBox,
-                page.ClearHistorySwitch,
-                page.AutoUpdateSwitch,
-                page.CheckUpdateButton,
+                page.TopOption, page.SizeSlider, page.SpeedSlider, page.ShowBarButton, page.ChatBox, page.SiteSwitch, page.SiteUrlBox, page.SiteApiKeyBox, page.SiteEmailBox,
+                page.AlertsSwitch, page.MouseLockSwitch, page.MouseLockHotkeyBox, page.TripleCtrlSwitch, page.HotkeyBox, page.ClearHistorySwitch, page.AutoUpdateSwitch,
+                page.CheckUpdateButton, page.ModelBox, page.ResetModelButton,
             ];
 
-            // The visual tree order is the tab order (no TabIndex is set).
             Assert.Equal(order, Descendants(page).OfType<Control>().Where(c => order.Contains(c)).ToList());
             Assert.All(order, c => Assert.True(c.Focusable && c.IsTabStop));
             Assert.All(rig.Find<SettingRow>(), row => Assert.False(row.Focusable || row.IsTabStop));
-            Assert.All(rig.Find<SettingsSection>(), section => Assert.False(section.Focusable || section.IsTabStop));
+            Assert.All(rig.Find<CardSection>(), section => Assert.False(section.Focusable || section.IsTabStop));
         });
     }
 
     [Theory]
     [MemberData(nameof(WindowWidths))]
-    public void Every_row_has_the_same_structure_the_same_line_and_the_same_edges(double width)
+    public void Every_row_has_the_same_structure_and_the_same_edges(double width)
     {
         WpfTestHost.Run(() =>
         {
@@ -283,42 +380,38 @@ public sealed class SettingsLayoutTests
 
             foreach (var row in rows)
             {
-                // One template: a thin line above only, the same padding and height floor, the title with its own text.
-                var line = LineOf(row);
-                Assert.Equal(new Thickness(0, 1, 0, 0), line.BorderThickness);
-                Assert.Equal(new Thickness(0, 10, 0, 10), line.Padding);
-                Assert.True(line.ActualHeight >= 46, row.Title + " is too short");
+                // One template: a block with 16 px at the sides, a height floor, and the title with its own text.
+                var block = BlockOf(row);
+                Assert.Equal(new Thickness(16, 12, 16, 12), block.Padding);
+                Assert.True(block.ActualHeight >= 56, row.Title + " is too short");
                 Assert.Equal(row.Title, MainWindowTests.TextOf(TitleOf(row)));
                 Assert.Equal(TextWrapping.Wrap, TitleOf(row).TextWrapping);
 
-                // The title starts at the left edge of the row and the control ends at its right edge, for every row.
+                // The title starts 17 px inside the row (16 of padding, 1 of border) and the control ends 17 px inside it, for every row.
                 var bounds = rig.BoundsOf(row);
                 var (title, control) = PartsOf(rig, row);
-                Assert.Equal(bounds.Left, rig.BoundsOf(title).Left, 1);
-                Assert.Equal(bounds.Right, rig.BoundsOf(control).Right, 1);
-                Assert.True(bounds.Left >= rig.BoundsOf(SectionOf(row)!).Left + 12 && bounds.Right <= rig.BoundsOf(SectionOf(row)!).Right - 12);
+                Assert.Equal(bounds.Left + 17, rig.BoundsOf(title).Left, 1);
+                Assert.Equal(bounds.Right - 17, rig.BoundsOf(control).Right, 1);
+                var card = rig.BoundsOf(SectionOf(row)!);
+                Assert.True(bounds.Left >= card.Left + 24 && bounds.Right <= card.Right - 24);
             }
 
-            // The sections of a column are as wide as each other, so their rows have one width.
-            foreach (var column in new[] { new[] { page.AlertsSection, page.MouseSection, page.QuickPanelSection, page.HistorySection }, new[] { page.UpdatesSection }, new[] { page.SystemSection } })
-            {
-                Assert.Single(rows.Where(r => column.Contains(SectionOf(r)!)).Select(r => Math.Round(rig.BoundsOf(r).Width, 1)).Distinct());
-            }
-
-            // Inside a section each row starts where the one before ended.
-            foreach (var section in new[] { page.AlertsSection, page.MouseSection, page.UpdatesSection, page.SystemSection })
+            // The rows of a card are as wide as each other, and each starts 8 px under the one before.
+            foreach (var section in RightCards(page).Concat(LeftCards(page)))
             {
                 var inSection = rows.Where(r => ReferenceEquals(SectionOf(r), section)).ToList();
+                Assert.True(inSection.Select(r => Math.Round(rig.BoundsOf(r).Width, 1)).Distinct().Count() <= 1);
                 for (var i = 1; i < inSection.Count; i++)
                 {
-                    Assert.Equal(rig.BoundsOf(inSection[i - 1]).Bottom, rig.BoundsOf(inSection[i]).Top, 1);
+                    Assert.True(rig.BoundsOf(inSection[i]).Top >= rig.BoundsOf(inSection[i - 1]).Bottom + 8 - 0.5);
                 }
             }
 
-            // The switches share one right edge, and every shortcut box has one width.
+            // The switches share one right edge in a column, and every shortcut box has one width.
             Assert.Equal(rig.BoundsOf(page.MouseLockSwitch).Right, rig.BoundsOf(page.AlertsSwitch).Right, 1);
             Assert.Equal(rig.BoundsOf(page.MouseLockSwitch).Right, rig.BoundsOf(page.TripleCtrlSwitch).Right, 1);
             Assert.Equal(rig.BoundsOf(page.MouseLockSwitch).Right, rig.BoundsOf(page.ClearHistorySwitch).Right, 1);
+            Assert.Equal(rig.BoundsOf(page.MouseLockSwitch).Right, rig.BoundsOf(page.AutoUpdateSwitch).Right, 1);
             Assert.Equal(rig.BoundsOf(page.MouseLockHotkeyBox).Width, rig.BoundsOf(page.HotkeyBox).Width, 1);
             Assert.Equal(rig.BoundsOf(page.AutoUpdateSwitch).Right, rig.BoundsOf(page.CheckUpdateButton).Right, 1);
         });
@@ -332,8 +425,9 @@ public sealed class SettingsLayoutTests
         {
             using var rig = new Rig(width);
 
-            // A hint under the lock shortcut makes one footer show.
+            // A hint under the lock shortcut makes one footer show; the advanced fields are open.
             rig.ViewModel.Settings.TryCaptureMouseLockHotkey(HotkeyModifiers.Control, 0x56);
+            rig.Page.BarAdvanced.IsExpanded = true;
             rig.Layout(width);
 
             var page = rig.Page;
@@ -341,10 +435,11 @@ public sealed class SettingsLayoutTests
             Assert.True(scroll.ExtentWidth <= scroll.ViewportWidth + 0.5, "horizontal overflow at " + width);
             var pageBounds = rig.BoundsOf(page);
 
-            var sections = rig.Find<SettingsSection>().ToList();
+            var sections = rig.Find<CardSection>().ToList();
             for (var i = 0; i < sections.Count; i++)
             {
-                Assert.True(Rect.Inflate(pageBounds, 0.5, 0.5).Contains(rig.BoundsOf(sections[i])), "section " + sections[i].Header + " leaves the page");
+                var card = rig.BoundsOf(sections[i]);
+                Assert.True(card.Left >= pageBounds.Left - 0.5 && card.Right <= pageBounds.Right + 0.5, "card " + sections[i].Header + " leaves the page sideways");
                 for (var j = i + 1; j < sections.Count; j++)
                 {
                     Assert.False(Overlap(rig.BoundsOf(sections[i]), rig.BoundsOf(sections[j])), sections[i].Header + " overlaps " + sections[j].Header);
@@ -374,6 +469,15 @@ public sealed class SettingsLayoutTests
                 }
             }
 
+            // Every box, button, toggle and slider that is on screen sits inside the card it belongs to.
+            foreach (var control in rig.Find<Control>().Where(c => (c is TextBox or Button or System.Windows.Controls.Primitives.ToggleButton or Slider) && c.ActualWidth > 0 && c.ActualHeight > 0))
+            {
+                if (SectionOf(control) is { } card)
+                {
+                    Assert.True(Rect.Inflate(rig.BoundsOf(card), 0.5, 0.5).Contains(rig.BoundsOf(control)), AutomationProperties.GetName(control) + " leaves its card at " + width);
+                }
+            }
+
             Assert.True(page.MouseLockHotkeyHintLine.ActualHeight > 0);
             Assert.True(rig.BoundsOf(page.MouseLockHotkeyHintLine).Top >= rig.BoundsOf(page.MouseLockHotkeyBox).Bottom);
             Assert.True(rig.BoundsOf(page.TripleCtrlRow).Top >= rig.BoundsOf(page.MouseLockHotkeyHintLine).Bottom);
@@ -389,6 +493,12 @@ public sealed class SettingsLayoutTests
             {
                 using var rig = new Rig(width);
                 rig.Snapshot("settings-" + (int)width);
+
+                rig.Page.BarAdvanced.IsExpanded = true;
+                rig.ViewModel.Settings.Diagnostics.IsOpen = true;
+                rig.ViewModel.Settings.TryCaptureMouseLockHotkey(HotkeyModifiers.Control, 0x56);
+                rig.Layout(width);
+                rig.Snapshot("settings-" + (int)width + "-aberto");
             }
         });
     }
@@ -401,7 +511,7 @@ public sealed class SettingsLayoutTests
             using var rig = new Rig(1100);
             var page = rig.Page;
 
-            foreach (var row in new[] { page.MouseLockRow, page.MouseLockHotkeyRow, page.TripleCtrlRow, page.QuickPanelHotkeyRow, page.ClearHistoryRow, page.AutoUpdateRow })
+            foreach (var row in new[] { page.AlertsRow, page.MouseLockRow, page.MouseLockHotkeyRow, page.TripleCtrlRow, page.QuickPanelHotkeyRow, page.ClearHistoryRow, page.AutoUpdateRow })
             {
                 var icon = IconOf(row);
                 Assert.Equal(Visibility.Visible, icon.Visibility);
@@ -410,12 +520,31 @@ public sealed class SettingsLayoutTests
                 Assert.Equal(row.Info, (string)icon.ToolTip);
             }
 
-            foreach (var row in new[] { page.VersionRow, page.HideFromLiveRow, page.SiteStatusRow })
+            foreach (var row in new[] { page.PositionRow, page.VersionRow, page.HideFromLiveRow, page.SiteStatusRow })
             {
                 Assert.Equal(Visibility.Collapsed, IconOf(row).Visibility);
             }
         });
     }
+
+    [Fact]
+    public void There_are_no_explanation_blocks_and_every_icon_only_control_has_a_tooltip_and_an_accessible_name()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100);
+            var page = rig.Page;
+
+            // The long words are in the (i) tooltips; nothing on the page is a paragraph.
+            var longTexts = rig.Find<TextBlock>().Where(t => t.ActualHeight > 0 && t.Text.Length > 60).Select(t => t.Text).ToList();
+            Assert.Empty(longTexts);
+
+            FrameworkElement[] iconOnly = [page.ShowBarButton, page.TokenLockButton, page.SiteSwitch, page.CheckUpdateButton, page.ResetModelButton];
+            Assert.All(iconOnly, control => Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(control))));
+            Assert.All(iconOnly.Where(c => c != page.TokenLockButton), c => Assert.IsType<string>(c.ToolTip));
+        });
+    }
+
 
     [Theory]
     [InlineData(420, false)]
