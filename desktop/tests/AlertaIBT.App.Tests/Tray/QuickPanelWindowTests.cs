@@ -24,12 +24,12 @@ public sealed class QuickPanelWindowTests
 
     private sealed class Rig : IDisposable
     {
-        public Rig(AppWindowPolicy? policy = null)
+        public Rig(AppWindowPolicy? policy = null, PlayerViewModel? player = null)
         {
             Clock = new FakeTimeProvider();
             Hub = new StatusHub();
             Gateway = new FakeGateway(Clock);
-            ViewModel = new QuickPanelViewModel(Gateway, Hub, clock: Clock);
+            ViewModel = new QuickPanelViewModel(Gateway, Hub, clock: Clock, player: player);
             Window = new QuickPanel(ViewModel, policy);
             Root = (FrameworkElement)Window.Content;
             Layout();
@@ -293,6 +293,50 @@ public sealed class QuickPanelWindowTests
             Assert.Contains(rig.Find<TextBlock>(), t => t.Text == "Pausada");
             Assert.Contains(rig.Find<Button>(), b => AutomationProperties.GetName(b) == "Retomar barra");
             rig.Snapshot("quick-panel-paused-hotkey-taken");
+        });
+    }
+
+    [Fact]
+    public void The_panel_is_a_lighter_card_with_a_thin_border_blocks_inside_and_stays_small_with_and_without_the_player()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            var card = (Border)rig.Root;
+            Assert.Same(Application.Current.FindResource("IbtSurfaceBrush"), card.Background);
+            Assert.Equal(new Thickness(1), card.BorderThickness);
+            Assert.Equal(12, card.CornerRadius.TopLeft);
+            var plainHeight = rig.Root.ActualHeight;
+            Assert.InRange(plainHeight, 200, 420);
+
+            using var som = new AlertaIBT.App.Tests.ViewModels.SomRig();
+            using var withPlayer = new Rig(player: som.PlayerView);
+            Assert.True(withPlayer.Root.ActualHeight > plainHeight);
+            Assert.InRange(withPlayer.Root.ActualHeight, plainHeight + 40, plainHeight + 100);
+
+            // The three player buttons are 32 px icon buttons on one line, with a tooltip and a name.
+            var player = withPlayer.Find<Button>().Where(b => b.Width == 32 && Shown(b) && b.ToolTip is string t && (t.Contains("anterior") || t.Contains("Pr") || t.Length > 0)).Skip(0).ToList();
+            Assert.True(player.Count >= 3);
+            Assert.All(player, b => Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(b))));
+            Assert.All(player, b => Assert.False(string.IsNullOrWhiteSpace(b.ToolTip as string)));
+            withPlayer.Snapshot("quick-panel-player");
+        });
+    }
+
+    [Fact]
+    public void With_the_alerts_off_only_the_note_and_the_player_remain_in_the_card()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var som = new AlertaIBT.App.Tests.ViewModels.SomRig();
+            using var rig = new Rig(player: som.PlayerView);
+            rig.Hub.SetAlertsOn(false);
+            rig.Layout();
+
+            Assert.True(Shown(rig.Window.AlertsOffNote));
+            Assert.False(Shown(rig.Window.AlertsPart));
+            Assert.Contains(rig.Find<TextBlock>(), t => t.Text == "Alertas desligados" && Shown(t));
+            rig.Snapshot("quick-panel-alerts-off");
         });
     }
 
