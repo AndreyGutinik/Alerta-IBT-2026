@@ -267,7 +267,24 @@ Em **Configurações > Sistema > Alertas**, a chave "**Alertas ligados (barra no
 - [ ] **O resto continua**: player, aba Som, travamento do mouse, histórico e atualizações funcionam com os alertas desligados. O app abre desligado (a chave é lembrada).
 - [ ] **Ligar de novo**: pela chave ou pelo botão **Ligar os alertas** da aba Início: a barra, o Telegram e o site voltam sozinhos (as bolinhas ficam verdes em instantes), os avisos que esperavam na fila passam, e as rotas `/overlay/...` voltam às respostas de sempre.
 
-## 20. Depois que tudo passou
+## 20. NDI no telão
+
+A aba **NDI** manda uma câmera da rede (NDI) para o LED, **por baixo** da letra do Holyrics e da barra de avisos. Precisa do **NDI Tools** instalado no PC do telão (gratuito, https://ndi.video/tools/). A câmera no telão **sempre começa desligada** quando o app abre.
+
+- [ ] **Barras de teste sobre o LED**: aba NDI, cartão **Telão**, ligar **Barras de teste**: as barras de cores cobrem o LED inteiro e o marcador branco anda suave (60 quadros por segundo, sem rasgo).
+- [ ] **Letra do Holyrics por cima das barras**: com as barras ligadas, projetar uma letra no Holyrics: a letra aparece **por cima** das barras (a janela transparente do Holyrics fica acima da câmera). Se o Holyrics estiver com "sempre no topo", tudo bem.
+- [ ] **Barra de avisos por cima**: mandar um aviso de teste: a barra no topo do LED passa **por cima** das barras de teste e da câmera, e continua sem aparecer no OBS/NDI da live.
+- [ ] **Corte entre duas câmeras, sem preto nem piscada**: clicar na câmera 1 (vai para a **Prévia**, nunca ao ar), **Cortar**; clicar na câmera 2 (Prévia), **Cortar**: a troca é seca, sem quadro preto e sem piscar, e a câmera que estava no ar volta para a Prévia. Conferir a etiqueta **NO AR** (vermelha com a câmera no telão, verde só escolhida) e os marcadores Prévia / No ar nos botões.
+- [ ] **Congelar 5 s**: com a câmera no ar e a câmera no telão ligada, tirar o cabo (ou parar o emissor NDI) por 6 s: a última imagem fica **parada por 5 s** e depois **some** (o Holyrics aparece normal, sem preto); ao voltar o sinal, a imagem volta sozinha. O chip do cartão mostra "congelado" e depois "sem sinal".
+- [ ] **Posição vertical por câmera**: arrastar a barrinha sob a Prévia e sob o No ar (0 a 100%) e girar o mouse sobre a imagem (1%; com Shift, 5%): o retângulo verde (a faixa de 53% que o LED mostra de uma câmera 1920x1080) anda na miniatura e o telão acompanha na hora. Cada câmera guarda a sua posição; fechar e abrir o app mantém.
+- [ ] **Atalhos**: com **Atalhos F1-F4 e Ctrl+Espaço** ligado, F1 a F4 mandam as câmeras 1 a 4 para a Prévia e **Ctrl+Espaço** corta; a aba mostra a mudança na hora. Se uma tecla já era de outro programa (F1-F4 podem bater com atalhos do Holyrics), aparece o aviso amarelo; desligar a chave devolve as teclas.
+- [ ] **API do Holyrics**: `http://127.0.0.1:8787/ndi/on`, `/ndi/off`, `/ndi/take` (não escolhe câmera) e `/ndi/status` respondem 200; a chave "Câmera no telão" e a Prévia/No ar da aba acompanham.
+- [ ] **Escolha do monitor**: o seletor vem **travado** no monitor 2560x768 (cadeado). Destravar deixa escolher outro monitor da lista; destravar sempre começa de novo no 2560x768. Travar volta ao LED. **Esconder da live (OBS/NDI)** vem desligado: ligado, o OBS não vê a câmera.
+- [ ] **Sem o NDI Tools**: com o NDI Tools desinstalado (ou renomeando a pasta do runtime), o cartão **"NDI Tools não encontrado"** aparece no topo com o link e o botão **Verificar de novo**; o resto da aba fica visível mas apagado. Instalar o NDI Tools e clicar em **Verificar de novo**: o cartão some e as câmeras aparecem na lista.
+- [ ] **Câmeras e IPs fixos**: o lápis de cada botão muda o nome e a fonte (lista das fontes achadas ou o IP digitado, `192.168.1.50` ou `192.168.1.50:5961`); o **+** adiciona até 6 câmeras; a lixeira pede confirmação. O ícone de rede abre os **IPs fixos** (para câmeras em outra rede).
+- [ ] **Rede**: cada câmera chega com ~125 Mbps e há duas conectadas (Prévia e No ar): só em cabo gigabit, nunca por Wi-Fi.
+
+## 21. Depois que tudo passou
 
 - [ ] **Desinstalar o Alerta-IBT antigo (Electron)**: Configurações do Windows > Aplicativos > "Avisos de Estacionamento - IBT" (Alerta-IBT).
 - [ ] Conferir que o `AlertaIBT` continua no início do Windows e que o antigo não aparece mais lá.
