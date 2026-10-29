@@ -71,8 +71,33 @@ public sealed record PlayerSettings
     /// <summary>The default "do not start after" (18:25).</summary>
     public static readonly TimeOnly DefaultLatest = new(18, 25);
 
-    /// <summary>The fade lengths in seconds the screen offers: 0 (dry), 3 and 5.</summary>
-    public static readonly IReadOnlyList<int> FadeChoices = [0, 3, 5];
+    /// <summary>The fade lengths in seconds the screen offers: 0 (dry), 0.5, 1, 2 and so on up to 10.</summary>
+    public static readonly IReadOnlyList<double> FadeChoices = [0, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    /// <summary>The crossfade lengths in seconds the screen offers: 0 (none, gapless), 0.5, 1, 2 and so on up to 12.</summary>
+    public static readonly IReadOnlyList<double> CrossfadeChoices = [0, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+    /// <summary>The value of <paramref name="choices"/> nearest to <paramref name="seconds"/> (the lower one on a tie); the first one when it is not a number.</summary>
+    public static double Nearest(IReadOnlyList<double> choices, double seconds)
+    {
+        ArgumentNullException.ThrowIfNull(choices);
+
+        if (!double.IsFinite(seconds))
+        {
+            return choices[0];
+        }
+
+        var best = choices[0];
+        foreach (var choice in choices)
+        {
+            if (Math.Abs(choice - seconds) < Math.Abs(best - seconds))
+            {
+                best = choice;
+            }
+        }
+
+        return best;
+    }
 
     /// <summary>Master switch "Player ligado": off means nothing plays, no alarm fires, the API and the media keys are ignored. On by default.</summary>
     public bool Enabled { get; init; } = true;
@@ -101,11 +126,14 @@ public sealed record PlayerSettings
     /// <summary>"Teclas de midia controlam o player": the keyboard's Play/Pause, Next, Previous and Stop keys drive the player. On by default.</summary>
     public bool MediaKeys { get; init; } = true;
 
-    /// <summary>"Ao parar": the fade-out, in seconds, of pause and stop (0, 3 or 5). 5 by default.</summary>
-    public int StopFadeSeconds { get; init; } = 5;
+    /// <summary>The fade-in, in seconds, of play and of an alarm start (one of <see cref="FadeChoices"/>; 0 is dry). 5 by default. Older files kept the alarm's value here.</summary>
+    public double FadeInSeconds { get; init; } = 5;
 
-    /// <summary>"Ao comecar pelo despertador": the fade-in, in seconds, of an alarm start (0, 3 or 5). 5 by default.</summary>
-    public int AlarmFadeSeconds { get; init; } = 5;
+    /// <summary>The fade-out, in seconds, of pause and stop (one of <see cref="FadeChoices"/>; 0 is dry). 5 by default.</summary>
+    public double FadeOutSeconds { get; init; } = 5;
+
+    /// <summary>The crossfade ("mescla"), in seconds, at the automatic end of a track (one of <see cref="CrossfadeChoices"/>; 0 is none: the next track follows with no gap). 0 by default.</summary>
+    public double CrossfadeSeconds { get; init; }
 
     /// <summary>The name of the selected playlist.</summary>
     public string CurrentPlaylist { get; init; } = DefaultPlaylistName;
@@ -148,8 +176,9 @@ public sealed record PlayerSettings
         && Shuffle == other.Shuffle
         && Repeat == other.Repeat
         && MediaKeys == other.MediaKeys
-        && StopFadeSeconds == other.StopFadeSeconds
-        && AlarmFadeSeconds == other.AlarmFadeSeconds
+        && FadeInSeconds == other.FadeInSeconds
+        && FadeOutSeconds == other.FadeOutSeconds
+        && CrossfadeSeconds == other.CrossfadeSeconds
         && CurrentPlaylist == other.CurrentPlaylist
         && Playlists.SequenceEqual(other.Playlists)
         && AlarmsEnabled == other.AlarmsEnabled

@@ -70,8 +70,8 @@ public sealed class PlayerBasicsTests
         Assert.True(player.AlarmsEnabled);
         Assert.True(player.MediaKeys);
         Assert.Equal(["WING", "3-4"], player.OutputMatch);
-        Assert.Equal(5, player.StopFadeSeconds);
-        Assert.Equal(5, player.AlarmFadeSeconds);
+        Assert.Equal(5, player.FadeOutSeconds);
+        Assert.Equal(5, player.FadeInSeconds);
         Assert.True(player.Shuffle);
         Assert.Equal("all", player.Repeat);
         var playlist = Assert.Single(player.Playlists);
@@ -100,8 +100,9 @@ public sealed class PlayerBasicsTests
             {
                 Volume = 250,
                 Repeat = "banana",
-                StopFadeSeconds = 4,
-                AlarmFadeSeconds = 1,
+                FadeOutSeconds = 11.6,
+                FadeInSeconds = 0.7,
+                CrossfadeSeconds = 13,
                 OutputMatch = [" WING ", "", "1-2"],
                 Playlists = [new PlaylistEntry("A", "/a"), new PlaylistEntry("a", "/dup"), new PlaylistEntry(" ", "/x")],
                 CurrentPlaylist = "missing",
@@ -119,8 +120,9 @@ public sealed class PlayerBasicsTests
         var player = loaded.Player;
         Assert.Equal(100, player.Volume);
         Assert.Equal("all", player.Repeat);
-        Assert.Equal(3, player.StopFadeSeconds);
-        Assert.Equal(0, player.AlarmFadeSeconds);
+        Assert.Equal(10, player.FadeOutSeconds);
+        Assert.Equal(0.5, player.FadeInSeconds);
+        Assert.Equal(12, player.CrossfadeSeconds);
         Assert.Equal(["WING", "1-2"], player.OutputMatch);
         Assert.Equal([new PlaylistEntry("A", "/a")], player.Playlists);
         Assert.Equal("A", player.CurrentPlaylist);
@@ -404,5 +406,73 @@ public sealed class PlayerBasicsTests
 
         Assert.Equal([0.5f, 0.5f, 0.5f], stereo.Take(3));
         Assert.Equal([0.1f, 0.2f, 0f, 0f], wide);
+    }
+
+    // ---- fade and crossfade settings ----
+
+    [Theory]
+    [InlineData(0, 0, 0, 0)]
+    [InlineData(3, 5, 5, 3)]
+    [InlineData(5, 3, 3, 5)]
+    public void The_old_fade_choices_become_the_fade_out_and_the_shared_fade_in(int oldStop, int oldAlarm, double fadeIn, double fadeOut)
+    {
+        var json = $"{{ \"version\": 1, \"player\": {{ \"stopFadeSeconds\": {oldStop}, \"alarmFadeSeconds\": {oldAlarm} }} }}";
+
+        var (loaded, corrupt) = SettingsJson.Load(json);
+
+        Assert.False(corrupt);
+        Assert.Equal(fadeIn, loaded.Player.FadeInSeconds); // the alarm's value is folded into the one fade-in
+        Assert.Equal(fadeOut, loaded.Player.FadeOutSeconds);
+        Assert.Equal(0, loaded.Player.CrossfadeSeconds); // new: off until chosen
+    }
+
+    [Fact]
+    public void An_old_file_that_is_saved_again_writes_only_the_new_names()
+    {
+        var (loaded, _) = SettingsJson.Load("{ \"version\": 1, \"player\": { \"stopFadeSeconds\": 3, \"alarmFadeSeconds\": 0 } }");
+
+        var text = SettingsJson.Save(loaded);
+
+        Assert.DoesNotContain("stopFadeSeconds", text);
+        Assert.DoesNotContain("alarmFadeSeconds", text);
+        Assert.Contains("\"fadeInSeconds\": 0", text);
+        Assert.Contains("\"fadeOutSeconds\": 3", text);
+        Assert.Contains("\"crossfadeSeconds\": 0", text);
+        Assert.Equal(0, SettingsJson.Load(text).Settings.Player.FadeInSeconds);
+    }
+
+    [Fact]
+    public void The_new_names_win_over_the_old_ones_and_halves_survive()
+    {
+        var json = "{ \"player\": { \"stopFadeSeconds\": 5, \"fadeOutSeconds\": 0.5, \"fadeInSeconds\": 7, \"crossfadeSeconds\": 2.5 } }";
+
+        var player = SettingsJson.Load(json).Settings.Player;
+
+        Assert.Equal(0.5, player.FadeOutSeconds);
+        Assert.Equal(7, player.FadeInSeconds);
+        Assert.Equal(2, player.CrossfadeSeconds); // 2.5 is not a step (after 0.5 the steps are whole): the lower neighbour
+    }
+
+    [Fact]
+    public void The_dropdown_values_are_the_allowed_ones_and_anything_else_snaps_to_the_nearest()
+    {
+        Assert.Equal([0, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], PlayerSettings.FadeChoices);
+        Assert.Equal([0, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], PlayerSettings.CrossfadeChoices);
+        Assert.Equal(0, PlayerSettings.Nearest(PlayerSettings.FadeChoices, -4));
+        Assert.Equal(10, PlayerSettings.Nearest(PlayerSettings.FadeChoices, 99));
+        Assert.Equal(0.5, PlayerSettings.Nearest(PlayerSettings.FadeChoices, 0.6));
+        Assert.Equal(0, PlayerSettings.Nearest(PlayerSettings.CrossfadeChoices, double.NaN));
+        Assert.Equal(12, PlayerSettings.Nearest(PlayerSettings.CrossfadeChoices, 12.4));
+    }
+
+    [Fact]
+    public void The_defaults_keep_the_old_five_second_fades_and_no_crossfade()
+    {
+        var player = new PlayerSettings();
+
+        Assert.Equal(5, player.FadeInSeconds);
+        Assert.Equal(5, player.FadeOutSeconds);
+        Assert.Equal(0, player.CrossfadeSeconds);
+        Assert.NotEqual(player, player with { CrossfadeSeconds = 2 });
     }
 }

@@ -157,8 +157,10 @@ public static partial class SettingsJson
                     Shuffle = ReadBool(player, "shuffle") ?? defaults.Player.Shuffle,
                     Repeat = ReadString(player, "repeat") ?? defaults.Player.Repeat,
                     MediaKeys = ReadBool(player, "mediaKeys") ?? defaults.Player.MediaKeys,
-                    StopFadeSeconds = ReadInt(player, "stopFadeSeconds") ?? defaults.Player.StopFadeSeconds,
-                    AlarmFadeSeconds = ReadInt(player, "alarmFadeSeconds") ?? defaults.Player.AlarmFadeSeconds,
+                    // The old file had a stop fade (stopFadeSeconds) and an alarm fade (alarmFadeSeconds): they become the fade-out and the (shared) fade-in.
+                    FadeInSeconds = ReadDouble(player, "fadeInSeconds") ?? ReadDouble(player, "alarmFadeSeconds") ?? defaults.Player.FadeInSeconds,
+                    FadeOutSeconds = ReadDouble(player, "fadeOutSeconds") ?? ReadDouble(player, "stopFadeSeconds") ?? defaults.Player.FadeOutSeconds,
+                    CrossfadeSeconds = ReadDouble(player, "crossfadeSeconds") ?? defaults.Player.CrossfadeSeconds,
                     CurrentPlaylist = ReadString(player, "currentPlaylist") ?? defaults.Player.CurrentPlaylist,
                     Playlists = ReadPlaylists(player) ?? defaults.Player.Playlists,
                     AlarmsEnabled = ReadBool(player, "alarmsEnabled") ?? defaults.Player.AlarmsEnabled,
@@ -265,8 +267,9 @@ public static partial class SettingsJson
                 ["shuffle"] = n.Player.Shuffle,
                 ["repeat"] = n.Player.Repeat,
                 ["mediaKeys"] = n.Player.MediaKeys,
-                ["stopFadeSeconds"] = n.Player.StopFadeSeconds,
-                ["alarmFadeSeconds"] = n.Player.AlarmFadeSeconds,
+                ["fadeInSeconds"] = n.Player.FadeInSeconds,
+                ["fadeOutSeconds"] = n.Player.FadeOutSeconds,
+                ["crossfadeSeconds"] = n.Player.CrossfadeSeconds,
                 ["currentPlaylist"] = n.Player.CurrentPlaylist,
                 ["playlists"] = new JsonArray(n.Player.Playlists.Select(list => (JsonNode)new JsonObject
                 {
@@ -418,17 +421,15 @@ public static partial class SettingsJson
             Shuffle = p.Shuffle,
             Repeat = p.Repeat?.Trim().ToLowerInvariant() switch { "off" => "off", "one" => "one", _ => "all" },
             MediaKeys = p.MediaKeys,
-            StopFadeSeconds = NearestFade(p.StopFadeSeconds),
-            AlarmFadeSeconds = NearestFade(p.AlarmFadeSeconds),
+            FadeInSeconds = PlayerSettings.Nearest(PlayerSettings.FadeChoices, p.FadeInSeconds),
+            FadeOutSeconds = PlayerSettings.Nearest(PlayerSettings.FadeChoices, p.FadeOutSeconds),
+            CrossfadeSeconds = PlayerSettings.Nearest(PlayerSettings.CrossfadeChoices, p.CrossfadeSeconds),
             CurrentPlaylist = current,
             Playlists = playlists,
             AlarmsEnabled = p.AlarmsEnabled,
             Alarms = NormalizeAlarms(p.Alarms) ?? d.Alarms,
         };
     }
-
-    // 0 (dry), 3 or 5 seconds: the nearest of the three.
-    private static int NearestFade(int seconds) => seconds <= 1 ? 0 : seconds <= 4 ? 3 : 5;
 
     private static List<PlaylistEntry>? NormalizePlaylists(IReadOnlyList<PlaylistEntry>? playlists)
     {
@@ -653,6 +654,9 @@ public static partial class SettingsJson
             : null;
 
     // A whole number; a fractional or enormous one is rounded or pinned to the int range (the caller then clamps it).
+    private static double? ReadDouble(JsonElement section, string name) =>
+        Find(section, name) is { ValueKind: JsonValueKind.Number } value && value.TryGetDouble(out var real) && double.IsFinite(real) ? real : null;
+
     private static int? ReadInt(JsonElement section, string name)
     {
         if (Find(section, name) is not { ValueKind: JsonValueKind.Number } value)
