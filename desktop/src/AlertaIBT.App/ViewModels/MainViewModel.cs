@@ -15,6 +15,9 @@ public enum MainTab
     /// <summary>Som: the volumes, the routing of the outputs, the music player and the alarms.</summary>
     Som,
 
+    /// <summary>NDI: the camera on the telao (Previa, No ar, Cortar, the cameras and the telao card).</summary>
+    Ndi,
+
     /// <summary>Configurações: the bar, Telegram, the system, the Gemini model and the diagnostics.</summary>
     Settings,
 }
@@ -48,6 +51,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <param name="post">Runs an action on the UI thread; runs it at once when null (tests).</param>
     /// <param name="updates">The automatic update, for the one-line notice while it downloads or installs; null shows none.</param>
     /// <param name="som">The Som tab; null leaves the tab empty (tests of the other tabs).</param>
+    /// <param name="ndi">The NDI tab; null leaves the tab empty (tests of the other tabs).</param>
     public MainViewModel(
         StatusHub hub,
         HomeViewModel home,
@@ -56,7 +60,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Autosaver saver,
         Action<Action>? post = null,
         IUpdateStatus? updates = null,
-        SomViewModel? som = null)
+        SomViewModel? som = null,
+        NdiViewModel? ndi = null)
     {
         ArgumentNullException.ThrowIfNull(hub);
         ArgumentNullException.ThrowIfNull(home);
@@ -69,6 +74,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Correction = correction;
         Settings = settings;
         Som = som;
+        Ndi = ndi;
         Saver = saver;
         _post = post ?? (action => action());
         SelectTabCommand = new RelayCommand<MainTab>(tab => SelectedTab = tab);
@@ -103,6 +109,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The Som tab (null when the window was built without it).</summary>
     public SomViewModel? Som { get; }
 
+    /// <summary>The NDI tab (null when the window was built without it).</summary>
+    public NdiViewModel? Ndi { get; }
+
     /// <summary>The autosave of the settings tabs (their "Salvo" stamp).</summary>
     public Autosaver Saver { get; }
 
@@ -117,6 +126,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Whether the Configurações tab is selected.</summary>
     public bool IsSettingsSelected => SelectedTab == MainTab.Settings;
+
+    /// <summary>Whether the NDI tab is selected.</summary>
+    public bool IsNdiSelected => SelectedTab == MainTab.Ndi;
 
     /// <summary>Whether the Som tab is selected.</summary>
     public bool IsSomSelected => SelectedTab == MainTab.Som;
@@ -149,6 +161,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Correction.Dispose();
         Settings.Dispose();
         Som?.Dispose();
+        Ndi?.Dispose();
     }
 
     partial void OnSelectedTabChanged(MainTab value)
@@ -156,6 +169,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsHomeSelected));
         OnPropertyChanged(nameof(IsSettingsSelected));
         OnPropertyChanged(nameof(IsSomSelected));
+        OnPropertyChanged(nameof(IsNdiSelected));
     }
 
     private void OnHubChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => _post(RefreshStatus);
