@@ -66,6 +66,9 @@ public sealed class FakeAudioSystem : IAudioSystem
         DevicesChanged?.Invoke();
     }
 
+    /// <summary>Windows tells that the devices changed (after the test edited <see cref="Devices"/> by hand).</summary>
+    public void RaiseDevicesChanged() => DevicesChanged?.Invoke();
+
     public void WindowsSwitchesTo(string id)
     {
         DefaultConsole = DefaultMultimedia = DefaultCommunications = id;

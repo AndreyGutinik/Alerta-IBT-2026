@@ -61,6 +61,12 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     /// <summary>How often a player that has no output (device missing) tries again.</summary>
     public static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(5);
 
+    /// <summary>How long a change of output waits for a quicker second change before it moves the sound (rapid changes coalesce to the last one).</summary>
+    public static readonly TimeSpan OutputMoveDelay = TimeSpan.FromMilliseconds(40);
+
+    /// <summary>The micro-fade of the move: the old output fades out and the new one fades in over this time (150 ms), so nothing clicks.</summary>
+    public static readonly TimeSpan OutputMoveFade = TimeSpan.FromMilliseconds(150);
+
     private const int MaxSkips = 8;
 
     private readonly SettingsService _settings;
@@ -82,6 +88,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     private string? _lastError;
     private OutputChoice? _choice;
     private ITimer? _retry;
+    private ITimer? _moveTimer;
     private int _generation;
     private bool _fading;
     private bool _disposed;
@@ -353,6 +360,8 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
             _audio.DefaultDeviceChanged -= OnDevicesChanged;
             _retry?.Dispose();
             _retry = null;
+            _moveTimer?.Dispose();
+            _moveTimer = null;
             _generation++;
             CloseSessionLocked();
         }
@@ -819,6 +828,15 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
 
         // The wished device came back (or went): the next track opens on the right one.
         CloseSessionLocked();
+        var session = CreateSessionLocked(choice);
+        _session = session;
+        return session;
+    }
+
+    // Opens an output for `choice` and the mixer it pulls; does not touch the session in use.
+    private Session CreateSessionLocked(OutputChoice choice)
+    {
+        var wantedId = choice.Device?.Id;
         PlayerMixer? mixer = null;
         var output = _backend.OpenOutput(wantedId, (rate, channels) =>
         {
@@ -832,7 +850,6 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         mixer.TrackEnded += () => OnTrackEnded(session);
         mixer.TrackAdvanced += track => OnTrackAdvanced(session, track);
         output.Failed += error => OnOutputFailed(session, error);
-        _session = session;
         return session;
     }
 
@@ -921,7 +938,105 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
             _choice = choice;
             _changed = true;
             EnsurePreloadLocked();
+            ScheduleMoveLocked();
         }
+    }
+
+    // The wished output changed while a session may be sounding on another one: move the sound there in a moment (rapid changes coalesce).
+    private void ScheduleMoveLocked()
+    {
+        if (_session is null || _state != PlayerState.Playing)
+        {
+            return;
+        }
+
+        _moveTimer ??= _clock.CreateTimer(_ => Locked(MoveToWishedOutputLocked), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _moveTimer.Change(OutputMoveDelay, Timeout.InfiniteTimeSpan);
+    }
+
+    // Moves the playing track, from the same position, to the output the settings ask for now: a new output opens, the track continues there with a
+    // 150 ms fade-in and the old output fades out over the same 150 ms and closes. A device that is not there falls back to the Windows default (the dot says so).
+    private PlayerResult MoveToWishedOutputLocked()
+    {
+        if (_disposed || _session is not { } old || _state != PlayerState.Playing || _fading || _current is not { } current)
+        {
+            return PlayerResult.Ok;
+        }
+
+        var choice = ResolveOutputLocked();
+        if (string.Equals(old.RequestedId, choice.Device?.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            _changed = true;
+            return PlayerResult.Ok; // already there (the change was undone or never mattered)
+        }
+
+        var position = old.Mixer.Position;
+        Session fresh;
+        IPcmTrack pcm;
+        try
+        {
+            fresh = CreateSessionLocked(choice);
+            pcm = _backend.OpenTrack(current.Path, fresh.Mixer.SampleRate, fresh.Mixer.Channels);
+            if (position > TimeSpan.Zero)
+            {
+                pcm.Seek(position);
+            }
+        }
+        catch (Exception ex)
+        {
+            // The new output (or the file) would not open: the sound stays where it is and the screen says why.
+            _logger.LogWarning(ex, "Nao foi possivel mover o player para a nova saida de audio");
+            _lastError = "N\U000000E3o consegui abrir a nova sa\U000000EDda de \U000000E1udio: " + ex.Message;
+            _changed = true;
+            return PlayerResult.Fail("sem sa\U000000EDda de \U000000E1udio");
+        }
+
+        fresh.Mixer.StartTrack(pcm, FadeEnvelope.FramesFor(OutputMoveFade.TotalSeconds, fresh.Mixer.SampleRate));
+        _session = fresh;
+        AnalyzeCurrent(fresh, pcm, current.Path);
+        _lastError = null;
+        _changed = true;
+        _logger.LogInformation("Player: som movido para {Device}", choice.Device?.Name ?? "padrao do Windows");
+        ForgetPreloadLocked();
+        EnsurePreloadLocked();
+        FadeAndCloseOld(old);
+        return PlayerResult.Ok;
+    }
+
+    // The old output fades out over the micro-fade and is closed (also after a second if the device is gone and nothing pulls it any more).
+    private void FadeAndCloseOld(Session old)
+    {
+        var closed = 0;
+        void Close()
+        {
+            if (Interlocked.Exchange(ref closed, 1) != 0)
+            {
+                return;
+            }
+
+            try
+            {
+                old.Output.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Erro ao fechar a saida de audio antiga do player");
+            }
+
+            old.Mixer.SetTrack(null);
+        }
+
+        old.Mixer.FadeTo(0f, FadeEnvelope.FramesFor(OutputMoveFade.TotalSeconds, old.Mixer.SampleRate), Close);
+        var guard = default(ITimer);
+        guard = _clock.CreateTimer(
+            _ =>
+            {
+                Close();
+                guard?.Dispose();
+            },
+            null,
+            TimeSpan.FromSeconds(1),
+            Timeout.InfiniteTimeSpan);
     }
 
     private OutputStatus DescribeOutput(PlayerSettings options, OutputChoice choice)

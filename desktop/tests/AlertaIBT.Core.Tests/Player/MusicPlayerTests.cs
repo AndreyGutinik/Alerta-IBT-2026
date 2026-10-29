@@ -375,18 +375,16 @@ public sealed class MusicPlayerTests : IDisposable
     }
 
     [Fact]
-    public void When_the_wished_output_appears_the_status_updates_and_the_next_track_moves_there()
+    public void When_the_wished_output_appears_the_status_updates_and_the_sound_moves_there_without_waiting_for_the_next_track()
     {
-        _rig.Backend.TrackFrames = 48000;
         Player.Play();
         Assert.Equal(PlayerRig.Speakers, Backend.Output.RequestedId);
 
         _rig.PlugWing34();
         Assert.Equal(OutputChoiceKind.ByRule, Player.GetStatus().Output.Kind);
-        Backend.Outputs[0].PumpSeconds(1.2); // the track ends: the next one opens on the right device
+        _rig.Clock.Advance(MusicPlayer.OutputMoveDelay);
 
         Assert.Equal(2, Backend.Outputs.Count);
-        Assert.True(Backend.Outputs[0].Disposed);
         Assert.Equal(PlayerRig.Wing34, Backend.Output.RequestedId);
         Assert.Equal(PlayerState.Playing, Player.GetStatus().State);
     }

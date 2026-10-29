@@ -639,7 +639,7 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
             return StatusLight.Gray;
         }
 
-        if (text.Contains("desconectado", StringComparison.OrdinalIgnoreCase))
+        if (text.Contains("desconectado", StringComparison.OrdinalIgnoreCase) || text.Contains("pr\U000000F3xima vez", StringComparison.OrdinalIgnoreCase))
         {
             return StatusLight.Yellow;
         }

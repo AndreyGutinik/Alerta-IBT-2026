@@ -86,6 +86,9 @@ public sealed partial class AudioController : IDisposable
     /// <summary>How long events are gathered before one look at the audio (500 ms).</summary>
     public static readonly TimeSpan Debounce = TimeSpan.FromMilliseconds(500);
 
+    /// <summary>How long after setting the Holyrics output the sound is looked at again to see whether it moved (800 ms).</summary>
+    public static readonly TimeSpan VerifyDelay = TimeSpan.FromMilliseconds(800);
+
     /// <summary>The most corrections of the default output in <see cref="CorrectionWindow"/> (3): more means something keeps undoing them.</summary>
     public const int MaxCorrections = 3;
 
@@ -119,6 +122,11 @@ public sealed partial class AudioController : IDisposable
     private string _watchedKey = string.Empty;
     private AudioDevice? _holyricsDevice;
     private int _holyricsRunning;
+    private bool _holyricsPending;
+    private readonly HashSet<int> _justRouted = [];
+    private ITimer? _verifyTimer;
+    private string _outputKey = string.Empty;
+    private bool _passing;
     private bool _holyricsReportedAbsent;
     private string _lastSeen = string.Empty;
     private IReadOnlyList<AudioDevice> _devices = [];
@@ -181,6 +189,15 @@ public sealed partial class AudioController : IDisposable
             _system.DefaultDeviceChanged += Kick;
             _system.SessionCreated += Kick;
             _settings.Changed += OnSettingsChanged;
+            var audio = _settings.Current.Audio;
+            _outputKey = string.Join(
+                '|',
+                audio.LockOutput,
+                audio.OutputDeviceId,
+                string.Join('+', audio.OutputMatch),
+                audio.HolyricsRoute,
+                audio.HolyricsDeviceId,
+                string.Join('+', audio.HolyricsMatch));
             _debounceTimer.Change(Debounce, Timeout.InfiniteTimeSpan);
         }
     }
@@ -212,6 +229,7 @@ public sealed partial class AudioController : IDisposable
 
             _debounceTimer?.Dispose();
             _startTimer?.Dispose();
+            _verifyTimer?.Dispose();
         }
 
         try
@@ -238,7 +256,32 @@ public sealed partial class AudioController : IDisposable
         }
     }
 
-    private void OnSettingsChanged(AppSettings settings) => Kick();
+    private void OnSettingsChanged(AppSettings settings)
+    {
+        Kick();
+
+        // A change of an output (the lock, the Windows default, the Holyrics route) is carried out at once, not after the 500 ms look.
+        var audio = settings.Audio;
+        var key = string.Join(
+            '|',
+            audio.LockOutput,
+            audio.OutputDeviceId,
+            string.Join('+', audio.OutputMatch),
+            audio.HolyricsRoute,
+            audio.HolyricsDeviceId,
+            string.Join('+', audio.HolyricsMatch));
+        bool changed;
+        lock (_gate)
+        {
+            changed = _started && !_disposed && !_passing && key != _outputKey && _outputKey.Length > 0;
+            _outputKey = key;
+        }
+
+        if (changed)
+        {
+            _livePost(() => Reconcile(applyNow: false));
+        }
+    }
 
     private void OnStartDue()
     {
@@ -265,6 +308,7 @@ public sealed partial class AudioController : IDisposable
                 return;
             }
 
+            _passing = true; // what the look itself learns and saves (ids, names) must not start another look
             try
             {
                 Pass(applyNow);
@@ -273,6 +317,10 @@ public sealed partial class AudioController : IDisposable
             {
                 // A missing or broken audio service must never reach the UI; the status line says what is known.
                 _logger.LogWarning("Som: o audio do Windows nao respondeu ({Error})", ex.GetType().Name);
+            }
+            finally
+            {
+                _passing = false;
             }
 
             var status = BuildStatus();
@@ -522,6 +570,7 @@ public sealed partial class AudioController : IDisposable
             }
 
             _holyricsRunning = 0;
+            _holyricsPending = false;
             return;
         }
 
@@ -534,6 +583,7 @@ public sealed partial class AudioController : IDisposable
         var names = audio.Apps.FirstOrDefault(app => string.Equals(app.Name, HolyricsName, StringComparison.OrdinalIgnoreCase))?.ProcessNames
             ?? ["Holyrics", "javaw"];
         var processes = new SortedSet<int>();
+        var onTarget = new HashSet<int>();
         foreach (var device in devices)
         {
             foreach (var session in _system.GetSessions(device.Id))
@@ -541,9 +591,15 @@ public sealed partial class AudioController : IDisposable
                 if (session.ProcessId > 0 && !session.IsSystemSounds && AudioNames.MatchesProcess(names, session.ProcessName))
                 {
                     processes.Add(session.ProcessId);
+                    if (string.Equals(device.Id, holyrics.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        onTarget.Add(session.ProcessId);
+                    }
                 }
             }
         }
+
+        // Windows may honour the per-program output only for the NEXT stream of the program: while its live sound is still elsewhere, say so.
 
         _holyricsRunning = processes.Count;
         var live = new HashSet<string>(processes.Select(pid => $"{pid}|{holyrics.Id}"));
@@ -568,6 +624,9 @@ public sealed partial class AudioController : IDisposable
             {
                 _routed.Add(key);
                 _routeFailed.Remove(key);
+                _justRouted.Add(pid);
+                _verifyTimer ??= _clock.CreateTimer(_ => Reconcile(applyNow: false), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                _verifyTimer.Change(VerifyDelay, Timeout.InfiniteTimeSpan); // one more look: did the live sound follow?
                 _logger.LogInformation("Som: Holyrics (processo {Process}) agora toca em {Device}", pid, holyrics.ShortName);
             }
             else
@@ -576,6 +635,9 @@ public sealed partial class AudioController : IDisposable
                 _logger.LogWarning("Som: nao foi possivel mudar a saida do Holyrics para {Device}", holyrics.ShortName);
             }
         }
+
+        _justRouted.RemoveWhere(pid => !processes.Contains(pid));
+        _holyricsPending = processes.Any(pid => _justRouted.Contains(pid) && !onTarget.Contains(pid));
     }
 
     private void Remember(AudioDevice device) =>
@@ -689,8 +751,13 @@ public sealed partial class AudioController : IDisposable
             return $"{name} \U00002014 aguardando o Holyrics tocar";
         }
 
-        return _routeFailed.Count > 0 && _routed.Count == 0
-            ? $"{name} \U00002014 n\U000000E3o foi poss\U000000EDvel mudar a sa\U000000EDda do Holyrics"
+        if (_routeFailed.Count > 0 && _routed.Count == 0)
+        {
+            return $"{name} \U00002014 n\U000000E3o foi poss\U000000EDvel mudar a sa\U000000EDda do Holyrics";
+        }
+
+        return _holyricsPending
+            ? $"{name} \U00002014 vale na pr\U000000F3xima vez que o Holyrics tocar"
             : $"Holyrics toca em {name}";
     }
 

@@ -82,7 +82,7 @@ public sealed class AudioRoutingTests : IDisposable
 
     private AudioController Boot(bool withPolicy = true)
     {
-        _controller = new AudioController(_audio, _settings, _clock, _log, withPolicy ? _output : null);
+        _controller = new AudioController(_audio, _settings, _clock, _log, withPolicy ? _output : null, action => action());
         _controller.Start();
         _clock.Advance(AudioController.StartDelay + AudioController.Debounce);
         return _controller;
@@ -169,7 +169,7 @@ public sealed class AudioRoutingTests : IDisposable
         Assert.Equal([$"set:100:{HolyId}"], _output.Sets);
         Assert.Equal(HolyId, _settings.Current.Audio.HolyricsDeviceId);
         Assert.Equal(HolyName, _settings.Current.Audio.HolyricsDeviceName);
-        Assert.Equal("Holyrics toca em WING-USB Out 1-2", _controller!.Status.HolyricsText);
+        Assert.Equal("WING-USB Out 1-2 \U00002014 vale na pr\U000000F3xima vez que o Holyrics tocar", _controller!.Status.HolyricsText);
         Assert.Contains(_log.Entries, e => e.Message.Contains("Holyrics (processo 100) agora toca em", StringComparison.Ordinal));
 
         _output.Calls.Clear();
@@ -203,6 +203,52 @@ public sealed class AudioRoutingTests : IDisposable
         Wait(AudioController.Debounce);
 
         Assert.Equal([$"set:100:{HolyId}", $"set:101:{HolyId}"], _output.Sets);
+    }
+
+    [Fact]
+    public void The_status_says_it_counts_from_the_next_time_while_the_live_sound_is_still_elsewhere_and_then_that_it_moved()
+    {
+        _audio.AddSession(WingId, "s-holy", "javaw", raise: false, processId: 100);
+
+        Boot();
+
+        Assert.Equal("WING-USB Out 1-2 — vale na próxima vez que o Holyrics tocar", _controller!.Status.HolyricsText); // the program plays on another output: Windows will use the new one next time
+
+        _audio.Sessions[WingId].Clear();
+        _audio.AddSession(HolyId, "s-holy", "javaw", raise: false, processId: 100); // the program opened a new stream and Windows sent it to the new output
+        Wait(AudioController.VerifyDelay);
+
+        Assert.Equal("Holyrics toca em WING-USB Out 1-2", _controller.Status.HolyricsText);
+    }
+
+    [Fact]
+    public void Changing_the_holyrics_output_sets_the_program_at_once_without_the_half_second_look()
+    {
+        _audio.AddSession(WingId, "s-holy", "javaw", raise: false, processId: 100);
+        Boot();
+        _output.Calls.Clear();
+        var other = new AudioDevice("{0.0.0.00000000}.{other-out}", "Outra (USB)");
+        _audio.Add(other);
+        Wait(AudioController.Debounce);
+        _output.Calls.Clear();
+
+        _settings.Update(s => s with { Audio = s.Audio with { HolyricsDeviceId = other.Id, HolyricsDeviceName = other.Name, HolyricsMatch = [other.Name] } });
+
+        Assert.Contains($"set:100:{other.Id}", _output.Sets); // no clock moved: it did not wait for the debounce
+    }
+
+    [Fact]
+    public void Changing_the_windows_default_lock_target_corrects_the_default_at_once()
+    {
+        Boot();
+        var other = new AudioDevice("{0.0.0.00000000}.{other-out}", "Outra (USB)");
+        _audio.Add(other);
+        Wait(AudioController.Debounce);
+        _audio.Calls.Clear();
+
+        _settings.Update(s => s with { Audio = s.Audio with { OutputDeviceId = other.Id, OutputDeviceName = other.Name, OutputMatch = [other.Name] } });
+
+        Assert.Contains($"default:{other.Id}", _audio.Calls); // no clock moved
     }
 
     [Fact]
@@ -288,7 +334,7 @@ public sealed class AudioRoutingTests : IDisposable
         _audio.Add(new AudioDevice(HolyId, HolyName));
         Wait(AudioController.Debounce);
 
-        Assert.Equal("Holyrics toca em WING-USB Out 1-2", _controller.Status.HolyricsText);
+        Assert.Equal("WING-USB Out 1-2 \U00002014 vale na pr\U000000F3xima vez que o Holyrics tocar", _controller.Status.HolyricsText);
     }
 
     [Fact]
@@ -319,7 +365,7 @@ public sealed class AudioRoutingTests : IDisposable
         _controller.ApplyNow();
 
         Assert.Equal(2, _output.Sets.Count());
-        Assert.Equal("Holyrics toca em WING-USB Out 1-2", _controller.Status.HolyricsText);
+        Assert.Equal("WING-USB Out 1-2 \U00002014 vale na pr\U000000F3xima vez que o Holyrics tocar", _controller.Status.HolyricsText);
     }
 
     [Fact]
