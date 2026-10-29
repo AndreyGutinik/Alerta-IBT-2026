@@ -1,3 +1,4 @@
+import { SquarePen } from 'lucide-react'
 import { useCallback, useId, useRef, useState } from 'react'
 import { cleanRaw, fieldValue, formatFree } from '../alerts/format'
 import { MEMBER_MAX_LENGTH } from '../alerts/rules'
@@ -108,9 +109,12 @@ export function SendTab() {
 
   return (
     <>
-      <div>
+      <div className="cd compose">
         <div className="lb">
-          <label htmlFor={inputId}>Novo aviso</label>
+          <label htmlFor={inputId}>
+            <SquarePen aria-hidden="true" />
+            Novo aviso
+          </label>
           <span className="lb-r">
             {showCounter && (
               <span className={length > MEMBER_MAX_LENGTH ? 'count over' : 'count'}>
@@ -142,16 +146,14 @@ export function SendTab() {
           />
           <MicButton onText={appendDictation} onMessage={(msg) => show(msg)} />
         </div>
-      </div>
-      <div className="cd">
         <PreviewBox status={preview.status} result={preview.result} role={role} />
+        <SendRow
+          canSend={canSend}
+          onSend={() => void submit(false)}
+          onUrgent={() => void submit(true)}
+          onUrgentShortTap={() => show(MSG_URGENT_HINT)}
+        />
       </div>
-      <SendRow
-        canSend={canSend}
-        onSend={() => void submit(false)}
-        onUrgent={() => void submit(true)}
-        onUrgentShortTap={() => show(MSG_URGENT_HINT)}
-      />
       <Toast message={toastMessage || blocked || pcNote} live={toastMessage !== ''} />
       <MyAlerts uid={user.uid} />
     </>

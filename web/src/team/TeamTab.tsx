@@ -1,4 +1,4 @@
-import { LogOut, ShieldCheck, ShieldOff, UserCheck, UserX } from 'lucide-react'
+import { LogOut, ShieldCheck, ShieldOff, UserCheck, Users, UserX } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { Role } from '../alerts/types'
 import { formatDayTime } from '../data/time'
@@ -54,7 +54,10 @@ export function TeamTab() {
     <>
       <section aria-labelledby="team-title">
         <h2 className="lb" id="team-title">
-          {list === null ? 'Quem já entrou' : `Quem já entrou (${members.length})`}
+          <span>
+            <Users aria-hidden="true" />
+            {list === null ? 'Quem já entrou' : `Quem já entrou (${members.length})`}
+          </span>
         </h2>
         {list === null ? (
           <p className="empty" aria-busy="true">
@@ -63,7 +66,7 @@ export function TeamTab() {
         ) : members.length === 0 ? (
           <p className="empty">Ninguém entrou ainda.</p>
         ) : (
-          <ul className="list">
+          <ul className="team-list">
             {members.map((m) => {
               const self = m.id === user.uid
               const owner = isOwnerEmail(m.email)
@@ -110,22 +113,22 @@ export function TeamTab() {
                           type="button"
                           className="mbtn"
                           disabled={working || (admin && lastAdmin)}
-                          title={admin && lastAdmin ? MSG_LAST_ADMIN : undefined}
+                          aria-label={admin ? 'Tirar admin' : 'Tornar admin'}
+                          title={admin && lastAdmin ? MSG_LAST_ADMIN : admin ? 'Tirar admin' : 'Tornar admin'}
                           onClick={() => void run(m.id, () => backend.setRole(m.id, nextRole))}
                         >
                           {admin ? <ShieldOff aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
-                          {admin ? 'Tirar admin' : 'Tornar admin'}
                         </button>
                       )}
                       <button
                         type="button"
                         className={m.blocked ? 'mbtn' : 'mbtn danger'}
                         disabled={working || (!m.blocked && lastAdmin)}
-                        title={!m.blocked && lastAdmin ? MSG_LAST_ADMIN : undefined}
+                        aria-label={m.blocked ? 'Restaurar' : 'Remover'}
+                        title={!m.blocked && lastAdmin ? MSG_LAST_ADMIN : m.blocked ? 'Restaurar' : 'Remover'}
                         onClick={() => void run(m.id, () => backend.setBlocked(m.id, !m.blocked))}
                       >
                         {m.blocked ? <UserCheck aria-hidden="true" /> : <UserX aria-hidden="true" />}
-                        {m.blocked ? 'Restaurar' : 'Remover'}
                       </button>
                     </div>
                   )}

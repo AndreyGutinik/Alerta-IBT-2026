@@ -30,7 +30,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     title: 'Como mandar um aviso',
-    text: 'Escreva do seu jeito, numa linha só. O app arruma e mostra como vai ficar no telão.',
+    text: 'Escreva do seu jeito, numa linha. O texto é corrigido e você vê como vai ficar no telão.',
     art: (
       <>
         <div className="ex1">corolla prata abc1d23 vidro abrto</div>
@@ -41,7 +41,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'O que não pode faltar',
-    text: 'Modelo, cor e placa (antiga ou Mercosul). O motivo é opcional. Se faltar algo, o app avisa antes de enviar.',
+    text: 'Modelo, cor e placa (antiga ou Mercosul). O motivo é opcional. Se faltar algo, avisamos antes de enviar.',
     art: (
       <>
         <div className="ex2">MODELO · COR · PLACA</div>
@@ -51,7 +51,7 @@ const STEPS: Step[] = [
   },
   {
     title: 'Acompanhe e urgente',
-    text: 'Em "Seus avisos" você vê: na fila, passando, exibido ou recusado. Para urgente, segure o ícone amarelo por 1 segundo.',
+    text: 'Em "Seus avisos" você vê o andamento. Para urgente, segure o ícone amarelo por 1 segundo.',
     art: (
       <>
         <div className="ex2 flow">

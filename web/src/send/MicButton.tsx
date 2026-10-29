@@ -19,6 +19,7 @@ export function MicButton({ onText, onMessage }: { onText: (t: string) => void; 
       type="button"
       className={speech.listening ? 'mic rec' : 'mic'}
       aria-label="Ditar"
+      title="Ditar"
       aria-pressed={speech.listening}
       onClick={() => {
         if (!speech.listening) onMessage('Ouvindo…')

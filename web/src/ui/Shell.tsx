@@ -1,10 +1,12 @@
 import { Activity, Send, Users } from 'lucide-react'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import logo from '../../../assets/icons/logo.svg'
 import { headerPill, pcPill } from '../data/live'
 import { SendTab } from '../send/SendTab'
 import { useActiveSession } from '../session/SessionProvider'
 import { useConnected, useLive, useServerNow } from '../state/AppData'
 import { Avatar } from './Avatar'
+import { LongPressTips } from './LongPressTips'
 import { Pill } from './Pill'
 
 // Status e Equipe só são baixadas quando a pessoa abre a aba.
@@ -54,7 +56,9 @@ export function Shell() {
 
   return (
     <div className="app">
+      <LongPressTips />
       <header className="ab">
+        <img className="ab-mark" src={logo} alt="" width={32} height={32} />
         <h1>{TITLES[current]}</h1>
         <div className="right">
           <Pill tone={pill.tone} label={pill.label} />
@@ -84,32 +88,42 @@ export function Shell() {
         </div>
       </header>
 
-      <div className="ct" role="tabpanel">
-        <div className="pane" hidden={current !== 'send'}>
-          <SendTab />
+      <main className="ct">
+        <div role="tabpanel">
+          <div className="pane pane-send" hidden={current !== 'send'}>
+            <SendTab />
+          </div>
+          {current !== 'send' && (
+            <Suspense fallback={<div className="pane" aria-busy="true" />}>
+              <div className={current === 'status' ? 'pane pane-status' : 'pane pane-team'}>
+                {current === 'status' ? <StatusTab /> : <TeamTab />}
+              </div>
+            </Suspense>
+          )}
         </div>
-        {current !== 'send' && (
-          <Suspense fallback={<div className="pane" aria-busy="true" />}>
-            <div className="pane">{current === 'status' ? <StatusTab /> : <TeamTab />}</div>
-          </Suspense>
-        )}
-      </div>
+      </main>
 
-      <nav className="tb" role="tablist" aria-label="Abas">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={current === id}
-            className={current === id ? 't on' : 't'}
-            onClick={() => setTab(id)}
-          >
-            <Icon aria-hidden="true" />
-            {label}
-          </button>
-        ))}
-      </nav>
+      <div className="side">
+        <div className="brand" aria-hidden="true">
+          <img src={logo} alt="" width={36} height={36} />
+          IBT Controller
+        </div>
+        <nav className="tb" role="tablist" aria-label="Abas">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={current === id}
+              className={current === id ? 't on' : 't'}
+              onClick={() => setTab(id)}
+            >
+              <Icon aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </nav>
+      </div>
     </div>
   )
 }

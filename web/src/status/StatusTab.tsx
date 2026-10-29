@@ -1,4 +1,4 @@
-import { Ban, Check, Hourglass, type LucideIcon, Siren, X } from 'lucide-react'
+import { Ban, Check, History, Hourglass, ListOrdered, type LucideIcon, MonitorPlay, Siren, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { isPcOnline, type Tone } from '../data/live'
 import { formatHm } from '../data/time'
@@ -84,27 +84,37 @@ export function StatusTab() {
 
   return (
     <>
-      <div className="cd">
+      <div className="cd live-card">
         <div className="lb">
-          <span>No telão agora</span>
+          <span>
+            <MonitorPlay aria-hidden="true" />
+            No telão agora
+          </span>
           {shownNow && <span className="src">{SOURCE_LABEL[shownNow.source]}</span>}
         </div>
         <MiniLed text={shownNow?.text ?? null} bar={live?.bar ?? DEFAULT_BAR} startedAt={shownNow?.startedAt} />
         <div className={shownNow ? 'msg' : 'msg idle'}>{line}</div>
         {!connected && online && <p className="note">Sem conexão: o que aparece aqui pode estar desatualizado.</p>}
+        {live && online && (
+          <div className="pills">
+            <StatePill tone={live.led ? 'ok' : 'bad'} label={live.led ? 'LED ligado' : 'LED desligado'} />
+            <StatePill tone={live.paused ? 'warn' : 'ok'} label={live.paused ? 'Barra pausada' : 'Barra ativa'} />
+          </div>
+        )}
       </div>
 
-      {live && online && (
-        <div className="pills">
-          <StatePill tone={live.led ? 'ok' : 'bad'} label={live.led ? 'LED ligado' : 'LED desligado'} />
-          <StatePill tone={live.paused ? 'warn' : 'ok'} label={live.paused ? 'Barra pausada' : 'Barra ativa'} />
-        </div>
-      )}
-
-      <section aria-labelledby="queue-title" className={`block${stale}`}>
-        <h2 className="lb" id="queue-title">{`Fila (${queue.length})`}</h2>
+      <section aria-labelledby="queue-title" className={`cd block${stale}`}>
+        <h2 className="lb" id="queue-title">
+          <span>
+            <ListOrdered aria-hidden="true" />
+            {`Fila (${queue.length})`}
+          </span>
+        </h2>
         {queue.length === 0 ? (
-          <p className="empty">Fila vazia.</p>
+          <p className="empty">
+            <Check aria-hidden="true" />
+            Fila vazia.
+          </p>
         ) : (
           <ul className="list">
             {queue.map((item, i) => (
@@ -135,12 +145,18 @@ export function StatusTab() {
         )}
       </section>
 
-      <section aria-labelledby="recent-title" className={`block${stale}`}>
+      <section aria-labelledby="recent-title" className={`cd block${stale}`}>
         <h2 className="lb" id="recent-title">
-          Recentes
+          <span>
+            <History aria-hidden="true" />
+            Recentes
+          </span>
         </h2>
         {recent.length === 0 ? (
-          <p className="empty">Nada por enquanto.</p>
+          <p className="empty">
+            <History aria-hidden="true" />
+            Nada por enquanto.
+          </p>
         ) : (
           <ul className="list">
             {recent.map((r, i) => {

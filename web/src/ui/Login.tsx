@@ -1,3 +1,4 @@
+import { LogIn } from 'lucide-react'
 import { useState } from 'react'
 import logo from '../../../assets/icons/logo.svg'
 import { authErrorMessage } from '../session/authErrors'
@@ -22,15 +23,21 @@ export function Login() {
 
   return (
     <main className="splash">
-      <img className="logo" src={logo} alt="" width={72} height={72} />
-      <h1>Alerta IBT</h1>
-      <p className="sub">Avisos para o telão</p>
-      <button type="button" className="gbtn" onClick={handleClick} disabled={busy}>
-        Entrar com Google
-      </button>
-      <p className="err-line" role="alert">
-        {error}
-      </p>
+      <div className="cd splash-card">
+        <img className="logo" src={logo} alt="" width={72} height={72} />
+        <h1>IBT Controller</h1>
+        <p className="sub">Avisos para o telão</p>
+        <div className="bar-demo" aria-hidden="true">
+          <span>IBT CONTROLLER &nbsp;|&nbsp; AVISOS &nbsp;|&nbsp; TELÃO</span>
+        </div>
+        <button type="button" className="gbtn" onClick={handleClick} disabled={busy}>
+          <LogIn aria-hidden="true" />
+          Entrar com Google
+        </button>
+        <p className="err-line" role="alert">
+          {error}
+        </p>
+      </div>
     </main>
   )
 }

@@ -27,15 +27,17 @@ function Loading() {
   }, [])
   return (
     <main className="splash" aria-busy="true">
-      <img className="logo" src={logo} alt="Alerta IBT" width={72} height={72} />
-      <p className="sub slow" role="status">
-        {slow ? 'Está demorando. Confira a internet.' : ''}
-      </p>
-      {slow && (
-        <button type="button" className="gbtn" onClick={() => void signOut()}>
-          Sair
-        </button>
-      )}
+      <div className="cd splash-card">
+        <img className="logo" src={logo} alt="IBT Controller" width={72} height={72} />
+        <p className="sub slow" role="status">
+          {slow ? 'Está demorando. Confira a internet.' : ''}
+        </p>
+        {slow && (
+          <button type="button" className="gbtn" onClick={() => void signOut()}>
+            Sair
+          </button>
+        )}
+      </div>
     </main>
   )
 }

@@ -29,6 +29,7 @@ export function InfoPopover({ lines, label = 'Ajuda' }: { lines: string[]; label
         type="button"
         className="info"
         aria-label={label}
+        title={label}
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         onClick={() => setOpen((v) => !v)}

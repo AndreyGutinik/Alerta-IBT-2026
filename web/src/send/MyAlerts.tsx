@@ -1,4 +1,4 @@
-import { Ban, Check, Clock, Hourglass, type LucideIcon, MonitorPlay, X } from 'lucide-react'
+import { Ban, Check, Clock, Hourglass, Inbox, ListChecks, type LucideIcon, MonitorPlay, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { RequestBadge } from '../data/requestView'
 import { requestBadge, requestText } from '../data/requestView'
@@ -50,12 +50,18 @@ export function MyAlerts({ uid }: { uid: string }) {
   const items = [...list].sort((a, b) => b.createdAt - a.createdAt).slice(0, MY_ALERTS_LIMIT)
 
   return (
-    <section aria-labelledby="my-alerts-title">
+    <section className="cd" aria-labelledby="my-alerts-title">
       <h2 className="lb" id="my-alerts-title">
-        Seus avisos
+        <span>
+          <ListChecks aria-hidden="true" />
+          Seus avisos
+        </span>
       </h2>
       {items.length === 0 ? (
-        <p className="empty">Nenhum aviso ainda.</p>
+        <p className="empty">
+          <Inbox aria-hidden="true" />
+          Nenhum aviso ainda.
+        </p>
       ) : (
         <ul className="list">
           {items.map((r) => {
@@ -63,7 +69,7 @@ export function MyAlerts({ uid }: { uid: string }) {
             const Icon = ICONS[badge.icon]
             const text = requestText(r)
             return (
-              <li key={r.id} className={badge.struck ? 'it cx' : 'it'}>
+              <li key={r.id} className={`it${badge.struck ? ' cx' : ''}${badge.tone === 'now' ? ' now' : ''}`}>
                 <span className="t" title={text}>
                   {text}
                 </span>

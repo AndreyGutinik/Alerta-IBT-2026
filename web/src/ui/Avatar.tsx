@@ -18,7 +18,7 @@ export function Avatar({
   onClick: () => void
 }) {
   return (
-    <button type="button" className="avatar-btn" aria-label={label} aria-expanded={expanded} onClick={onClick}>
+    <button type="button" className="avatar-btn" aria-label={label} title={label} aria-expanded={expanded} onClick={onClick}>
       <span className={admin ? 'avatar adm' : 'avatar'} aria-hidden="true">
         {initialOf(name)}
       </span>
