@@ -16,8 +16,10 @@ namespace AlertaIBT.Core.Correction;
 /// <para>
 /// The built-in list (<see cref="ProfanityWords"/>) is Brazilian Portuguese plus the English words people type. Short words
 /// match only as a whole word, so Cuiaba, Cunha, computador, deputado, porao or Pinto Silva are never hit; a word that is
-/// also common in parking messages (macaco, pau, pica, rola, mala, porta) is not in the list at all. A plate is never read
-/// as text: plates are cut out before the words are looked at.
+/// also common in parking messages (macaco, pau, pica, rola, mala, porta) is not in the list at all. A few listed words
+/// are also ordinary in one sense (the bread "cacete", the colour "nude", the horn "corno", the animal "veado", "sexo
+/// feminino", "Moby Dick"): they pass next to a word that makes the sense plain (see <see cref="ProfanityWords.Exemptions"/>).
+/// A plate is never read as text: plates are cut out before the words are looked at.
 /// </para>
 /// <para>
 /// The owner can add words in <c>palavras-bloqueadas.txt</c> (one word or phrase per line, <c>#</c> starts a comment, UTF-8).
@@ -397,6 +399,12 @@ public sealed partial class ProfanityFilter
     private static bool IsBodySlangInContext(List<Tok> tokens, int index, string folded)
     {
         if (!ContextRules.TryGetValue(folded, out var rules) || index == 0 || tokens[index - 1].IsBoundary)
+        {
+            return false;
+        }
+
+        // A bare number is no possessive: leetspeak would read "0" as "o" ("Sala 0 Pinto") and "4" as "a" ("4 Rola").
+        if (tokens[index - 1].Plain.All(char.IsAsciiDigit))
         {
             return false;
         }

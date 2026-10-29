@@ -97,7 +97,8 @@ internal static class ProfanityWords
     /// <summary>
     /// A listed word that is also an ordinary word in one context: it is let through when one of the words on the right
     /// comes shortly before it (at most 3 words back, and not past an earlier copy of the same word). "arrombado" is a
-    /// slur, but also what a car or a door is after a break-in; "Grao-Mongol" is a city.
+    /// slur, but also what a car or a door is after a break-in; "Grao-Mongol" is a city. Batch 20 added the other ordinary
+    /// senses (see the comment inside the list); the compounds that follow the word are in <see cref="FollowExemptions"/>.
     /// </summary>
     public static readonly (string[] Words, string[] After)[] Exemptions =
     [
@@ -107,7 +108,35 @@ internal static class ProfanityWords
                 "carro", "carros", "veiculo", "veiculos", "automovel", "auto", "moto", "motos", "caminhao", "porta", "portas",
                 "vidro", "vidros", "portao", "cadeado", "janela", "cofre", "trinco", "fechadura", "bagageiro", "malas",
             ]),
-        (["mongol"], ["grao"]),
+        (["mongol"], ["grao", "imperio", "povo", "rally", "exercito", "tribo"]),
+
+        // Ordinary words (batch 20) that the list also holds. Each is let through only next to a word that makes the sense plain.
+        // "sexo" as a field of a form or a group of people; "cacete" as the bread; "nude" as a colour; "corno" as the horn of a
+        // ram (the shofar); "veado" as the animal; "crioulo" as a breed or a language; "Moby Dick" and "Dick Vigarista".
+        (["sexo"], ["nome", "idade", "ambos", "mesmo", "outro", "genero", "cadastro", "ficha", "campo", "formulario", "dados"]),
+        (["cacete", "cacetes"], ["pao", "paes", "padaria", "fornada", "bandeja"]),
+        (
+            ["nude"],
+            [
+                "tom", "tons", "cor", "cores", "bege", "rosa", "vestido", "esmalte", "batom", "sapato", "sandalia", "bolsa", "blusa",
+                "salto", "maquiagem", "tonalidade", "paleta", "calca", "saia", "bota", "capa", "tinta", "pintura",
+            ]),
+        (
+            ["corno", "cornos"],
+            [
+                "toque", "tocar", "tocou", "tocando", "soprar", "sopro", "soprou", "soprando", "carneiro", "carneiros", "uncao",
+                "azeite", "oleo", "altar", "jubileu", "trombeta", "shofar", "chifre", "chifres", "bode", "touro", "cabra",
+            ]),
+        (
+            ["veado", "veados"],
+            ["carne", "chifre", "chifres", "pele", "cacada", "cacar", "caca", "manada", "cervo", "cervos", "corca", "bambi", "rebanho"]),
+        (
+            ["crioulo", "crioula", "crioulos", "crioulas"],
+            [
+                "cavalo", "cavalos", "egua", "eguas", "galinha", "galinhas", "feijao", "milho", "porco", "porcos", "lingua", "linguas",
+                "raca", "gado", "boi", "bois", "ovelha", "carneiro", "arroz", "semente", "sementes", "agulha", "dialeto", "idioma",
+            ]),
+        (["dick"], ["moby", "philip", "k", "tracy", "van"]),
     ];
 
     /// <summary>
@@ -159,10 +188,10 @@ internal static class ProfanityWords
     ];
 
     /// <summary>
-    /// Listed words that are never rebuilt out of two pieces ("pi-ca" is, "cor-no" and "via do" are ordinary text): see
+    /// Listed words that are never rebuilt out of two pieces ("pi-ca" is, "cor-no", "via do" and "por-nos", as in "por-nos de acordo", are ordinary text): see
     /// <c>ProfanityFilter</c>, split words.
     /// </summary>
-    public static readonly string[] NeverJoined = ["corno", "viado", "veado"];
+    public static readonly string[] NeverJoined = ["corno", "viado", "veado", "pornos"];
 
     /// <summary>
     /// A listed word that is let through when one of the words on the right comes right after it: "pica-pau" is a
@@ -171,5 +200,10 @@ internal static class ProfanityWords
     public static readonly (string[] Words, string[] Next)[] FollowExemptions =
     [
         (["pica", "picas", "pika", "pikas"], ["pau", "paus"]),
+        (["sexo"], ["masculino", "feminino", "oposto", "biologico", "fragil", "forte"]),
+        (["corno", "cornos"], ["de"]),
+        (["dick"], ["vigarista", "tracy", "dastardly", "grayson"]),
+        (["mongol"], ["imperio", "rally", "khan", "povo", "tribo", "exercito", "guerreiro", "guerreiros", "tartaro", "gengis", "genghis"]),
+        (["crioulo", "crioula", "crioulos", "crioulas"], ["haitiano", "haitiana", "cabo", "verde", "verdiano", "caboverdiano"]),
     ];
 }
