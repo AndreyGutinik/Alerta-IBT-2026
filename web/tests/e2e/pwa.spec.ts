@@ -34,7 +34,7 @@ test('manifesto instalável, service worker ativo, casca offline e nada do banco
   // Manifesto e ícones que o navegador exige para instalar.
   const manifestHref = await page.locator('link[rel="manifest"]').getAttribute('href')
   const manifest = await (await page.request.get(manifestHref!)).json()
-  expect(manifest).toMatchObject({ name: 'Alerta IBT', lang: 'pt-BR', display: 'standalone', start_url: '/' })
+  expect(manifest).toMatchObject({ name: 'IBT Controller', lang: 'pt-BR', display: 'standalone', start_url: '/' })
   for (const icon of manifest.icons as { src: string; type: string }[]) {
     const res = await page.request.get(`/${icon.src}`)
     expect(res.ok(), icon.src).toBe(true)

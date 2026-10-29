@@ -16,7 +16,7 @@ const check = (ok, message) => {
 const read = (name) => readFile(resolve(dist, name), 'utf8')
 
 const manifest = JSON.parse(await read('manifest.webmanifest'))
-check(manifest.name === 'Alerta IBT', 'manifesto: name deve ser "Alerta IBT"')
+check(manifest.name === 'IBT Controller', 'manifesto: name deve ser "IBT Controller"')
 check(manifest.short_name, 'manifesto: falta short_name')
 check(manifest.lang === 'pt-BR', 'manifesto: lang deve ser pt-BR')
 check(manifest.display === 'standalone', 'manifesto: display deve ser standalone')

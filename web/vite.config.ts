@@ -14,8 +14,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Alerta IBT',
-        short_name: 'Alerta IBT',
+        name: 'IBT Controller',
+        short_name: 'IBT Controller',
         description: 'Avisos para o telão da IBT',
         lang: 'pt-BR',
         dir: 'ltr',
