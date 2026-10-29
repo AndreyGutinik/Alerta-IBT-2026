@@ -71,6 +71,9 @@ public partial class MainWindow : FluentWindow, IMainWindow
     /// <summary>The Som page (for tests).</summary>
     internal SomPage Som => SomPage;
 
+    /// <summary>The NDI page (for tests).</summary>
+    internal NdiPage Ndi => NdiPage;
+
     /// <inheritdoc />
     public void ShowWindow()
     {

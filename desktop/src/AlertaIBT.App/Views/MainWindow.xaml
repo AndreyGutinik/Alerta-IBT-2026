@@ -112,6 +112,23 @@
                             </StackPanel>
                         </Button>
                         <Button
+                            x:Name="NdiTab"
+                            Margin="0,4,0,0"
+                            AutomationProperties.Name="NDI"
+                            Command="{Binding SelectTabCommand}"
+                            CommandParameter="{x:Static vm:MainTab.Ndi}"
+                            Style="{StaticResource IbtTabButton}"
+                            Tag="{Binding IsNdiSelected}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{StaticResource LucideMonitorPlay}"
+                                    Style="{StaticResource LucideIcon}" />
+                                <TextBlock Margin="10,0,0,0" Text="NDI" />
+                            </StackPanel>
+                        </Button>
+                        <Button
                             x:Name="SettingsTab"
                             Margin="0,4,0,0"
                             AutomationProperties.Name="Configurações"
@@ -217,6 +234,11 @@
                         theme:Motion.FadeOnShow="True"
                         DataContext="{Binding Som}"
                         Visibility="{Binding DataContext.IsSomSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
+                    <local:NdiPage
+                        x:Name="NdiPage"
+                        theme:Motion.FadeOnShow="True"
+                        DataContext="{Binding Ndi}"
+                        Visibility="{Binding DataContext.IsNdiSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
                     <local:SettingsPage
                         x:Name="SettingsPage"
                         theme:Motion.FadeOnShow="True"

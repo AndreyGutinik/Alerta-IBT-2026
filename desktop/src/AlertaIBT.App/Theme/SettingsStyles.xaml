@@ -559,6 +559,49 @@
         </Setter>
     </Style>
 
+
+
+    <!-- A row of a plain list inside a dialog (a source the finder found): flat, left aligned, a light wash on hover and the green ring on keyboard focus. -->
+    <Style x:Key="IbtListRowButton" TargetType="Button">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border
+                            x:Name="Wash"
+                            Background="{StaticResource IbtHoverOverlayBrush}"
+                            CornerRadius="6"
+                            Visibility="Collapsed" />
+                        <Border
+                            x:Name="Ring"
+                            BorderBrush="{StaticResource IbtFocusRingBrush}"
+                            BorderThickness="2"
+                            CornerRadius="6"
+                            Visibility="Collapsed" />
+                        <ContentPresenter
+                            Margin="{TemplateBinding Padding}"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="Center"
+                            TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Wash" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Ring" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
     <!-- The dashed plus block that adds an item to a grid of blocks. Put the plus (and, if wanted, a word) in Content. -->
     <Style x:Key="IbtAddTile" TargetType="Button">
         <Setter Property="MinHeight" Value="110" />

@@ -167,7 +167,8 @@ public static class AppHost
     // NDI -> telao (receive only): the runtime is loaded from the NDI Tools folder at run time (never shipped), nothing is shown until the layer is turned on.
     private static void ConfigureNdi(IServiceCollection services)
     {
-        services.AddSingleton<INdiRuntime>(provider => NdiLibrary.Load(provider.GetRequiredService<ILogger<NdiLibrary>>()));
+        services.AddSingleton(provider => new ReloadableNdiRuntime(() => NdiLibrary.Load(provider.GetRequiredService<ILogger<NdiLibrary>>())));
+        services.AddSingleton<INdiRuntime>(provider => provider.GetRequiredService<ReloadableNdiRuntime>());
         services.AddSingleton(provider => new NdiService(
             provider.GetRequiredService<INdiRuntime>(),
             provider.GetRequiredService<SettingsService>(),
@@ -312,6 +313,19 @@ public static class AppHost
             provider.GetRequiredService<ILogger<SomViewModel>>(),
             (title, message) => ConfirmDialog.Ask(title, message, provider.GetRequiredService<AppWindowPolicy>()),
             (title, current, check) => InputDialog.Ask(title, current, check, provider.GetRequiredService<AppWindowPolicy>())));
+        services.AddSingleton(provider => new NdiViewModel(
+            provider.GetRequiredService<NdiService>(),
+            provider.GetRequiredService<SettingsService>(),
+            MonitorService.Enumerate,
+            () => provider.GetRequiredService<ILedSource>().Led,
+            () => provider.GetRequiredService<AppShell>().NdiHotkeys,
+            () => provider.GetRequiredService<ReloadableNdiRuntime>().Recheck(),
+            PostToUi,
+            (title, message) => ConfirmDialog.Ask(title, message, provider.GetRequiredService<AppWindowPolicy>()),
+            input => CameraDialog.Ask(input, provider.GetRequiredService<AppWindowPolicy>()),
+            ips => IpListDialog.Ask(ips, provider.GetRequiredService<AppWindowPolicy>()),
+            OpenLink,
+            provider.GetRequiredService<ILogger<NdiViewModel>>()));
         services.AddSingleton(provider => new MainViewModel(
             provider.GetRequiredService<StatusHub>(),
             provider.GetRequiredService<HomeViewModel>(),
@@ -320,7 +334,8 @@ public static class AppHost
             provider.GetRequiredService<Autosaver>(),
             PostToUi,
             provider.GetRequiredService<IUpdateStatus>(),
-            provider.GetRequiredService<SomViewModel>()));
+            provider.GetRequiredService<SomViewModel>(),
+            provider.GetRequiredService<NdiViewModel>()));
         services.AddSingleton(provider =>
         {
             var viewModel = provider.GetRequiredService<MainViewModel>();
@@ -365,6 +380,19 @@ public static class AppHost
     }
 
     // Changes announced by the status hub or the queue come from any thread; the panel's properties belong to the UI thread.
+    // Opens a link (the NDI Tools download page, ndi.video) in the default browser.
+    private static void OpenLink(string url)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // No browser to open: nothing to do (the address is written on the screen).
+        }
+    }
+
     private static void PostToUi(Action action)
     {
         if (Application.Current?.Dispatcher is { } dispatcher)
