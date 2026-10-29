@@ -187,7 +187,7 @@ public sealed class MainWindowTests
             using var rig = new Rig();
 
             Assert.False(rig.Window.IsVisible);
-            Assert.Equal("Alerta-IBT", rig.Window.Title);
+            Assert.Equal("IBT Controller", rig.Window.Title);
             Assert.True(rig.Root.ActualWidth > 0);
             rig.Snapshot("main-home-idle");
         });
@@ -251,14 +251,14 @@ public sealed class MainWindowTests
     }
 
     [Fact]
-    public void The_side_bar_has_the_three_tabs_in_order_and_the_selected_one_is_marked()
+    public void The_side_bar_has_the_three_tabs_in_order_Inicio_Som_Configuracoes_and_the_selected_one_is_marked()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig();
-            var tabs = new[] { rig.Window.HomeTab, rig.Window.CorrectionTab, rig.Window.SettingsTab };
+            var tabs = new[] { rig.Window.HomeTab, rig.Window.SomTab, rig.Window.SettingsTab };
 
-            Assert.Equal(["In\U000000EDcio", "Corre\U000000E7\U000000E3o", "Configura\U000000E7\U000000F5es"], tabs.Select(AutomationProperties.GetName));
+            Assert.Equal(["In\U000000EDcio", "Som", "Configura\U000000E7\U000000F5es"], tabs.Select(AutomationProperties.GetName));
             Assert.True(rig.BoundsOf(tabs[0]).Bottom <= rig.BoundsOf(tabs[1]).Top);
             Assert.True(rig.BoundsOf(tabs[1]).Bottom <= rig.BoundsOf(tabs[2]).Top);
             Assert.Equal([true, false, false], tabs.Select(t => (bool)t.Tag));
@@ -276,16 +276,16 @@ public sealed class MainWindowTests
         {
             using var rig = new Rig();
             Assert.Equal(Visibility.Visible, rig.Window.Home.Visibility);
-            Assert.Equal(Visibility.Collapsed, rig.Window.Correction.Visibility);
+            Assert.Equal(Visibility.Collapsed, rig.Window.Som.Visibility);
             Assert.Equal(Visibility.Collapsed, rig.Window.Settings.Visibility);
 
-            rig.Select(MainTab.Correction);
+            rig.Select(MainTab.Som);
             Assert.Equal(Visibility.Collapsed, rig.Window.Home.Visibility);
-            Assert.Equal(Visibility.Visible, rig.Window.Correction.Visibility);
+            Assert.Equal(Visibility.Visible, rig.Window.Som.Visibility);
 
             rig.Select(MainTab.Settings);
             Assert.Equal(Visibility.Visible, rig.Window.Settings.Visibility);
-            Assert.Equal(Visibility.Collapsed, rig.Window.Correction.Visibility);
+            Assert.Equal(Visibility.Collapsed, rig.Window.Som.Visibility);
         });
     }
 
@@ -321,7 +321,7 @@ public sealed class MainWindowTests
             rig.Layout();
 
             var labels = rig.Find<TextBlock>().Where(t => t.FontWeight == FontWeights.Light && t.FontSize == 10.5).Select(t => t.Text).ToList();
-            var rows = rig.Find<StackPanel>().Where(p => p.ToolTip is string && !IsInside(p, rig.Window.Som)).ToList();
+            var rows = rig.Find<StackPanel>().Where(p => p.ToolTip is string && IsInside(p, rig.Window.StatusList)).ToList();
 
             Assert.Equal(["Telegram", "Site", "LED", "Barra", "Offline"], labels);
             Assert.Equal(5, rows.Count);
@@ -336,11 +336,11 @@ public sealed class MainWindowTests
         {
             using var rig = new Rig();
             var seen = new List<string>();
-            foreach (var tab in new[] { MainTab.Home, MainTab.Correction, MainTab.Settings })
+            foreach (var tab in new[] { MainTab.Home, MainTab.Som, MainTab.Settings })
             {
                 rig.Select(tab);
                 rig.Window.Settings.BarAdvanced.IsExpanded = true;
-                rig.Window.Correction.AdvancedExpander.IsExpanded = true;
+                rig.Window.Correction.CorrectionExpander.IsExpanded = true;
                 rig.Layout();
                 seen.AddRange(rig.AllTexts());
                 seen.AddRange(rig.Find<FrameworkElement>().Select(AutomationProperties.GetName));
@@ -358,25 +358,33 @@ public sealed class MainWindowTests
     // ---- Inicio ----
 
     [Fact]
-    public void Inicio_shows_the_title_the_pause_button_and_the_cards_of_the_mockup()
+    public void Inicio_shows_the_title_the_pause_button_and_the_cards_with_icons_and_tooltips_instead_of_words()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig();
             var texts = rig.AllTexts().ToList();
+            var names = rig.Find<FrameworkElement>().Where(Shown).Select(AutomationProperties.GetName).ToList();
 
             Assert.Contains("In\U000000EDcio", texts);
-            Assert.Contains("MENSAGEM ATUAL", texts);
-            Assert.Contains("MENSAGEM", texts);
-            Assert.Contains("FILA", texts);
-            Assert.Contains("HIST\U000000D3RICO", texts);
+            Assert.Contains("No tel\U000000E3o", texts);
+            Assert.Contains("Mensagem", texts);
+            Assert.Contains("Fila", texts);
+            Assert.Contains("Corre\U000000E7\U000000E3o", texts);
+            Assert.Contains("Hist\U000000F3rico", texts);
             Assert.Contains("Pausar barra", texts);
-            Assert.Contains("Pr\U000000F3xima", texts);
-            Assert.Contains("Encerrar atual", texts);
             Assert.Contains("Enviar", texts);
-            Assert.Contains("Enviar urgente", texts);
-            Assert.Contains("Limpar", texts);
             Assert.Contains("Fila vazia.", texts);
+
+            // Only Enviar keeps its word; the rest are icons whose name is in the tooltip and the accessible name.
+            Assert.DoesNotContain("Pr\U000000F3xima", texts);
+            Assert.DoesNotContain("Encerrar atual", texts);
+            Assert.DoesNotContain("Enviar urgente", texts);
+            Assert.DoesNotContain("Limpar", texts);
+            Assert.Contains("Pr\U000000F3xima", names);
+            Assert.Contains("Encerrar atual", names);
+            Assert.Contains("Enviar urgente", names);
+            Assert.Contains("Limpar", names);
             Assert.Contains("Digite a mensagem para o tel\U000000E3o", texts);
         });
     }
@@ -440,7 +448,7 @@ public sealed class MainWindowTests
             Assert.Equal(2, names.Count(n => n == "Descer"));
             Assert.Equal(2, names.Count(n => n == "Remover"));
             Assert.Contains("SITE", rig.AllTexts());
-            Assert.Contains("FILA (2)", rig.AllTexts());
+            Assert.Contains("Fila (2)", rig.AllTexts());
             Assert.False(Shown(rig.Window.Home.QueueEmpty));
             rig.Snapshot("main-home-queue");
 
@@ -466,22 +474,20 @@ public sealed class MainWindowTests
             var home = rig.Window.Home;
             Assert.Equal(2, home.HistoryList.Items.Count);
 
-            // The button: small, with the trash icon and the words, to the right of the caption and above the list.
+            // The button: an icon (the trash) in the card header, at the right of the title and above the list, with the words in its name.
             Assert.True(Shown(home.ClearHistoryButton));
             Assert.Equal("Limpar hist\U000000F3rico", AutomationProperties.GetName(home.ClearHistoryButton));
-            Assert.Contains("Limpar hist\U000000F3rico", rig.AllTexts());
-            Assert.Contains(rig.Find<System.Windows.Shapes.Path>().Where(Shown), p => ReferenceEquals(p.Data, home.FindResource("LucideTrash2")) && p.Width == 13 && IsInside(p, home.ClearHistoryButton));
-            var caption = rig.Find<TextBlock>().Single(t => Shown(t) && t.Text == "HIST\U000000D3RICO");
+            Assert.DoesNotContain("Limpar hist\U000000F3rico", rig.AllTexts());
+            Assert.Contains(rig.Find<System.Windows.Shapes.Path>().Where(Shown), p => ReferenceEquals(p.Data, home.FindResource("LucideTrash2")) && p.Width == 16 && IsInside(p, home.ClearHistoryButton));
+            var caption = rig.Find<TextBlock>().Single(t => Shown(t) && t.Text == "Hist\U000000F3rico");
             Assert.True(rig.BoundsOf(home.ClearHistoryButton).Left > rig.BoundsOf(caption).Right);
             Assert.True(rig.BoundsOf(home.ClearHistoryButton).Bottom <= rig.BoundsOf(home.HistoryList).Top);
-            Assert.True(rig.BoundsOf(home.ClearHistoryButton).Width < 200);
+            Assert.True(rig.BoundsOf(home.ClearHistoryButton).Width <= 32);
 
-            // The (i) tip says what it clears and what it leaves alone.
-            Assert.True(Shown(home.ClearHistoryInfo));
+            // The tooltip of the button says what it clears and what it leaves alone.
             Assert.Equal(
-                "Apaga o hist\U000000F3rico do PC e do site, e as mensagens do bot no Telegram com menos de 48 h. N\U000000E3o mexe na fila nem no que est\U000000E1 passando.",
-                home.ClearHistoryInfo.ToolTip);
-            Assert.True(rig.BoundsOf(home.ClearHistoryInfo).Right <= rig.BoundsOf(home.ClearHistoryButton).Left);
+                "Limpar hist\U000000F3rico: apaga o hist\U000000F3rico do PC e do site, e as mensagens do bot no Telegram com menos de 48 h. N\U000000E3o mexe na fila nem no que est\U000000E1 passando.",
+                home.ClearHistoryButton.ToolTip);
             Assert.False(Shown(home.HistoryNotice));
 
             home.ClearHistoryButton.Command.Execute(null);
@@ -509,7 +515,7 @@ public sealed class MainWindowTests
             rig.Select(MainTab.Settings);
             var page = rig.Window.Settings;
 
-            Assert.Contains("Limpar hist\U000000F3rico toda segunda-feira, 00:00", rig.AllTexts());
+            Assert.Contains("Limpar toda segunda-feira, 00:00", rig.AllTexts());
             Assert.True(Shown(page.ClearHistorySwitch));
             Assert.True(page.ClearHistorySwitch.IsChecked);
             Assert.True(rig.BoundsOf(page.ClearHistorySwitch).Top > rig.BoundsOf(page.HotkeyBox).Bottom);
@@ -545,7 +551,8 @@ public sealed class MainWindowTests
 
             Assert.Contains("Atualizar automaticamente ao abrir", rig.AllTexts());
             Assert.Contains("Vers\U000000E3o 8.0.1-pre.1", rig.AllTexts());
-            Assert.Contains("Verificar agora", rig.AllTexts());
+            Assert.DoesNotContain("Verificar agora", rig.AllTexts()); // an icon now; the name is its tooltip
+            Assert.Equal("Verificar agora", page.CheckUpdateButton.ToolTip);
             Assert.True(Shown(page.AutoUpdateSwitch));
             Assert.True(page.AutoUpdateSwitch.IsChecked);
             Assert.Equal("Atualizar automaticamente ao abrir", AutomationProperties.GetName(page.AutoUpdateSwitch));
@@ -608,7 +615,7 @@ public sealed class MainWindowTests
             var page = rig.Window.Settings;
 
             Assert.Contains("Travar o mouse na tela principal", rig.AllTexts());
-            Assert.Contains("Atalho para travar o mouse", rig.AllTexts());
+            Assert.Contains("Atalho para travar", rig.AllTexts());
             Assert.Contains("Ctrl 3 vezes traz o mouse ao centro", rig.AllTexts());
             Assert.True(Shown(page.MouseLockSwitch));
             Assert.True(Shown(page.MouseLockHotkeyBox));
@@ -832,43 +839,92 @@ public sealed class MainWindowTests
 
     // ---- Correcao ----
 
+    // ---- Correcao (a folded card of Inicio) ----
+
     [Fact]
-    public void Correcao_shows_the_switch_the_two_options_the_key_the_rules_and_the_gemini_state()
+    public void Correcao_is_a_folded_card_of_Inicio_below_Mensagem_closed_when_the_app_opens_and_not_a_tab()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig();
-            rig.Select(MainTab.Correction);
+            var home = rig.Window.Home;
+            var card = rig.Window.Correction;
+
+            // Not a tab any more: the side bar has Inicio, Som and Configuracoes only.
+            Assert.DoesNotContain(rig.Find<Button>().Where(Shown), b => AutomationProperties.GetName(b) == "Corre\U000000E7\U000000E3o");
+            Assert.True(Shown(card));
+            Assert.False(card.CorrectionExpander.IsExpanded);
+            Assert.Contains("Corre\U000000E7\U000000E3o", rig.AllTexts());
+            Assert.True(rig.BoundsOf(card).Top >= rig.BoundsOf(home.MessageSection).Bottom + 24 - 0.5, "under Mensagem");
+            Assert.Equal(rig.BoundsOf(home.MessageSection).Left, rig.BoundsOf(card).Left, 1);
+            Assert.True(rig.BoundsOf(card).Height < 90, "closed it is one line");
+
+            // The body is hidden while closed, and the arrow opens it.
+            card.CorrectionExpander.IsExpanded = true;
+            rig.Layout();
+            Assert.True(Shown(card.EnabledSwitch));
+            Assert.True(Shown(card.RulesBox));
+            Assert.True(rig.BoundsOf(card).Height > 300);
+            rig.Snapshot("main-home-correction-open");
+        });
+    }
+
+    [Fact]
+    public void Correcao_shows_the_switch_the_key_with_the_two_mode_icons_the_rules_and_the_gemini_dot_and_no_model()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            var card = rig.Window.Correction;
+            card.CorrectionExpander.IsExpanded = true;
+            rig.Layout();
             var texts = rig.AllTexts().ToList();
 
-            Assert.Contains("Corre\U000000E7\U000000E3o", texts);
-            Assert.Contains("CORRE\U000000C7\U000000C3O AUTOM\U000000C1TICA", texts);
-            Assert.Contains("Gemini", texts);
-            Assert.Contains("S\U000000F3 offline", texts);
-            Assert.Contains("Chave do Gemini (gr\U000000E1tis)", texts);
-            Assert.Contains("REGRAS FIXAS", texts);
-            Assert.Contains("Avan\U000000E7ado", texts);
-            Assert.Contains("Gemini \U000000B7 Aguardando", texts);
-            Assert.True(rig.Window.Correction.EnabledSwitch.IsChecked);
-            Assert.Equal(true, rig.Window.Correction.GeminiOption.Tag);
-            Assert.Equal(false, rig.Window.Correction.OfflineOption.Tag);
+            Assert.Contains("Corre\U000000E7\U000000E3o autom\U000000E1tica", texts);
+            Assert.Contains("Chave do Gemini", texts);
+            Assert.Contains("Regras fixas", texts);
+            Assert.DoesNotContain(rig.Find<TextBlock>().Where(t => Shown(t) && IsInside(t, card)), t => t.Text.StartsWith("Avan", StringComparison.Ordinal)); // the model moved to Configuracoes
+            Assert.DoesNotContain(rig.Find<TextBox>().Where(t => Shown(t) && IsInside(t, card)), t => t.Text == GeminiPrompt.DefaultModel);
+            Assert.True(card.EnabledSwitch.IsChecked);
+            Assert.Equal(true, card.GeminiOption.IsChecked);
+            Assert.Equal(false, card.OfflineOption.IsChecked);
+            Assert.Equal("Gemini ligado", card.GeminiOption.ToolTip);
+            Assert.Equal("S\U000000F3 offline", card.OfflineOption.ToolTip);
+            Assert.Equal("Gemini", AutomationProperties.GetName(card.GeminiOption));
+            Assert.Equal("S\U000000F3 offline", AutomationProperties.GetName(card.OfflineOption));
+
+            // The two icons are at the right of the box where the key is pasted, on the same line, with no words.
+            var keyBox = rig.BoundsOf(Shown(card.KeyLockedBox) ? card.KeyLockedBox : card.KeyEntryBox);
+            var gemini = rig.BoundsOf(card.GeminiOption);
+            var offline = rig.BoundsOf(card.OfflineOption);
+            Assert.True(keyBox.Right <= rig.BoundsOf(card.KeyLockButton).Left || !Shown(card.KeyLockButton));
+            Assert.True(keyBox.Right <= gemini.Left);
+            Assert.True(gemini.Right <= offline.Left);
+            Assert.Equal(keyBox.Top + (keyBox.Height / 2), gemini.Top + (gemini.Height / 2), 1);
+            Assert.Equal(gemini.Top, offline.Top, 1);
+            Assert.True(gemini.Width <= 32 && offline.Width <= 32);
+            var cardTexts = rig.Find<TextBlock>().Where(t => Shown(t) && IsInside(t, card)).Select(t => t.Text).ToList();
+            Assert.DoesNotContain("Gemini", cardTexts); // no word next to the icons
+            Assert.DoesNotContain("S\U000000F3 offline", texts);
             rig.Snapshot("main-correction");
         });
     }
 
     [Fact]
-    public void There_are_no_explanation_blocks_on_Correcao_only_tooltips()
+    public void There_are_no_explanation_blocks_in_Correcao_only_tooltips()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig();
-            rig.Select(MainTab.Correction);
+            var card = rig.Window.Correction;
+            card.CorrectionExpander.IsExpanded = true;
+            rig.Layout();
 
-            var longTexts = rig.Find<TextBlock>().Where(Shown).Where(t => t.Text.Length > 60).Select(t => t.Text).ToList();
-            var infos = rig.Find<Border>().Where(b => AutomationProperties.GetName(b) == "Dicas" && Shown(b)).ToList();
+            var longTexts = rig.Find<TextBlock>().Where(t => Shown(t) && IsInside(t, card) && t.Text.Length > 60).Select(t => t.Text).ToList();
+            var infos = rig.Find<Border>().Where(b => AutomationProperties.GetName(b) == "Dicas" && Shown(b) && IsInside(b, card)).ToList();
 
             Assert.Empty(longTexts);
-            Assert.Equal(3, infos.Count); // correction, key, rules (the model's (i) is inside the folded Avancado)
+            Assert.Equal(3, infos.Count); // correction, key, rules
             Assert.All(infos, i => Assert.IsType<string>(i.ToolTip));
             Assert.Contains("Gemini: gr\U000000E1tis", (string)infos[0].ToolTip);
         });
@@ -880,13 +936,16 @@ public sealed class MainWindowTests
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(new AppSettings().WithGeminiKey(ClearKey, new ReversingProtector()));
-            rig.Select(MainTab.Correction);
+            var card = rig.Window.Correction;
+            card.CorrectionExpander.IsExpanded = true;
+            rig.Layout();
 
-            Assert.True(Shown(rig.Window.Correction.KeyLockedBox));
-            Assert.Equal(SecretFieldViewModel.Mask, rig.Window.Correction.KeyLockedBox.Text);
-            Assert.False(rig.Window.Correction.KeyLockedBox.IsEnabled);
-            Assert.False(Shown(rig.Window.Correction.KeyEntryBox));
-            Assert.Contains("Trocar", rig.AllTexts());
+            Assert.True(Shown(card.KeyLockedBox));
+            Assert.Equal(SecretFieldViewModel.Mask, card.KeyLockedBox.Text);
+            Assert.False(card.KeyLockedBox.IsEnabled);
+            Assert.False(Shown(card.KeyEntryBox));
+            Assert.Equal("Trocar", AutomationProperties.GetName(card.KeyLockButton));
+            Assert.Equal("Trocar", card.KeyLockButton.ToolTip);
             Assert.DoesNotContain(rig.AllTexts(), t => t.Contains("AIza", StringComparison.Ordinal));
             Assert.DoesNotContain(rig.Find<TextBox>(), t => t.Text.Contains("AIza", StringComparison.Ordinal));
             rig.Snapshot("main-correction-key-locked");
@@ -899,20 +958,22 @@ public sealed class MainWindowTests
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(new AppSettings().WithGeminiKey(ClearKey, new ReversingProtector()));
-            rig.Select(MainTab.Correction);
-
-            rig.Window.Correction.KeyLockButton.Command.Execute(null);
+            var card = rig.Window.Correction;
+            card.CorrectionExpander.IsExpanded = true;
             rig.Layout();
-            Assert.True(Shown(rig.Window.Correction.KeyEntryBox));
-            Assert.Equal(string.Empty, rig.Window.Correction.KeyEntryBox.Text);
-            Assert.Contains("Bloquear", rig.AllTexts());
 
-            rig.Window.Correction.KeyEntryBox.Text = "AIzaNEW-key-0123456789abcdefghij";
+            card.KeyLockButton.Command.Execute(null);
+            rig.Layout();
+            Assert.True(Shown(card.KeyEntryBox));
+            Assert.Equal(string.Empty, card.KeyEntryBox.Text);
+            Assert.Equal("Bloquear", AutomationProperties.GetName(card.KeyLockButton));
+
+            card.KeyEntryBox.Text = "AIzaNEW-key-0123456789abcdefghij";
             rig.Settings.Rest();
             rig.Layout();
 
-            Assert.False(Shown(rig.Window.Correction.KeyEntryBox));
-            Assert.True(Shown(rig.Window.Correction.KeyLockedBox));
+            Assert.False(Shown(card.KeyEntryBox));
+            Assert.True(Shown(card.KeyLockedBox));
             Assert.DoesNotContain(rig.AllTexts(), t => t.Contains("AIzaNEW", StringComparison.Ordinal));
             Assert.Equal("AIzaNEW-key-0123456789abcdefghij", rig.Settings.OnDisk().GetGeminiKey(rig.Settings.Protector));
             Assert.DoesNotContain("AIzaNEW", rig.Settings.FileText());
@@ -920,21 +981,17 @@ public sealed class MainWindowTests
     }
 
     [Fact]
-    public void The_model_sits_in_Avancado_with_the_default_and_the_rules_show_their_note_and_the_saved_stamp_follows_the_autosave()
+    public void The_rules_show_their_note_and_the_saved_stamp_follows_the_autosave()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig();
-            rig.Select(MainTab.Correction);
-            Assert.False(Shown(rig.Window.Correction.ModelBox));
-
-            rig.Window.Correction.AdvancedExpander.IsExpanded = true;
+            var card = rig.Window.Correction;
+            card.CorrectionExpander.IsExpanded = true;
             rig.Layout();
-            Assert.True(Shown(rig.Window.Correction.ModelBox));
-            Assert.Equal(GeminiPrompt.DefaultModel, rig.Window.Correction.ModelBox.Text);
 
             Assert.StartsWith("\U00002713 Salvo", rig.ViewModel.Saver.Label);
-            rig.Window.Correction.RulesBox.Text = "farol acesso => farol aceso\nlixo";
+            card.RulesBox.Text = "farol acesso => farol aceso\nlixo";
             rig.Layout();
             Assert.Equal("Salvando\U00002026", rig.ViewModel.Saver.Label);
             Assert.Contains("Salvando\U00002026", rig.AllTexts());
@@ -948,76 +1005,89 @@ public sealed class MainWindowTests
     }
 
     [Fact]
-    public void The_gemini_pill_of_the_tab_is_blue_offline_when_the_pipeline_is_unhealthy()
+    public void The_gemini_dot_of_the_header_is_blue_offline_when_the_pipeline_is_unhealthy_and_the_words_are_in_its_tooltip()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig();
             rig.Hub.SetCorrectionMode(CorrectionMode.Gemini);
             rig.Hub.SetGemini(online: false);
-            rig.Select(MainTab.Correction);
+            rig.Layout();
+            var card = rig.Window.Correction;
 
-            Assert.Contains("Gemini \U000000B7 Offline", rig.AllTexts());
-            Assert.StartsWith("Gemini: Offline", (string)rig.Window.Correction.GeminiPill.ToolTip, StringComparison.Ordinal);
-            var dot = rig.Find<Border>().First(b => b.Width == 8 && b.Height == 8 && b.CornerRadius.TopLeft == 4 && Shown(b));
-            Assert.Equal(Color.FromRgb(0x5A, 0xA9, 0xFF), ((SolidColorBrush)dot.Background).Color);
+            Assert.StartsWith("Gemini: Offline", (string)card.GeminiPill.ToolTip, StringComparison.Ordinal);
+            Assert.DoesNotContain("Gemini \U000000B7 Offline", rig.AllTexts());
+            var dot = rig.Find<System.Windows.Shapes.Ellipse>().First(e => e.Width == 10 && Shown(e) && IsInside(e, card.GeminiPill));
+            Assert.Equal(Color.FromRgb(0x5A, 0xA9, 0xFF), ((SolidColorBrush)dot.Fill).Color);
         });
     }
 
     [Fact]
-    public void Without_a_key_the_gemini_pill_and_the_side_bar_say_Sem_chave_and_a_failed_probe_shows_its_reason()
+    public void Without_a_key_the_gemini_dot_and_the_side_bar_say_Sem_chave_and_a_failed_probe_shows_its_reason()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig();
             rig.Hub.SetCorrectionMode(CorrectionMode.Gemini);
             rig.Hub.SetGeminiKeyMissing(true);
-            rig.Select(MainTab.Correction);
+            rig.Layout();
+            var card = rig.Window.Correction;
 
-            Assert.Contains("Gemini \U000000B7 Sem chave", rig.AllTexts());
-            Assert.Contains("Chave do Gemini n\U000000E3o configurada", (string)rig.Window.Correction.GeminiPill.ToolTip, StringComparison.Ordinal);
-            var rows = rig.Find<StackPanel>().Where(p => p.ToolTip is string).Select(p => (string)p.ToolTip).ToList();
+            Assert.Contains("Chave do Gemini n\U000000E3o configurada", (string)card.GeminiPill.ToolTip, StringComparison.Ordinal);
+            var rows = rig.Find<StackPanel>().Where(p => p.ToolTip is string && !IsInside(p, rig.Window.Som)).Select(p => (string)p.ToolTip).ToList();
             Assert.Contains(rows, tip => tip.StartsWith("Gemini: Sem chave", StringComparison.Ordinal));
 
             rig.Hub.SetGeminiKeyMissing(false);
             rig.Hub.SetGeminiProbe(online: false, "HTTP 429", DateTimeOffset.UtcNow);
             rig.Layout();
 
-            Assert.Contains("Gemini \U000000B7 Offline", rig.AllTexts());
-            Assert.Contains("Offline: HTTP 429", (string)rig.Window.Correction.GeminiPill.ToolTip, StringComparison.Ordinal);
+            Assert.Contains("Offline: HTTP 429", (string)card.GeminiPill.ToolTip, StringComparison.Ordinal);
         });
     }
 
     [Fact]
-    public void Choosing_Solo_offline_selects_its_card_and_saves()
+    public void Choosing_Solo_offline_with_its_icon_turns_Gemini_off_and_saves_and_the_tooltips_follow()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig();
-            rig.Select(MainTab.Correction);
-
-            rig.Window.Correction.OfflineOption.Command.Execute("offline");
+            var card = rig.Window.Correction;
+            card.CorrectionExpander.IsExpanded = true;
             rig.Layout();
 
-            Assert.Equal(true, rig.Window.Correction.OfflineOption.Tag);
-            Assert.Equal(false, rig.Window.Correction.GeminiOption.Tag);
+            card.OfflineOption.IsChecked = true;
+            rig.Layout();
+
+            Assert.Equal(true, card.OfflineOption.IsChecked);
+            Assert.Equal(false, card.GeminiOption.IsChecked);
+            Assert.Equal("Gemini desligado", card.GeminiOption.ToolTip);
             rig.Settings.Rest();
             Assert.Equal("offline", rig.Settings.OnDisk().Correction.Mode);
+
+            // The Gemini icon turns it back on.
+            card.GeminiOption.IsChecked = true;
+            rig.Layout();
+            Assert.Equal(false, card.OfflineOption.IsChecked);
+            Assert.Equal("Gemini ligado", card.GeminiOption.ToolTip);
+            rig.Settings.Rest();
+            Assert.Equal("gemini", rig.Settings.OnDisk().Correction.Mode);
         });
     }
 
     [Fact]
-    public void Switching_the_correction_off_dims_the_two_options_and_saves()
+    public void Switching_the_correction_off_dims_the_two_mode_icons_and_saves()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig();
-            rig.Select(MainTab.Correction);
-
-            rig.Window.Correction.EnabledSwitch.IsChecked = false;
+            var card = rig.Window.Correction;
+            card.CorrectionExpander.IsExpanded = true;
             rig.Layout();
 
-            Assert.False(rig.Window.Correction.ModeCards.IsEnabled);
+            card.EnabledSwitch.IsChecked = false;
+            rig.Layout();
+
+            Assert.False(card.ModeCards.IsEnabled);
             rig.Settings.Rest();
             Assert.False(rig.Settings.OnDisk().Correction.Enabled);
         });
@@ -1038,14 +1108,14 @@ public sealed class MainWindowTests
             Assert.Contains("Posi\U000000E7\U000000E3o", texts);
             Assert.Contains("Tamanho", texts);
             Assert.Contains("Velocidade", texts);
-            Assert.Contains("Avan\U000000E7ado: letra separada, margem, cores, anima\U000000E7\U000000E3o", texts);
+            Assert.Contains("Avan\U000000E7ado", texts);
             Assert.Contains("Telegram", texts);
             Assert.Contains("Token do bot", texts);
             Assert.Contains("Chat ID do grupo", texts);
-            Assert.Contains("Pr\U000000E9via no LED 2560x768", texts);
-            Assert.Contains("Mostrar barra 3 s no LED", texts);
+            Assert.Contains("Pr\U000000E9via no LED", texts);
+            Assert.Contains("Modelo do Gemini", texts);
             Assert.Contains("Sistema", texts);
-            Assert.Contains("Atalho do painel r\U000000E1pido", texts);
+            Assert.Contains("Atalho", texts);
             Assert.Contains("Esconder da live (OBS e NDI)", texts);
             Assert.Contains("sempre ligado", texts);
             Assert.Contains("Diagn\U000000F3stico", texts);
@@ -1328,8 +1398,10 @@ public sealed class MainWindowTests
             Assert.Contains(rig.AllTexts(), t => t.Contains("Aplicativo iniciado", StringComparison.Ordinal));
             Assert.Contains(rig.AllTexts(), t => t.Contains("falhou", StringComparison.Ordinal));
             Assert.Contains("2 registros \U000000B7 1 erro(s)", rig.AllTexts());
-            Assert.Contains("Copiar logs", rig.AllTexts());
-            Assert.Contains("Exportar", rig.AllTexts());
+            var logButtons = rig.Find<Button>().Where(Shown).Select(AutomationProperties.GetName).ToList();
+            Assert.Contains("Copiar logs", logButtons);
+            Assert.Contains("Exportar logs", logButtons);
+            Assert.Contains("Limpar logs", logButtons);
             Assert.Equal(2, page.LogList.Items.Count);
             rig.Snapshot("main-settings-diagnostics");
         });

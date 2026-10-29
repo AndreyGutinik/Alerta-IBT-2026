@@ -35,13 +35,16 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(MainTab.Home, _vm.SelectedTab);
         Assert.True(_vm.IsHomeSelected);
 
-        _vm.SelectTabCommand.Execute(MainTab.Correction);
-        Assert.True(_vm.IsCorrectionSelected);
+        _vm.SelectTabCommand.Execute(MainTab.Som);
+        Assert.True(_vm.IsSomSelected);
         Assert.False(_vm.IsHomeSelected);
 
         _vm.SelectTabCommand.Execute(MainTab.Settings);
         Assert.True(_vm.IsSettingsSelected);
-        Assert.False(_vm.IsCorrectionSelected);
+        Assert.False(_vm.IsSomSelected);
+
+        // The correction is not a tab any more: it lives inside Inicio.
+        Assert.Equal(["Home", "Som", "Settings"], Enum.GetNames<MainTab>());
     }
 
     [Fact]

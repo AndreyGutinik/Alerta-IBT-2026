@@ -8,8 +8,8 @@ using CommunityToolkit.Mvvm.Input;
 namespace AlertaIBT.App.ViewModels;
 
 /// <summary>
-/// The logic of the Correção tab (spec 7.2): the on/off switch of the automatic correction, Gemini or "Só offline", the Gemini key
-/// (locked, stored with DPAPI, never shown again), the model in "Avançado" and the fixed rules, one per line. Every control saves
+/// The logic of the correction (spec 7.2; a folded section of the Início tab): the on/off switch of the automatic correction, Gemini or "Só offline", the Gemini key
+/// (locked, stored with DPAPI, never shown again), the model (a card of Configurações) and the fixed rules, one per line. Every control saves
 /// 600 ms after its last change through the <see cref="Autosaver"/>; nothing is explained in text blocks (the hints are tooltips).
 /// </summary>
 /// <remarks>
@@ -124,8 +124,12 @@ public sealed partial class CorrectionViewModel : ObservableObject, IDisposable
     /// <summary>The model the box shows when it is empty: the default one.</summary>
     public string DefaultModel => GeminiPrompt.DefaultModel;
 
-    /// <summary>Whether "Só offline" is chosen.</summary>
-    public bool UseOffline => !UseGemini;
+    /// <summary>Whether "Só offline" is chosen (the icon toggle next to the Gemini key; turning it on turns Gemini off).</summary>
+    public bool UseOffline
+    {
+        get => !UseGemini;
+        set => UseGemini = !value;
+    }
 
     /// <summary>Whether the note under the rules box is shown.</summary>
     public bool HasRulesNote => RulesNote.Length > 0;

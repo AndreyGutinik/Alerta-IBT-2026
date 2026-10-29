@@ -2,7 +2,15 @@
     x:Class="AlertaIBT.App.Views.HomePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:AlertaIBT.App.Views"
+    xmlns:theme="clr-namespace:AlertaIBT.App.Theme"
     xmlns:vm="clr-namespace:AlertaIBT.App.ViewModels">
+
+    <!--
+        The Início tab, in the cards of the design system (Theme/SettingsStyles.xaml): the header with the pause, then two columns that become one
+        under about 1000 px of window. Left: what is on the LED, the message field and, folded under it, the correction. Right: the queue and the
+        history. The correction card is closed every time the app opens.
+    -->
 
     <UserControl.Resources>
         <!-- The pause button turns yellow while the bar is paused (the sermon). -->
@@ -31,11 +39,43 @@
             </Style.Triggers>
         </Style>
 
+        <!-- "Nada no telão agora." shows only while nothing is on the bar. -->
+        <Style
+            x:Key="NowEmptyText"
+            BasedOn="{StaticResource IbtSecondaryText}"
+            TargetType="TextBlock">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Composer.HasCurrent}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- A row of the queue or the history: a block (lighter, thin border); the text may use two lines. -->
+        <Style
+            x:Key="ListBlock"
+            BasedOn="{StaticResource IbtBlock}"
+            TargetType="Border">
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+
+        <Style x:Key="RowText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="MaxHeight" Value="34" />
+            <Setter Property="LineHeight" Value="16" />
+            <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+        </Style>
+
         <!-- A waiting alert: origin, text, the wand when the correction changed it, then up, down and remove. -->
         <DataTemplate x:Key="QueueRow" DataType="{x:Type vm:QueueRowViewModel}">
             <Border>
                 <Border.Style>
-                    <Style BasedOn="{StaticResource IbtListRow}" TargetType="Border">
+                    <Style BasedOn="{StaticResource ListBlock}" TargetType="Border">
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Urgent}" Value="True">
                                 <Setter Property="BorderBrush" Value="#59FFD87A" />
@@ -52,22 +92,19 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border Margin="0,0,7,0" Style="{StaticResource IbtChip}">
+                    <Border Margin="0,0,8,0" Style="{StaticResource IbtChip}">
                         <TextBlock Style="{StaticResource IbtChipText}" Text="{Binding SourceName}" />
                     </Border>
                     <TextBlock
                         Grid.Column="1"
-                        VerticalAlignment="Center"
-                        FontSize="11.5"
-                        FontWeight="SemiBold"
+                        Style="{StaticResource RowText}"
                         Text="{Binding Text}"
-                        TextTrimming="CharacterEllipsis"
                         ToolTip="{Binding Text}" />
                     <Path
                         Grid.Column="2"
-                        Width="13"
-                        Height="13"
-                        Margin="6,0,2,0"
+                        Width="14"
+                        Height="14"
+                        Margin="8,0,0,0"
                         Data="{StaticResource LucideWandSparkles}"
                         Style="{StaticResource LucideIcon}"
                         TextElement.Foreground="{StaticResource IbtAccentBrush}"
@@ -75,37 +112,40 @@
                         Visibility="{Binding WasCorrected, Converter={StaticResource BoolToVisibility}}" />
                     <Button
                         Grid.Column="3"
+                        Margin="8,0,0,0"
                         AutomationProperties.Name="Subir"
                         Command="{Binding MoveUpCommand}"
-                        Style="{StaticResource IbtSmallIconButton}"
+                        Style="{StaticResource IbtToolButton}"
                         ToolTip="Subir">
                         <Path
-                            Width="13"
-                            Height="13"
+                            Width="14"
+                            Height="14"
                             Data="{StaticResource LucideArrowUp}"
                             Style="{StaticResource LucideIcon}" />
                     </Button>
                     <Button
                         Grid.Column="4"
+                        Margin="4,0,0,0"
                         AutomationProperties.Name="Descer"
                         Command="{Binding MoveDownCommand}"
-                        Style="{StaticResource IbtSmallIconButton}"
+                        Style="{StaticResource IbtToolButton}"
                         ToolTip="Descer">
                         <Path
-                            Width="13"
-                            Height="13"
+                            Width="14"
+                            Height="14"
                             Data="{StaticResource LucideArrowDown}"
                             Style="{StaticResource LucideIcon}" />
                     </Button>
                     <Button
                         Grid.Column="5"
+                        Margin="4,0,0,0"
                         AutomationProperties.Name="Remover"
                         Command="{Binding RemoveCommand}"
-                        Style="{StaticResource IbtSmallIconButton}"
+                        Style="{StaticResource IbtDangerToolButton}"
                         ToolTip="Remover">
                         <Path
-                            Width="13"
-                            Height="13"
+                            Width="14"
+                            Height="14"
                             Data="{StaticResource LucideX}"
                             Style="{StaticResource LucideIcon}" />
                     </Button>
@@ -117,7 +157,7 @@
         <DataTemplate x:Key="HistoryRow" DataType="{x:Type vm:HistoryRowViewModel}">
             <Border>
                 <Border.Style>
-                    <Style BasedOn="{StaticResource IbtListRow}" TargetType="Border">
+                    <Style BasedOn="{StaticResource ListBlock}" TargetType="Border">
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Tone}" Value="Bad">
                                 <Setter Property="BorderBrush" Value="#4DFF5C5C" />
@@ -134,25 +174,22 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border Margin="0,0,7,0" Style="{StaticResource IbtChip}">
+                    <Border Margin="0,0,8,0" Style="{StaticResource IbtChip}">
                         <TextBlock Style="{StaticResource IbtChipText}" Text="{Binding SourceName}" />
                     </Border>
                     <Path
                         Grid.Column="1"
-                        Width="13"
-                        Height="13"
-                        Margin="0,0,7,0"
+                        Width="14"
+                        Height="14"
+                        Margin="0,0,8,0"
                         Data="{Binding IconKey, Converter={StaticResource GeometryKey}}"
                         Style="{StaticResource LucideIcon}"
                         TextElement.Foreground="{Binding Tone, Converter={StaticResource HistoryToneBrush}}"
                         ToolTip="{Binding IconTip}" />
                     <TextBlock
                         Grid.Column="2"
-                        VerticalAlignment="Center"
-                        FontSize="11.5"
-                        FontWeight="SemiBold"
+                        Style="{StaticResource RowText}"
                         Text="{Binding Text}"
-                        TextTrimming="CharacterEllipsis"
                         ToolTip="{Binding Text}" />
                     <TextBlock
                         Grid.Column="3"
@@ -164,9 +201,9 @@
                         Visibility="{Binding HasReason, Converter={StaticResource BoolToVisibility}}" />
                     <Path
                         Grid.Column="4"
-                        Width="13"
-                        Height="13"
-                        Margin="6,0,2,0"
+                        Width="14"
+                        Height="14"
+                        Margin="8,0,0,0"
                         Data="{StaticResource LucideWandSparkles}"
                         Style="{StaticResource LucideIcon}"
                         TextElement.Foreground="{StaticResource IbtAccentBrush}"
@@ -174,14 +211,15 @@
                         Visibility="{Binding WasCorrected, Converter={StaticResource BoolToVisibility}}" />
                     <Button
                         Grid.Column="5"
+                        Margin="8,0,0,0"
                         AutomationProperties.Name="Exibir de novo"
                         Command="{Binding ReplayCommand}"
-                        Style="{StaticResource IbtSmallIconButton}"
+                        Style="{StaticResource IbtToolButton}"
                         ToolTip="Exibir de novo"
                         Visibility="{Binding CanReplay, Converter={StaticResource BoolToVisibility}}">
                         <Path
-                            Width="13"
-                            Height="13"
+                            Width="14"
+                            Height="14"
                             Data="{StaticResource LucideRotateCcw}"
                             Style="{StaticResource LucideIcon}" />
                     </Button>
@@ -190,7 +228,9 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <Grid Margin="16">
+    <Grid
+        MaxWidth="1328"
+        Margin="0,0,0,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -198,14 +238,14 @@
         </Grid.RowDefinitions>
 
         <!-- Header: the title and the pause button (one press, one toggle). -->
-        <Grid Margin="0,0,0,12">
-            <TextBlock Style="{StaticResource IbtTitle}" Text="Início" />
+        <Grid Margin="24,24,24,24">
+            <TextBlock Style="{StaticResource IbtPageTitle}" Text="Início" />
             <Button
                 x:Name="PauseButton"
                 HorizontalAlignment="Right"
-                IsEnabled="{Binding AlertsOn}"
                 AutomationProperties.Name="{Binding Composer.PauseTip}"
                 Command="{Binding Composer.TogglePauseCommand}"
+                IsEnabled="{Binding AlertsOn}"
                 Style="{StaticResource PauseToggleButton}">
                 <StackPanel Orientation="Horizontal">
                     <Path
@@ -222,8 +262,8 @@
         <Border
             x:Name="AlertsOffBanner"
             Grid.Row="1"
-            Margin="0,0,0,12"
-            Padding="12,10"
+            Margin="24,0,24,24"
+            Padding="16,12"
             Background="#14FFD87A"
             BorderBrush="#59FFD87A"
             BorderThickness="1"
@@ -279,52 +319,87 @@
         </Border>
 
         <ScrollViewer
+            x:Name="PageScroll"
             Grid.Row="2"
             IsEnabled="{Binding AlertsOn}"
             VerticalScrollBarVisibility="Auto">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.1*" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="1*" />
-                </Grid.ColumnDefinitions>
+            <theme:AdaptiveGrid
+                x:Name="Columns"
+                Margin="24,0,24,24"
+                Gap="24"
+                MaxColumns="2"
+                MinColumnWidth="372">
 
-                <!-- Left: what is on the bar, and the message field. -->
-                <StackPanel>
-                    <Border Style="{StaticResource IbtCard}">
-                        <StackPanel>
-                            <Grid MinHeight="20">
-                                <TextBlock
-                                    HorizontalAlignment="Left"
-                                    Style="{StaticResource IbtCaption}"
-                                    Text="MENSAGEM ATUAL" />
+                <!-- Left: what is on the LED, the message field, and the folded correction. -->
+                <StackPanel x:Name="LeftColumn">
+                    <local:CardSection
+                        x:Name="NowSection"
+                        Header="No telão"
+                        Icon="{StaticResource LucideMonitor}"
+                        Style="{StaticResource IbtCardSectionStyle}">
+                        <local:CardSection.HeaderActions>
+                            <StackPanel Orientation="Horizontal">
                                 <Border
-                                    HorizontalAlignment="Right"
+                                    x:Name="CurrentSourceChip"
+                                    Margin="0,0,12,0"
                                     Style="{StaticResource IbtChip}"
                                     Visibility="{Binding Composer.HasCurrent, Converter={StaticResource BoolToVisibility}}">
                                     <TextBlock Style="{StaticResource IbtChipText}" Text="{Binding Composer.CurrentSource}" />
                                 </Border>
-                            </Grid>
+                                <Button
+                                    x:Name="NextButton"
+                                    AutomationProperties.Name="Próxima"
+                                    Command="{Binding SkipCommand}"
+                                    IsEnabled="{Binding Composer.HasCurrent}"
+                                    Style="{StaticResource IbtToolButton}"
+                                    ToolTip="Próxima: passa para o próximo aviso da fila">
+                                    <Path
+                                        Width="16"
+                                        Height="16"
+                                        Data="{StaticResource LucideSkipForward}"
+                                        Style="{StaticResource LucideIcon}" />
+                                </Button>
+                                <Button
+                                    x:Name="EndButton"
+                                    Margin="8,0,0,0"
+                                    AutomationProperties.Name="Encerrar atual"
+                                    Command="{Binding SkipCommand}"
+                                    IsEnabled="{Binding Composer.HasCurrent}"
+                                    Style="{StaticResource IbtDangerToolButton}"
+                                    ToolTip="Encerrar atual: tira este aviso do telão agora">
+                                    <Path
+                                        Width="16"
+                                        Height="16"
+                                        Data="{StaticResource LucideCircleStop}"
+                                        Style="{StaticResource LucideIcon}" />
+                                </Button>
+                            </StackPanel>
+                        </local:CardSection.HeaderActions>
+                        <StackPanel>
+                            <TextBlock
+                                x:Name="NowEmpty"
+                                MinHeight="40"
+                                Style="{StaticResource NowEmptyText}"
+                                Text="Nada no telão agora." />
                             <TextBlock
                                 x:Name="CurrentMessage"
-                                MinHeight="36"
-                                Margin="0,2,0,0"
-                                FontSize="13.5"
+                                MinHeight="40"
+                                FontSize="15"
                                 FontWeight="Bold"
                                 Foreground="{StaticResource IbtCreamBrush}"
-                                LineHeight="18"
+                                LineHeight="20"
                                 LineStackingStrategy="BlockLineHeight"
                                 Text="{Binding Composer.CurrentText}"
                                 TextWrapping="Wrap" />
                             <StackPanel
                                 x:Name="OriginalHost"
-                                Margin="0,7,0,0"
+                                Margin="0,8,0,0"
                                 Orientation="Horizontal"
                                 Visibility="{Binding HasOriginal, Converter={StaticResource BoolToVisibility}}">
                                 <Path
-                                    Width="13"
-                                    Height="13"
-                                    Margin="0,1,6,0"
+                                    Width="14"
+                                    Height="14"
+                                    Margin="0,1,8,0"
                                     VerticalAlignment="Top"
                                     Data="{StaticResource LucideWandSparkles}"
                                     Style="{StaticResource LucideIcon}"
@@ -332,14 +407,14 @@
                                 <TextBlock
                                     MaxWidth="420"
                                     FontSize="11"
-                                    Foreground="{StaticResource IbtMutedBrush}"
+                                    Foreground="{StaticResource IbtTextSecondaryBrush}"
                                     LineHeight="15"
                                     Text="{Binding OriginalLine}"
                                     TextWrapping="Wrap" />
                             </StackPanel>
                             <Border
                                 Height="4"
-                                Margin="0,10,0,0"
+                                Margin="0,16,0,0"
                                 Background="#12FFFFFF"
                                 ClipToBounds="True"
                                 CornerRadius="2">
@@ -352,64 +427,18 @@
                                     </Border.RenderTransform>
                                 </Border>
                             </Border>
-                            <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
-                                <Button
-                                    x:Name="NextButton"
-                                    AutomationProperties.Name="Próxima"
-                                    Command="{Binding SkipCommand}"
-                                    IsEnabled="{Binding Composer.HasCurrent}"
-                                    Style="{StaticResource IbtButton}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideSkipForward}"
-                                            Style="{StaticResource LucideIcon}" />
-                                        <TextBlock Margin="6,0,0,0" Text="Próxima" />
-                                    </StackPanel>
-                                </Button>
-                                <Button
-                                    x:Name="EndButton"
-                                    Margin="8,0,0,0"
-                                    AutomationProperties.Name="Encerrar atual"
-                                    Command="{Binding SkipCommand}"
-                                    IsEnabled="{Binding Composer.HasCurrent}"
-                                    Style="{StaticResource IbtDangerButton}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideCircleStop}"
-                                            Style="{StaticResource LucideIcon}" />
-                                        <TextBlock Margin="6,0,0,0" Text="Encerrar atual" />
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
                         </StackPanel>
-                    </Border>
+                    </local:CardSection>
 
-                    <Border Margin="0,12,0,0" Style="{StaticResource IbtCard}">
+                    <local:CardSection
+                        x:Name="MessageSection"
+                        Margin="0,24,0,0"
+                        Header="Mensagem"
+                        Icon="{StaticResource LucideMessageSquare}"
+                        Info="Enter: envia&#10;Ctrl+Enter: urgente (fura a fila)&#10;Shift+Enter: nova linha&#10;Esc: limpa o campo"
+                        Style="{StaticResource IbtCardSectionStyle}">
                         <StackPanel>
-                            <Grid MinHeight="20">
-                                <TextBlock
-                                    HorizontalAlignment="Left"
-                                    Style="{StaticResource IbtCaption}"
-                                    Text="MENSAGEM" />
-                                <Border
-                                    HorizontalAlignment="Right"
-                                    AutomationProperties.Name="Dicas"
-                                    Style="{StaticResource IbtInfoIcon}"
-                                    ToolTipService.InitialShowDelay="150"
-                                    ToolTipService.ShowDuration="30000"
-                                    ToolTip="Enter: envia&#10;Ctrl+Enter: urgente (fura a fila)&#10;Shift+Enter: nova linha&#10;Esc: limpa o campo">
-                                    <Path
-                                        Width="15"
-                                        Height="15"
-                                        Data="{StaticResource LucideInfo}"
-                                        Style="{StaticResource LucideIcon}" />
-                                </Border>
-                            </Grid>
-                            <Grid Margin="0,4,0,0">
+                            <Grid>
                                 <TextBox
                                     x:Name="InputBox"
                                     MinLines="3"
@@ -426,7 +455,7 @@
                             <!-- Vai aparecer assim: green, blue (offline / aviso livre) or red; plus a yellow line for a repeated plate. -->
                             <StackPanel
                                 x:Name="PreviewHost"
-                                Margin="0,7,0,0"
+                                Margin="0,12,0,0"
                                 Visibility="{Binding Composer.HasPreview, Converter={StaticResource BoolToVisibility}}">
                                 <StackPanel.RenderTransform>
                                     <TranslateTransform x:Name="ShakeTransform" />
@@ -446,9 +475,9 @@
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <Path
-                                        Width="13"
-                                        Height="13"
-                                        Margin="0,1,6,0"
+                                        Width="14"
+                                        Height="14"
+                                        Margin="0,1,8,0"
                                         VerticalAlignment="Top"
                                         Data="{Binding Composer.Preview.IconKey, Converter={StaticResource GeometryKey}}"
                                         Style="{StaticResource LucideIcon}"
@@ -461,7 +490,7 @@
                                             Text="{Binding Composer.Preview.Label}"
                                             TextWrapping="Wrap" />
                                         <TextBlock
-                                            FontSize="11.5"
+                                            FontSize="12"
                                             FontWeight="Bold"
                                             Foreground="{Binding Composer.Preview.Tone, Converter={StaticResource PreviewToneBrush}}"
                                             LineHeight="16"
@@ -469,15 +498,15 @@
                                             TextWrapping="Wrap" />
                                     </StackPanel>
                                 </Grid>
-                                <Grid Margin="0,5,0,0" Visibility="{Binding Composer.HasPreviewNote, Converter={StaticResource BoolToVisibility}}">
+                                <Grid Margin="0,6,0,0" Visibility="{Binding Composer.HasPreviewNote, Converter={StaticResource BoolToVisibility}}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <Path
-                                        Width="13"
-                                        Height="13"
-                                        Margin="0,1,6,0"
+                                        Width="14"
+                                        Height="14"
+                                        Margin="0,1,8,0"
                                         VerticalAlignment="Top"
                                         Data="{StaticResource LucideTriangleAlert}"
                                         Style="{StaticResource LucideIcon}"
@@ -493,21 +522,27 @@
 
                             <!-- What happened to the last send, or to the last "Exibir de novo". -->
                             <TextBlock
-                                Margin="0,6,0,0"
+                                Margin="0,8,0,0"
                                 FontSize="11.5"
                                 Foreground="{Binding Composer.FeedbackTone, Converter={StaticResource FeedbackToneBrush}}"
                                 Text="{Binding Composer.FeedbackText}"
                                 TextWrapping="Wrap"
                                 Visibility="{Binding Composer.HasFeedback, Converter={StaticResource BoolToVisibility}}" />
                             <TextBlock
-                                Margin="0,6,0,0"
+                                Margin="0,8,0,0"
                                 FontSize="11.5"
                                 Foreground="{Binding NoticeTone, Converter={StaticResource FeedbackToneBrush}}"
                                 Text="{Binding NoticeText}"
                                 TextWrapping="Wrap"
                                 Visibility="{Binding HasNotice, Converter={StaticResource BoolToVisibility}}" />
 
-                            <StackPanel Margin="0,8,0,0" Orientation="Horizontal">
+                            <!-- One line of buttons: only Enviar has a word; the other two are icons with a tooltip. -->
+                            <Grid Margin="0,16,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
                                 <Button
                                     AutomationProperties.Name="Enviar"
                                     Command="{Binding Composer.SendCommand}"
@@ -522,157 +557,131 @@
                                     </StackPanel>
                                 </Button>
                                 <Button
+                                    Grid.Column="1"
                                     Margin="8,0,0,0"
                                     AutomationProperties.Name="Enviar urgente"
                                     Command="{Binding Composer.SendUrgentCommand}"
-                                    Style="{StaticResource IbtUrgentButton}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideSiren}"
-                                            Style="{StaticResource LucideIcon}" />
-                                        <TextBlock Margin="6,0,0,0" Text="Enviar urgente" />
-                                    </StackPanel>
+                                    Style="{StaticResource IbtUrgentButton}"
+                                    ToolTip="Enviar urgente (Ctrl+Enter): fura a fila">
+                                    <Path
+                                        Width="15"
+                                        Height="15"
+                                        Data="{StaticResource LucideSiren}"
+                                        Style="{StaticResource LucideIcon}" />
                                 </Button>
                                 <Button
+                                    Grid.Column="2"
                                     Margin="8,0,0,0"
                                     AutomationProperties.Name="Limpar"
                                     Command="{Binding Composer.ClearCommand}"
-                                    Style="{StaticResource IbtDangerButton}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideEraser}"
-                                            Style="{StaticResource LucideIcon}" />
-                                        <TextBlock Margin="6,0,0,0" Text="Limpar" />
-                                    </StackPanel>
-                                </Button>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <!-- Right: the queue and the history. -->
-                <StackPanel Grid.Column="2">
-                    <Border Style="{StaticResource IbtCard}">
-                        <StackPanel>
-                            <Grid MinHeight="24">
-                                <TextBlock
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Center"
-                                    Style="{StaticResource IbtCaption}"
-                                    Text="{Binding QueueTitle}" />
-                                <Button
-                                    x:Name="ClearQueueButton"
-                                    Margin="0"
-                                    HorizontalAlignment="Right"
-                                    AutomationProperties.Name="Limpar fila"
-                                    Command="{Binding ClearQueueCommand}"
-                                    Style="{StaticResource IbtSmallIconButton}"
-                                    ToolTip="Limpar fila">
+                                    Style="{StaticResource IbtDangerButton}"
+                                    ToolTip="Limpar o campo (Esc)">
                                     <Path
-                                        Width="13"
-                                        Height="13"
-                                        Data="{StaticResource LucideTrash2}"
+                                        Width="15"
+                                        Height="15"
+                                        Data="{StaticResource LucideEraser}"
                                         Style="{StaticResource LucideIcon}" />
                                 </Button>
                             </Grid>
+                        </StackPanel>
+                    </local:CardSection>
+
+                    <!-- The correction: folded (an arrow opens it), closed whenever the app opens. Its own data context is the correction of the window. -->
+                    <local:CorrectionPanel
+                        x:Name="CorrectionPanel"
+                        Margin="0,24,0,0"
+                        DataContext="{Binding DataContext.Correction, RelativeSource={RelativeSource AncestorType=Window}}" />
+                </StackPanel>
+
+                <!-- Right: the queue and the history. -->
+                <StackPanel x:Name="RightColumn">
+                    <local:CardSection
+                        x:Name="QueueSection"
+                        Header="{Binding QueueTitle}"
+                        Icon="{StaticResource LucideList}"
+                        Style="{StaticResource IbtCardSectionStyle}">
+                        <local:CardSection.HeaderActions>
+                            <Button
+                                x:Name="ClearQueueButton"
+                                AutomationProperties.Name="Limpar fila"
+                                Command="{Binding ClearQueueCommand}"
+                                Style="{StaticResource IbtDangerToolButton}"
+                                ToolTip="Limpar fila">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{StaticResource LucideTrash2}"
+                                    Style="{StaticResource LucideIcon}" />
+                            </Button>
+                        </local:CardSection.HeaderActions>
+                        <StackPanel>
                             <ScrollViewer
-                                MaxHeight="225"
-                                Margin="0,8,0,0"
+                                MaxHeight="300"
                                 VerticalScrollBarVisibility="Auto">
                                 <ItemsControl
                                     x:Name="QueueList"
+                                    Margin="0,0,0,-8"
+                                    Focusable="False"
                                     ItemTemplate="{StaticResource QueueRow}"
                                     ItemsSource="{Binding Queue}" />
                             </ScrollViewer>
                             <TextBlock
                                 x:Name="QueueEmpty"
-                                Margin="0,7,0,0"
-                                FontSize="11.5"
-                                Foreground="{StaticResource IbtMutedBrush}"
+                                Style="{StaticResource IbtSecondaryText}"
                                 Text="Fila vazia."
                                 Visibility="{Binding QueueIsEmpty, Converter={StaticResource BoolToVisibility}}" />
                         </StackPanel>
-                    </Border>
+                    </local:CardSection>
 
-                    <Border Margin="0,12,0,0" Style="{StaticResource IbtCard}">
+                    <local:CardSection
+                        x:Name="HistorySection"
+                        Margin="0,24,0,0"
+                        Header="Histórico"
+                        Icon="{StaticResource LucideHistory}"
+                        Style="{StaticResource IbtCardSectionStyle}">
+                        <local:CardSection.HeaderActions>
+                            <Button
+                                x:Name="ClearHistoryButton"
+                                AutomationProperties.Name="Limpar histórico"
+                                Command="{Binding ClearHistoryCommand}"
+                                Style="{StaticResource IbtDangerToolButton}"
+                                ToolTip="Limpar histórico: apaga o histórico do PC e do site, e as mensagens do bot no Telegram com menos de 48 h. Não mexe na fila nem no que está passando."
+                                ToolTipService.ShowDuration="30000"
+                                ToolTipService.ShowOnDisabled="True">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{StaticResource LucideTrash2}"
+                                    Style="{StaticResource LucideIcon}" />
+                            </Button>
+                        </local:CardSection.HeaderActions>
                         <StackPanel>
-                            <Grid MinHeight="24">
-                                <TextBlock
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Center"
-                                    Style="{StaticResource IbtCaption}"
-                                    Text="HISTÓRICO" />
-                                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                                    <Border
-                                        x:Name="ClearHistoryInfo"
-                                        Margin="0,0,6,0"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.Name="Dicas"
-                                        Style="{StaticResource IbtInfoIcon}"
-                                        ToolTipService.InitialShowDelay="150"
-                                        ToolTipService.ShowDuration="30000"
-                                        ToolTip="Apaga o histórico do PC e do site, e as mensagens do bot no Telegram com menos de 48 h. Não mexe na fila nem no que está passando.">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideInfo}"
-                                            Style="{StaticResource LucideIcon}" />
-                                    </Border>
-                                    <Button
-                                        x:Name="ClearHistoryButton"
-                                        AutomationProperties.Name="Limpar histórico"
-                                        Command="{Binding ClearHistoryCommand}">
-                                        <Button.Style>
-                                            <Style BasedOn="{StaticResource IbtLockButton}" TargetType="Button">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsEnabled" Value="False">
-                                                        <Setter Property="Opacity" Value="0.4" />
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Path
-                                                Width="13"
-                                                Height="13"
-                                                Data="{StaticResource LucideTrash2}"
-                                                Style="{StaticResource LucideIcon}" />
-                                            <TextBlock Margin="5,0,0,0" Text="Limpar histórico" />
-                                        </StackPanel>
-                                    </Button>
-                                </StackPanel>
-                            </Grid>
                             <TextBlock
                                 x:Name="HistoryNotice"
-                                Margin="0,6,0,0"
+                                Margin="0,0,0,12"
                                 FontSize="11.5"
                                 Foreground="{Binding HistoryNoticeTone, Converter={StaticResource FeedbackToneBrush}}"
                                 Text="{Binding HistoryNoticeText}"
                                 TextWrapping="Wrap"
                                 Visibility="{Binding HasHistoryNotice, Converter={StaticResource BoolToVisibility}}" />
                             <ScrollViewer
-                                MaxHeight="260"
-                                Margin="0,8,0,0"
+                                MaxHeight="380"
                                 VerticalScrollBarVisibility="Auto">
                                 <ItemsControl
                                     x:Name="HistoryList"
+                                    Margin="0,0,0,-8"
+                                    Focusable="False"
                                     ItemTemplate="{StaticResource HistoryRow}"
                                     ItemsSource="{Binding History}" />
                             </ScrollViewer>
                             <TextBlock
-                                Margin="0,7,0,0"
-                                FontSize="11.5"
-                                Foreground="{StaticResource IbtMutedBrush}"
+                                Style="{StaticResource IbtSecondaryText}"
                                 Text="Nada por aqui ainda."
                                 Visibility="{Binding HistoryIsEmpty, Converter={StaticResource BoolToVisibility}}" />
                         </StackPanel>
-                    </Border>
+                    </local:CardSection>
                 </StackPanel>
-            </Grid>
+            </theme:AdaptiveGrid>
         </ScrollViewer>
     </Grid>
 </UserControl>

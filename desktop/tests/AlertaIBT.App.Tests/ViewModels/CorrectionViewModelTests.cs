@@ -107,6 +107,28 @@ public sealed class CorrectionViewModelTests : IDisposable
     }
 
     [Fact]
+    public void The_two_icon_toggles_next_to_the_key_exclude_each_other_through_UseGemini_and_UseOffline()
+    {
+        var vm = Create();
+        var changed = new List<string>();
+        vm.PropertyChanged += (_, e) => changed.Add(e.PropertyName ?? string.Empty);
+
+        vm.UseOffline = true; // the "so offline" icon on
+        _rig.Rest();
+        Assert.False(vm.UseGemini);
+        Assert.Contains(nameof(CorrectionViewModel.UseOffline), changed);
+        Assert.Equal("offline", _rig.OnDisk().Correction.Mode);
+
+        vm.UseOffline = false; // the same icon off: Gemini comes back
+        _rig.Rest();
+        Assert.True(vm.UseGemini);
+        Assert.Equal("gemini", _rig.OnDisk().Correction.Mode);
+
+        vm.UseGemini = false; // the Gemini icon off is "so offline"
+        Assert.True(vm.UseOffline);
+    }
+
+    [Fact]
     public void A_blank_model_means_the_default_model_and_a_bad_one_is_ignored_with_a_hint()
     {
         var vm = Create();

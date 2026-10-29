@@ -4,7 +4,7 @@
     xmlns:theme="clr-namespace:AlertaIBT.App.Theme">
 
     <!--
-        Shared control styles of the Alerta-IBT windows (painel-v7.html: .btn, .btn.pri, .btn.urg, textarea, .info, tooltips).
+        Shared control styles of the IBT Controller windows (painel-v7.html: .btn, .btn.pri, .btn.urg, textarea, .info, tooltips).
         Needs AppTheme.xaml (brushes, MarbleFont) and LucideIcons.xaml, merged before this file.
     -->
 
@@ -54,7 +54,7 @@
     <Style x:Key="IbtButton" TargetType="Button">
         <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
         <Setter Property="Background" Value="{StaticResource IbtPanelStrongBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource IbtLineBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="12,7" />
         <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
@@ -105,17 +105,13 @@
         <Setter Property="Foreground" Value="{StaticResource IbtWarnBrush}" />
     </Style>
 
-    <Style x:Key="IbtIconButton" BasedOn="{StaticResource IbtButton}" TargetType="Button">
-        <Setter Property="Padding" Value="10,7" />
-    </Style>
-
     <!-- Text field (the "Novo aviso" box). -->
     <Style x:Key="IbtInput" TargetType="TextBox">
         <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
         <Setter Property="CaretBrush" Value="{StaticResource IbtTextBrush}" />
         <Setter Property="SelectionBrush" Value="{StaticResource IbtAccentBrush}" />
-        <Setter Property="Background" Value="#0D0D10" />
-        <Setter Property="BorderBrush" Value="{StaticResource IbtLineBrush}" />
+        <Setter Property="Background" Value="{StaticResource IbtInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="10,9" />
         <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
@@ -155,8 +151,8 @@
         <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
         <Setter Property="CaretBrush" Value="{StaticResource IbtTextBrush}" />
         <Setter Property="SelectionBrush" Value="{StaticResource IbtAccentBrush}" />
-        <Setter Property="Background" Value="#0D0D10" />
-        <Setter Property="BorderBrush" Value="{StaticResource IbtLineBrush}" />
+        <Setter Property="Background" Value="{StaticResource IbtInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="10,9" />
         <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
@@ -191,31 +187,7 @@
         </Setter>
     </Style>
 
-    <!-- A small caption such as "NO TELÃO AGORA" (set the text in upper case). -->
-    <Style x:Key="IbtCaption" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
-        <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
-        <Setter Property="FontSize" Value="10.5" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-    </Style>
-
     <!-- ===== Main window (painel-v7.html: .cd, .tab, .aiopt, .seg, .ib, .lock, .item, details, .saved) ===== -->
-
-    <Style x:Key="IbtCard" TargetType="Border">
-        <Setter Property="Background" Value="{StaticResource IbtPanelBrush}" />
-        <Setter Property="BorderBrush" Value="{StaticResource IbtLineBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="12" />
-        <Setter Property="Padding" Value="12" />
-    </Style>
-
-    <Style x:Key="IbtTitle" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
-        <Setter Property="FontSize" Value="18" />
-        <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-    </Style>
 
     <!-- A small warning under a box: a value that was ignored or held in range. -->
     <Style x:Key="IbtHint" TargetType="TextBlock">
@@ -263,145 +235,6 @@
         </Style.Triggers>
     </Style>
 
-    <!-- A choice card (Gemini / Só offline). Tag is true for the chosen one. -->
-    <Style x:Key="IbtOptionCard" TargetType="Button">
-        <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
-        <Setter Property="Background" Value="#05FFFFFF" />
-        <Setter Property="BorderBrush" Value="{StaticResource IbtLineBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="12,11" />
-        <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
-        <Setter Property="FontSize" Value="13" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="HorizontalContentAlignment" Value="Left" />
-        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Border
-                        x:Name="Chrome"
-                        Padding="{TemplateBinding Padding}"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="10">
-                        <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="Chrome" Property="Opacity" Value="0.45" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-        <Style.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="BorderBrush" Value="#731DA35F" />
-            </Trigger>
-            <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=Tag}" Value="True">
-                <Setter Property="Background" Value="#211DA35F" />
-                <Setter Property="BorderBrush" Value="{StaticResource IbtAccentBrush}" />
-            </DataTrigger>
-        </Style.Triggers>
-    </Style>
-
-    <!-- One half of the Topo / Rodapé switch. -->
-    <Style x:Key="IbtSegButton" TargetType="RadioButton">
-        <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Padding" Value="14,6" />
-        <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
-        <Setter Property="FontSize" Value="12.5" />
-        <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="RadioButton">
-                    <Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-        <Style.Triggers>
-            <Trigger Property="IsChecked" Value="True">
-                <Setter Property="Background" Value="#211DA35F" />
-                <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
-            </Trigger>
-        </Style.Triggers>
-    </Style>
-
-    <!-- A 24 px square icon button (the arrows and the cross of a row, the trash of the queue). -->
-    <Style x:Key="IbtSmallIconButton" TargetType="Button">
-        <Setter Property="Width" Value="24" />
-        <Setter Property="Height" Value="24" />
-        <Setter Property="Margin" Value="4,0,0,0" />
-        <Setter Property="Padding" Value="0" />
-        <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="{StaticResource IbtLineBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Border
-                        x:Name="Chrome"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="6">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
-                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#801DA35F" />
-                        </Trigger>
-                        <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="Chrome" Property="Opacity" Value="0.3" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-    <!-- The small "Trocar" / "Bloquear" button next to a locked field. -->
-    <Style x:Key="IbtLockButton" TargetType="Button">
-        <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="{StaticResource IbtLineBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="8,2" />
-        <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
-        <Setter Property="FontSize" Value="11" />
-        <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="Button">
-                    <Border
-                        Padding="{TemplateBinding Padding}"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="6">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-        <Style.Triggers>
-            <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
-            </Trigger>
-        </Style.Triggers>
-    </Style>
-
     <!-- The red-tinted button (Encerrar atual, Limpar). -->
     <Style x:Key="IbtDangerButton" BasedOn="{StaticResource IbtButton}" TargetType="Button">
         <Setter Property="Background" Value="#12FF9D9D" />
@@ -421,16 +254,6 @@
     <Style x:Key="IbtChipText" TargetType="TextBlock">
         <Setter Property="FontSize" Value="9.5" />
         <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
-    </Style>
-
-    <!-- A row of the queue or the history. -->
-    <Style x:Key="IbtListRow" TargetType="Border">
-        <Setter Property="Padding" Value="8,6" />
-        <Setter Property="Margin" Value="0,0,0,6" />
-        <Setter Property="Background" Value="#05FFFFFF" />
-        <Setter Property="BorderBrush" Value="{StaticResource IbtLineBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
     </Style>
 
     <!-- The "✓ Salvo" stamp of a tab; it follows the autosave (Saver.State). -->

@@ -5,11 +5,14 @@ using AlertaIBT.App.ViewModels;
 
 namespace AlertaIBT.App.Views;
 
-/// <summary>The Correção tab (spec 7.2): the correction switch, Gemini or "Só offline", the Gemini key, the model and the fixed rules.</summary>
-public partial class CorrectionPage : UserControl
+/// <summary>
+/// The correction (spec 7.2) as a folded card of the Início tab: the correction switch, the Gemini key with the Gemini and "Só offline" icons at its
+/// right, and the fixed rules. The model of Gemini is a card of Configurações.
+/// </summary>
+public partial class CorrectionPanel : UserControl
 {
-    /// <summary>Builds the page; the data context (a <see cref="CorrectionViewModel"/>) is set by the window.</summary>
-    public CorrectionPage()
+    /// <summary>Builds the card; the data context (a <see cref="CorrectionViewModel"/>) is set by the Início page.</summary>
+    public CorrectionPanel()
     {
         InitializeComponent();
     }

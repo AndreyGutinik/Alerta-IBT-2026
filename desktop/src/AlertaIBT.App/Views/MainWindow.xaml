@@ -6,7 +6,7 @@
     xmlns:theme="clr-namespace:AlertaIBT.App.Theme"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:vm="clr-namespace:AlertaIBT.App.ViewModels"
-    Title="Alerta-IBT"
+    Title="IBT Controller"
     Width="1100"
     Height="860"
     MinWidth="900"
@@ -29,7 +29,7 @@
 
         <ui:TitleBar
             x:Name="TitleBar"
-            Title="Alerta-IBT"
+            Title="IBT Controller"
             Grid.Row="0"
             Background="#0D0D10"
             CloseWindowByDoubleClickOnIcon="False">
@@ -74,7 +74,7 @@
                             VerticalAlignment="Center"
                             FontSize="14.5"
                             FontWeight="Bold"
-                            Text="Alerta-IBT" />
+                            Text="IBT Controller" />
                     </StackPanel>
 
                     <StackPanel Grid.Row="1">
@@ -95,20 +95,20 @@
                             </StackPanel>
                         </Button>
                         <Button
-                            x:Name="CorrectionTab"
+                            x:Name="SomTab"
                             Margin="0,4,0,0"
-                            AutomationProperties.Name="Correção"
+                            AutomationProperties.Name="Som"
                             Command="{Binding SelectTabCommand}"
-                            CommandParameter="{x:Static vm:MainTab.Correction}"
+                            CommandParameter="{x:Static vm:MainTab.Som}"
                             Style="{StaticResource IbtTabButton}"
-                            Tag="{Binding IsCorrectionSelected}">
+                            Tag="{Binding IsSomSelected}">
                             <StackPanel Orientation="Horizontal">
                                 <Path
                                     Width="16"
                                     Height="16"
-                                    Data="{StaticResource LucideSpellCheck}"
+                                    Data="{StaticResource LucideVolume2}"
                                     Style="{StaticResource LucideIcon}" />
-                                <TextBlock Margin="10,0,0,0" Text="Correção" />
+                                <TextBlock Margin="10,0,0,0" Text="Som" />
                             </StackPanel>
                         </Button>
                         <Button
@@ -126,23 +126,6 @@
                                     Data="{StaticResource LucideSettings}"
                                     Style="{StaticResource LucideIcon}" />
                                 <TextBlock Margin="10,0,0,0" Text="Configurações" />
-                            </StackPanel>
-                        </Button>
-                        <Button
-                            x:Name="SomTab"
-                            Margin="0,4,0,0"
-                            AutomationProperties.Name="Som"
-                            Command="{Binding SelectTabCommand}"
-                            CommandParameter="{x:Static vm:MainTab.Som}"
-                            Style="{StaticResource IbtTabButton}"
-                            Tag="{Binding IsSomSelected}">
-                            <StackPanel Orientation="Horizontal">
-                                <Path
-                                    Width="16"
-                                    Height="16"
-                                    Data="{StaticResource LucideVolume2}"
-                                    Style="{StaticResource LucideIcon}" />
-                                <TextBlock Margin="10,0,0,0" Text="Som" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -191,7 +174,7 @@
                 </Grid>
             </Border>
 
-            <!-- The four tabs stay alive (their text, scroll and state survive a switch); only one is visible. -->
+            <!-- The three tabs stay alive (their text, scroll and state survive a switch); only one is visible. -->
             <Grid Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -229,21 +212,16 @@
                         theme:Motion.FadeOnShow="True"
                         DataContext="{Binding Home}"
                         Visibility="{Binding DataContext.IsHomeSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
-                    <local:CorrectionPage
-                        x:Name="CorrectionPage"
-                        theme:Motion.FadeOnShow="True"
-                        DataContext="{Binding Correction}"
-                        Visibility="{Binding DataContext.IsCorrectionSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
-                    <local:SettingsPage
-                        x:Name="SettingsPage"
-                        theme:Motion.FadeOnShow="True"
-                        DataContext="{Binding Settings}"
-                        Visibility="{Binding DataContext.IsSettingsSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
                     <local:SomPage
                         x:Name="SomPage"
                         theme:Motion.FadeOnShow="True"
                         DataContext="{Binding Som}"
                         Visibility="{Binding DataContext.IsSomSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
+                    <local:SettingsPage
+                        x:Name="SettingsPage"
+                        theme:Motion.FadeOnShow="True"
+                        DataContext="{Binding Settings}"
+                        Visibility="{Binding DataContext.IsSettingsSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
                 </Grid>
             </Grid>
         </Grid>

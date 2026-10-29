@@ -493,7 +493,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             Queue.Add(new QueueRowViewModel(pending[i], i, pending.Count, Move, Remove));
         }
 
-        QueueTitle = pending.Count > 0 ? $"FILA ({pending.Count})" : "FILA";
+        QueueTitle = pending.Count > 0 ? $"Fila ({pending.Count})" : "Fila";
         QueueIsEmpty = pending.Count == 0;
 
         History.Clear();

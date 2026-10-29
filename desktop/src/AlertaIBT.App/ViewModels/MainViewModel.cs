@@ -6,20 +6,17 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AlertaIBT.App.ViewModels;
 
-/// <summary>The three tabs of the main window.</summary>
+/// <summary>The three tabs of the main window (the correction lives inside Início).</summary>
 public enum MainTab
 {
-    /// <summary>Início: what is on the bar, the message field, the queue and the history.</summary>
+    /// <summary>Início: what is on the bar, the message field, the correction (folded), the queue and the history.</summary>
     Home,
-
-    /// <summary>Correção: the automatic correction, the Gemini key and the fixed rules.</summary>
-    Correction,
-
-    /// <summary>Configurações: the bar, Telegram, the system and the diagnostics.</summary>
-    Settings,
 
     /// <summary>Som: the volumes, the routing of the outputs, the music player and the alarms.</summary>
     Som,
+
+    /// <summary>Configurações: the bar, Telegram, the system, the Gemini model and the diagnostics.</summary>
+    Settings,
 }
 
 /// <summary>One line of the small status list at the bottom of the side bar.</summary>
@@ -31,7 +28,7 @@ public sealed record StatusRow(string Label, StatusLight Light, string Tip);
 /// <summary>
 /// The main window (spec 7.2): the three tabs and the status list of the side bar (Telegram, Site, LED, Barra, Gemini with their
 /// dots; the Gemini line turns blue "Offline" when the offline corrector is working). The tabs' own logic is in
-/// <see cref="Home"/>, <see cref="Correction"/> and <see cref="Settings"/>.
+/// <see cref="Home"/> (with <see cref="Correction"/>), <see cref="Som"/> and <see cref="Settings"/>.
 /// </summary>
 public sealed partial class MainViewModel : ObservableObject, IDisposable
 {
@@ -45,7 +42,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <param name="hub">The status of the parts.</param>
     /// <param name="home">The Início tab.</param>
-    /// <param name="correction">The Correção tab.</param>
+    /// <param name="correction">The correction (shown in the Início tab; its model in Configurações).</param>
     /// <param name="settings">The Configurações tab.</param>
     /// <param name="saver">The autosave the two settings tabs share; saved one last time when this is disposed.</param>
     /// <param name="post">Runs an action on the UI thread; runs it at once when null (tests).</param>
@@ -97,7 +94,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The Início tab.</summary>
     public HomeViewModel Home { get; }
 
-    /// <summary>The Correção tab.</summary>
+    /// <summary>The correction: the key, the mode and the rules (Início), the model (Configurações).</summary>
     public CorrectionViewModel Correction { get; }
 
     /// <summary>The Configurações tab.</summary>
@@ -117,9 +114,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Whether the Início tab is selected.</summary>
     public bool IsHomeSelected => SelectedTab == MainTab.Home;
-
-    /// <summary>Whether the Correção tab is selected.</summary>
-    public bool IsCorrectionSelected => SelectedTab == MainTab.Correction;
 
     /// <summary>Whether the Configurações tab is selected.</summary>
     public bool IsSettingsSelected => SelectedTab == MainTab.Settings;
@@ -160,7 +154,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     partial void OnSelectedTabChanged(MainTab value)
     {
         OnPropertyChanged(nameof(IsHomeSelected));
-        OnPropertyChanged(nameof(IsCorrectionSelected));
         OnPropertyChanged(nameof(IsSettingsSelected));
         OnPropertyChanged(nameof(IsSomSelected));
     }

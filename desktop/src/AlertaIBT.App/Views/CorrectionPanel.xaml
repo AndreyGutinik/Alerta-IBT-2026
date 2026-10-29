@@ -1,0 +1,286 @@
+<UserControl
+    x:Class="AlertaIBT.App.Views.CorrectionPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="clr-namespace:AlertaIBT.App.ViewModels">
+
+    <!--
+        The correction, as a folded card of the Início tab (built like the Diagnóstico card of Configurações): the arrow opens it, it is closed when the
+        app opens. Inside, three blocks: the on/off switch, the Gemini key with the two mode icons at its right, and the fixed rules. The model of
+        Gemini lives in its own card of Configurações.
+    -->
+
+    <UserControl.Resources>
+        <Style x:Key="Placeholder" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="Margin" Value="11,8,0,0" />
+            <Setter Property="Visibility" Value="Collapsed" />
+        </Style>
+
+        <Style
+            x:Key="RulesPlaceholder"
+            BasedOn="{StaticResource Placeholder}"
+            TargetType="TextBlock">
+            <Setter Property="Margin" Value="11,10,0,0" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Text.Length, ElementName=RulesBox}" Value="0">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style
+            x:Key="KeyPlaceholder"
+            BasedOn="{StaticResource Placeholder}"
+            TargetType="TextBlock">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Text.Length, ElementName=KeyEntryBox}" Value="0">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="RulesNoteText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,8,0,0" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RulesNoteIsWarning}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource IbtWarnBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The Gemini icon: the tooltip says whether it is on. -->
+        <Style
+            x:Key="GeminiOptionStyle"
+            BasedOn="{StaticResource IbtGeminiToggle}"
+            TargetType="ToggleButton">
+            <Setter Property="ToolTip" Value="Gemini desligado" />
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="ToolTip" Value="Gemini ligado" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource IbtSurfaceCard}">
+        <Expander
+            x:Name="CorrectionExpander"
+            Style="{StaticResource IbtExpander}">
+            <Expander.Header>
+                <Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <Path
+                            Width="18"
+                            Height="18"
+                            Margin="0,0,10,0"
+                            Data="{StaticResource LucideSpellCheck}"
+                            Style="{StaticResource IbtHeaderIcon}" />
+                        <TextBlock
+                            Style="{StaticResource IbtCardTitle}"
+                            Text="Correção" />
+                    </StackPanel>
+                    <!-- The Gemini state at a glance, even folded; the tooltip has the words. -->
+                    <Border
+                        x:Name="GeminiPill"
+                        HorizontalAlignment="Right"
+                        AutomationProperties.Name="Gemini"
+                        Style="{StaticResource IbtDotHost}"
+                        ToolTip="{Binding GeminiTip}">
+                        <Ellipse
+                            Width="10"
+                            Height="10"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Fill="{Binding GeminiLight, Converter={StaticResource StatusLightBrush}}"
+                            Style="{StaticResource IbtStatusDot}" />
+                    </Border>
+                </Grid>
+            </Expander.Header>
+
+            <StackPanel Margin="0,0,0,-8">
+                <!-- The switch of the whole correction. -->
+                <Border
+                    Margin="0,0,0,8"
+                    Padding="16,12"
+                    Style="{StaticResource IbtBlock}">
+                    <Grid MinHeight="32">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                            <Path
+                                Margin="0,0,12,0"
+                                Data="{StaticResource LucideWandSparkles}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBlock Style="{StaticResource IbtRowLabel}" Text="Correção automática" />
+                            <Border
+                                AutomationProperties.Name="Dicas"
+                                Style="{StaticResource SectionInfo}"
+                                ToolTip="Corrige o português e organiza no padrão:&#10;MODELO COR | PLACA: ABC-1234 | MOTIVO&#10;Aceita placa antiga e Mercosul.&#10;Sem modelo, cor ou placa: não vai para o telão&#10;e volta uma mensagem de erro. Sem motivo: passa.&#10;Gemini: grátis, precisa de internet.&#10;Só offline: nada sai do PC.&#10;Sem internet, cai sozinho no offline.">
+                                <Path
+                                    Width="15"
+                                    Height="15"
+                                    Data="{StaticResource LucideInfo}"
+                                    Style="{StaticResource LucideIcon}" />
+                            </Border>
+                        </StackPanel>
+                        <ToggleButton
+                            x:Name="EnabledSwitch"
+                            Grid.Column="1"
+                            AutomationProperties.Name="Correção automática"
+                            IsChecked="{Binding Enabled, Mode=TwoWay}"
+                            Style="{StaticResource IbtSwitch}" />
+                    </Grid>
+                </Border>
+
+                <!-- The Gemini key: dots when stored, the key icon at the right opens an empty box for a new one. Gemini and "só offline" are the two icons at its right. -->
+                <Border
+                    Margin="0,0,0,8"
+                    Padding="16,12"
+                    Style="{StaticResource IbtBlock}">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Path
+                                Margin="0,0,12,0"
+                                Data="{StaticResource LucideKeyRound}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBlock Style="{StaticResource IbtRowLabel}" Text="Chave do Gemini" />
+                            <Border
+                                AutomationProperties.Name="Dicas"
+                                Style="{StaticResource SectionInfo}"
+                                ToolTip="Grátis: crie em aistudio.google.com.&#10;Sem cartão de crédito.&#10;Fica guardada criptografada neste PC.">
+                                <Path
+                                    Width="15"
+                                    Height="15"
+                                    Data="{StaticResource LucideInfo}"
+                                    Style="{StaticResource LucideIcon}" />
+                            </Border>
+                        </StackPanel>
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid Margin="0,0,8,0">
+                                <TextBox
+                                    x:Name="KeyLockedBox"
+                                    AutomationProperties.Name="Chave do Gemini (guardada)"
+                                    IsEnabled="False"
+                                    IsReadOnly="True"
+                                    Style="{StaticResource IbtFieldInput}"
+                                    Text="{x:Static vm:SecretFieldViewModel.Mask}"
+                                    Visibility="{Binding GeminiKey.IsLocked, Converter={StaticResource BoolToVisibility}}" />
+                                <Grid Visibility="{Binding GeminiKey.IsEditing, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBox
+                                        x:Name="KeyEntryBox"
+                                        AutomationProperties.Name="Nova chave do Gemini"
+                                        Style="{StaticResource IbtFieldInput}"
+                                        Text="{Binding GeminiKey.Entry, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Style="{StaticResource KeyPlaceholder}" Text="Cole a chave aqui" />
+                                </Grid>
+                            </Grid>
+                            <Button
+                                x:Name="KeyLockButton"
+                                Grid.Column="1"
+                                Margin="0,0,8,0"
+                                AutomationProperties.Name="{Binding GeminiKey.LockButtonText}"
+                                Click="OnKeyLockClick"
+                                Command="{Binding GeminiKey.ToggleLockCommand}"
+                                Style="{StaticResource IbtToolButton}"
+                                ToolTip="{Binding GeminiKey.LockButtonText}"
+                                Visibility="{Binding GeminiKey.CanLock, Converter={StaticResource BoolToVisibility}}">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{Binding GeminiKey.LockIconKey, Converter={StaticResource GeometryKey}}"
+                                    Style="{StaticResource LucideIcon}" />
+                            </Button>
+                            <StackPanel
+                                x:Name="ModeCards"
+                                Grid.Column="2"
+                                IsEnabled="{Binding Enabled}"
+                                Orientation="Horizontal">
+                                <ToggleButton
+                                    x:Name="GeminiOption"
+                                    AutomationProperties.Name="Gemini"
+                                    IsChecked="{Binding UseGemini, Mode=TwoWay}"
+                                    Style="{StaticResource GeminiOptionStyle}" />
+                                <ToggleButton
+                                    x:Name="OfflineOption"
+                                    Margin="8,0,0,0"
+                                    AutomationProperties.Name="Só offline"
+                                    IsChecked="{Binding UseOffline, Mode=TwoWay}"
+                                    Style="{StaticResource IbtOfflineToggle}"
+                                    ToolTip="Só offline" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock
+                            Style="{StaticResource IbtHint}"
+                            Text="{Binding GeminiKey.Hint}"
+                            Visibility="{Binding GeminiKey.HasHint, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- The fixed rules, one per line; the stamp says that what was changed here (the switch, the key, the rules) is saved. -->
+                <Border
+                    Margin="0,0,0,8"
+                    Padding="16,12"
+                    Style="{StaticResource IbtBlock}">
+                    <StackPanel>
+                        <Grid>
+                        <Border
+                            x:Name="SavedBadge"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource IbtSavedBadge}">
+                            <TextBlock FontSize="12" Text="{Binding Saver.Label}" />
+                        </Border>
+                        <StackPanel Orientation="Horizontal">
+                            <Path
+                                Margin="0,0,12,0"
+                                Data="{StaticResource LucideList}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBlock Style="{StaticResource IbtRowLabel}" Text="Regras fixas" />
+                            <Border
+                                AutomationProperties.Name="Dicas"
+                                Style="{StaticResource SectionInfo}"
+                                ToolTip="Opcional. Uma por linha:&#10;texto errado => texto certo">
+                                <Path
+                                    Width="15"
+                                    Height="15"
+                                    Data="{StaticResource LucideInfo}"
+                                    Style="{StaticResource LucideIcon}" />
+                            </Border>
+                        </StackPanel>
+                        </Grid>
+                        <Grid Margin="0,10,0,0">
+                            <TextBox
+                                x:Name="RulesBox"
+                                MinLines="5"
+                                MaxLines="12"
+                                AcceptsReturn="True"
+                                AutomationProperties.Name="Regras fixas"
+                                Style="{StaticResource IbtInput}"
+                                Text="{Binding RulesText, UpdateSourceTrigger=PropertyChanged}"
+                                TextWrapping="NoWrap" />
+                            <TextBlock Style="{StaticResource RulesPlaceholder}" Text="farol acesso => farol aceso" />
+                        </Grid>
+                        <TextBlock
+                            x:Name="RulesNote"
+                            Style="{StaticResource RulesNoteText}"
+                            Text="{Binding RulesNote}"
+                            Visibility="{Binding HasRulesNote, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Expander>
+    </Border>
+</UserControl>

@@ -43,7 +43,7 @@ public sealed class HomeViewModelTests : IDisposable
         Assert.False(_vm.HasOriginal);
         Assert.True(_vm.QueueIsEmpty);
         Assert.True(_vm.HistoryIsEmpty);
-        Assert.Equal("FILA", _vm.QueueTitle);
+        Assert.Equal("Fila", _vm.QueueTitle);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class HomeViewModelTests : IDisposable
 
         Assert.Equal(["AAA", "BBB", "CCC"], _vm.Queue.Select(r => r.Text));
         Assert.Equal(["TELEGRAM", "SITE", "PC"], _vm.Queue.Select(r => r.SourceName));
-        Assert.Equal("FILA (3)", _vm.QueueTitle);
+        Assert.Equal("Fila (3)", _vm.QueueTitle);
         Assert.False(_vm.QueueIsEmpty);
     }
 

@@ -62,8 +62,8 @@ public partial class MainWindow : FluentWindow, IMainWindow
     /// <summary>The Início page (for tests).</summary>
     internal HomePage Home => HomePage;
 
-    /// <summary>The Correção page (for tests).</summary>
-    internal CorrectionPage Correction => CorrectionPage;
+    /// <summary>The correction card, which sits in the Início page (for tests).</summary>
+    internal CorrectionPanel Correction => HomePage.CorrectionPanel;
 
     /// <summary>The Configurações page (for tests).</summary>
     internal SettingsPage Settings => SettingsPage;
