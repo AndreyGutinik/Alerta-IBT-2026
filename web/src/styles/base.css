@@ -1,6 +1,6 @@
-/* Escala de 90%: todo tamanho do app é em rem (px do mockup ÷ 16). */
 html {
-  font-size: 90%;
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -8,5 +8,42 @@ body {
   background: var(--bg);
   color: var(--tx);
   font-family: 'Marble', 'Segoe UI', system-ui, sans-serif;
-  -webkit-text-size-adjust: 100%;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  caret-color: var(--gl);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(46, 227, 138, 0.28);
+  color: var(--cr);
+}
+
+/* Barras de rolagem finas, na paleta. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Números alinhados onde há contagem, horário e posição. */
+.count,
+.st,
+.pill,
+.mem-meta,
+.pre {
+  font-variant-numeric: tabular-nums;
 }

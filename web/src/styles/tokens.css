@@ -1,39 +1,46 @@
-/* Tokens de cor do mockup site-v5.html: escuro por padrão, claro quando o sistema pede. */
+/* IBT Controller: tema escuro único, verde #1DA35F como única cor de ação (mesma identidade do app do PC).
+   Camadas: página (--bg) < cartão (--card) < poço (--well, o que se escreve ou se lê dentro do cartão).
+   Cartão mais claro que a página, sempre com a linha fina (--line) visível. Espaço em múltiplos de 8 px. */
 :root {
+  color-scheme: dark;
+
   --bg: #0a0a0c;
-  --pn: rgba(255,255,255,.035);
-  --pn2: rgba(255,255,255,.06);
-  --ln: rgba(255,255,255,.09);
+  --card: #141417;
+  --card-hi: #1b1b20;
+  --well: #0c0c0f;
+  --line: #2b2b32;
+  --line-soft: #212127;
+
   --tx: #edeae2;
-  --mu: #8c867b;
-  --field: #0d0d10;
-  --ac: #1da35f;
-  --acs: rgba(29,163,95,.14);
-  --gl: #22e07e;
+  --mu: #9b958a;
   --cr: #fff3dc;
-  --dg: #ff9d9d;
+
+  --ac: #1da35f;
+  --ac-ink: #04130b;
+  --gl: #2ee38a;
+  --ac-soft: rgba(29, 163, 95, 0.14);
+  --ac-line: rgba(29, 163, 95, 0.45);
+
   --ok: #86e4ad;
   --wn: #ffd87a;
+  --wn-solid: #f5b400;
+  --wn-soft: rgba(245, 180, 0, 0.14);
+  --dg: #ff9d9d;
   --bad: #ff5c5c;
-  --blue: #8fc7ff;
-}
+  --bad-soft: rgba(255, 92, 92, 0.13);
 
-/* No claro só mudam os tokens abaixo; --ac e --bad valem nos dois temas. */
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f5f4ef;
-    --pn: #ffffff;
-    --pn2: rgba(0,0,0,.05);
-    --ln: rgba(0,0,0,.1);
-    --tx: #1d1b18;
-    --mu: #77716a;
-    --field: #ffffff;
-    --acs: rgba(29,163,95,.12);
-    --gl: #138a4e;
-    --cr: #1d1b18;
-    --dg: #c0392b;
-    --ok: #1e8a4f;
-    --wn: #a86b00;
-    --blue: #2f6db3;
-  }
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+
+  --r-sm: 0.5rem;
+  --r-md: 0.75rem;
+  --r-lg: 1rem;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 140ms;
+  --t-base: 220ms;
 }
