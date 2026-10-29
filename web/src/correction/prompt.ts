@@ -21,7 +21,10 @@ export const SYSTEM_PROMPT =
   '- Nunca invente palavras, modelos, cores ou placas. Mantenha a placa exatamente como veio.\n' +
   '- Extraia modelo (do carro), cor, placa e motivo (pode ficar vazio).\n' +
   '- Se o texto não for sobre um veículo, use kind "free" e coloque o texto corrigido em texto.\n' +
-  '- Se o texto for ofensivo, de ódio, sexual ou trote, use kind "free" com texto vazio.\n' +
+  '- Palavras comuns de carro e do dia a dia são NORMAIS (não são ofensivas) e devem ser corrigidas, nunca recusadas: ' +
+  'bomba de gasolina, bomba de combustível, pau de selfie, pica-pau, pau-brasil, pinto (pintinho ou sobrenome).\n' +
+  '- Só se o texto for mesmo de ódio, sexual explícito ou ameaça, use kind "free" com texto vazio. ' +
+  'Na dúvida, corrija.\n' +
   '- Sempre preencha texto com o aviso inteiro corrigido.\n' +
   '- Em aviso de estacionamento, "video aberto" quer dizer "vidro aberto" (idem fechado, quebrado).\n' +
   '- Os campos podem vir fora de ordem. Reordene sempre para modelo, cor, placa, motivo, em cada campo e em texto, ' +

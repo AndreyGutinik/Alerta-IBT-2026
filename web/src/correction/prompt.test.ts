@@ -98,16 +98,27 @@ describe.skipIf(!hasCs)('paridade com GeminiPrompt.cs', () => {
 })
 
 describe('SYSTEM_PROMPT', () => {
+  it('diz que palavras comuns de carro e do dia a dia são normais e só recusa ódio, sexo explícito ou ameaça', () => {
+    for (const phrase of ['bomba de gasolina', 'bomba de combustível', 'pau de selfie', 'pica-pau', 'pau-brasil', 'pinto (pintinho ou sobrenome)']) {
+      expect(SYSTEM_PROMPT).toContain(phrase)
+    }
+    expect(SYSTEM_PROMPT).toContain('NORMAIS (não são ofensivas) e devem ser corrigidas, nunca recusadas')
+    expect(SYSTEM_PROMPT).toContain('Só se o texto for mesmo de ódio, sexual explícito ou ameaça, use kind "free" com texto vazio.')
+    expect(SYSTEM_PROMPT).toContain('Na dúvida, corrija.')
+    expect(SYSTEM_PROMPT).not.toContain('trote')
+  })
+
+
   it('pede para não inventar, manter a placa e usar texto vazio para conteúdo impróprio', () => {
     expect(SYSTEM_PROMPT).toContain('Nunca invente palavras, modelos, cores ou placas. Mantenha a placa exatamente como veio.')
     expect(SYSTEM_PROMPT).toContain('use kind "free" com texto vazio')
     expect(SYSTEM_PROMPT).toContain('"video aberto" quer dizer "vidro aberto"')
   })
 
-  it('manda reordenar avisos fora de ordem e continua curta (mesmo teto do PC: 300 a 1700)', () => {
+  it('manda reordenar avisos fora de ordem e continua curta (mesmo teto do PC: 300 a 2000)', () => {
     expect(SYSTEM_PROMPT).toContain('Os campos podem vir fora de ordem.')
     expect(SYSTEM_PROMPT).toContain('Prata, Gol, ABC-1234 = modelo Gol, cor prata.')
     expect(SYSTEM_PROMPT.length).toBeGreaterThanOrEqual(300)
-    expect(SYSTEM_PROMPT.length).toBeLessThanOrEqual(1700)
+    expect(SYSTEM_PROMPT.length).toBeLessThanOrEqual(2000)
   })
 })

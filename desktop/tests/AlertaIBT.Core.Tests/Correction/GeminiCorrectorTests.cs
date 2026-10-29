@@ -214,9 +214,24 @@ public class GeminiCorrectorTests
     // ---- prompt ----
 
     [Fact]
+    public void Prompt_SaysCarAndEverydayWordsAreNormalAndOnlyRefusesRealHateSexOrThreats()
+    {
+        // The owner saw ordinary text refused: the rule names the words and limits the empty text to really hateful, sexual or threatening content.
+        foreach (var phrase in new[] { "bomba de gasolina", "bomba de combust\U000000EDvel", "pau de selfie", "pica-pau", "pau-brasil", "pinto (pintinho ou sobrenome)" })
+        {
+            Assert.Contains(phrase, GeminiPrompt.System);
+        }
+
+        Assert.Contains("NORMAIS (n\U000000E3o s\U000000E3o ofensivas) e devem ser corrigidas, nunca recusadas", GeminiPrompt.System);
+        Assert.Contains("S\U000000F3 se o texto for mesmo de \U000000F3dio, sexual expl\U000000EDcito ou amea\U000000E7a, use kind \"free\" com texto vazio.", GeminiPrompt.System);
+        Assert.Contains("Na d\U000000FAvida, corrija.", GeminiPrompt.System);
+        Assert.DoesNotContain("trote", GeminiPrompt.System);
+    }
+
+    [Fact]
     public void Prompt_IsShortAndSaysWhatItMust()
     {
-        Assert.InRange(GeminiPrompt.System.Length, 300, 1700); // the cap went from 1300 to 1700 with the out-of-order rule and its four examples
+        Assert.InRange(GeminiPrompt.System.Length, 300, 2000); // the cap went from 1300 to 1700 with the out-of-order rule, then to 2000 with the normal-words rule
         Assert.Contains("kind", GeminiPrompt.System);
         Assert.Contains("free", GeminiPrompt.System);
         Assert.Contains("vehicle", GeminiPrompt.System);
@@ -224,7 +239,7 @@ public class GeminiCorrectorTests
         Assert.Contains("modelo", GeminiPrompt.System);
         Assert.Contains("motivo", GeminiPrompt.System);
         Assert.Contains("texto", GeminiPrompt.System);
-        Assert.Contains("ofensivo", GeminiPrompt.System);
+        Assert.Contains("ofensivas", GeminiPrompt.System);
         Assert.Contains("abc1d23", GeminiPrompt.System, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -310,11 +325,11 @@ public class GeminiCorrectorTests
     [Fact]
     public async Task Response_FreeBecomesAnAnnouncement()
     {
-        var (corrector, _) = Generating(Reply("free", "ignored", "ignored", "abc1234", "ignored", "  Pais do Pedro compare\U000000E7am na recep\U000000E7\U000000E3o "));
+        var (corrector, _) = Generating(Reply("free", "ignored", "ignored", "abc1234", "ignored", "  Pais do Pedro compare\\U000000E7am na recep\\U000000E7\\U000000E3o "));
 
         var alert = await Run(corrector);
 
-        Assert.Equal(new ParsedAlert("", "", null, "", "Pais do Pedro compare\U000000E7am na recep\U000000E7\U000000E3o"), alert);
+        Assert.Equal(new ParsedAlert("", "", null, "", "Pais do Pedro compare\\U000000E7am na recep\\U000000E7\\U000000E3o"), alert);
     }
 
     [Theory]
