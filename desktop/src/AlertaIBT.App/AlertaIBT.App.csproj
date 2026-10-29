@@ -8,9 +8,9 @@
     <StartupObject>AlertaIBT.App.Program</StartupObject>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>..\..\..\assets\icons\app.ico</ApplicationIcon>
-    <Version>8.0.2</Version>
-    <AssemblyVersion>8.0.2.0</AssemblyVersion>
-    <FileVersion>8.0.2.0</FileVersion>
+    <Version>8.0.3</Version>
+    <AssemblyVersion>8.0.3.0</AssemblyVersion>
+    <FileVersion>8.0.3.0</FileVersion>
     <Product>IBT Controller</Product>
     <SatelliteResourceLanguages>pt-BR</SatelliteResourceLanguages>
   </PropertyGroup>
