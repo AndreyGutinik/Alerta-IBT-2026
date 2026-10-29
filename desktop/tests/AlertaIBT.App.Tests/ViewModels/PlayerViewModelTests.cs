@@ -103,16 +103,16 @@ public sealed class PlayerViewModelTests : IDisposable
 
         _vm.Volume = 55;
         _vm.StartMuted = true;
-        _vm.StopFadeSeconds = 3;
+        _vm.FadeOutSeconds = 3;
 
         Assert.Equal(55, _rig.Settings.Current.Player.Volume);
         Assert.True(_rig.Settings.Current.Player.StartMuted);
-        Assert.Equal(3, _rig.Settings.Current.Player.StopFadeSeconds);
+        Assert.Equal(3, _rig.Settings.Current.Player.FadeOutSeconds);
 
-        Change(p => p with { Volume = 10, AlarmFadeSeconds = 0 });
+        Change(p => p with { Volume = 10, FadeInSeconds = 0 });
 
         Assert.Equal(10, _vm.Volume);
-        Assert.Equal(0, _vm.AlarmFadeSeconds);
+        Assert.Equal(0, _vm.FadeInSeconds);
         Assert.Contains(nameof(PlayerViewModel.Volume), changed);
     }
 

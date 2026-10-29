@@ -382,17 +382,24 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>"Ao parar (pausa/stop pela API ou bot\U000000E3o)": the fade-out in seconds, one of <see cref="PlayerSettings.FadeChoices"/> (0 is "seco").</summary>
-    public int StopFadeSeconds
+    public double FadeOutSeconds
     {
-        get => _options.StopFadeSeconds;
-        set => Write(value, _options.StopFadeSeconds, p => p with { StopFadeSeconds = value });
+        get => _options.FadeOutSeconds;
+        set => Write(value, _options.FadeOutSeconds, p => p with { FadeOutSeconds = value });
     }
 
     /// <summary>"Ao come\U000000E7ar pelo despertador": the fade-in in seconds, one of <see cref="PlayerSettings.FadeChoices"/>.</summary>
-    public int AlarmFadeSeconds
+    public double FadeInSeconds
     {
-        get => _options.AlarmFadeSeconds;
-        set => Write(value, _options.AlarmFadeSeconds, p => p with { AlarmFadeSeconds = value });
+        get => _options.FadeInSeconds;
+        set => Write(value, _options.FadeInSeconds, p => p with { FadeInSeconds = value });
+    }
+
+    /// <summary>The crossfade ("mescla") between tracks in seconds, one of <see cref="PlayerSettings.CrossfadeChoices"/> (0 is none).</summary>
+    public double CrossfadeSeconds
+    {
+        get => _options.CrossfadeSeconds;
+        set => Write(value, _options.CrossfadeSeconds, p => p with { CrossfadeSeconds = value });
     }
 
     /// <summary>The selected playlist (by name).</summary>
@@ -827,7 +834,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     private static readonly string[] SettingProperties =
     [
         nameof(IsEnabled), nameof(PlayerOn), nameof(Volume), nameof(StartMuted), nameof(VolumeIconKey), nameof(MuteTip), nameof(HeroTitle), nameof(HeroSubtitle), nameof(Shuffle), nameof(Repeat), nameof(RepeatText), nameof(RepeatIconKey),
-        nameof(MediaKeys), nameof(AlarmsEnabled), nameof(StopFadeSeconds), nameof(AlarmFadeSeconds), nameof(CurrentPlaylist), nameof(Playlists),
+        nameof(MediaKeys), nameof(AlarmsEnabled), nameof(FadeOutSeconds), nameof(FadeInSeconds), nameof(CrossfadeSeconds), nameof(CurrentPlaylist), nameof(Playlists),
         nameof(Alarms), nameof(OutputRuleText), nameof(OutputDeviceName), nameof(CanSeek),
     ];
 }

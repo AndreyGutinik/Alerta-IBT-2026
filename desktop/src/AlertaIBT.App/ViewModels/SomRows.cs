@@ -294,45 +294,19 @@ public sealed partial class VolumeRow : ObservableObject
     }
 }
 
-/// <summary>One of the three choices of a fade ("5 s", "3 s", "seco"): selected when it is the length in the settings.</summary>
-public sealed class FadeOption : ObservableObject
+/// <summary>One row of a seconds dropdown (fade-in, fade-out, crossfade): the text and the length it stands for.</summary>
+/// <param name="Label">The text in the list ("seco", "0,5 s", "3 s"...).</param>
+/// <param name="Seconds">The length in seconds (0 is none).</param>
+public sealed record SecondsChoice(string Label, double Seconds)
 {
-    private readonly Func<int> _current;
-    private readonly Action<int> _choose;
+    /// <summary>The rows of a fade dropdown: "seco" for 0, then 0,5 s, 1 s, 2 s and so on.</summary>
+    public static IReadOnlyList<SecondsChoice> ForFade() => Build(PlayerSettings.FadeChoices, "seco");
 
-    /// <param name="label">The text on the button.</param>
-    /// <param name="seconds">The length of the fade (0 is dry).</param>
-    /// <param name="current">The length in the settings.</param>
-    /// <param name="choose">Saves a length.</param>
-    public FadeOption(string label, int seconds, Func<int> current, Action<int> choose)
-    {
-        Label = label;
-        Seconds = seconds;
-        _current = current;
-        _choose = choose;
-    }
+    /// <summary>The rows of the crossfade dropdown: "sem mescla" for 0, then 0,5 s, 1 s, 2 s and so on.</summary>
+    public static IReadOnlyList<SecondsChoice> ForCrossfade() => Build(PlayerSettings.CrossfadeChoices, "sem mescla");
 
-    /// <summary>The text on the button.</summary>
-    public string Label { get; }
-
-    /// <summary>The length of the fade in seconds.</summary>
-    public int Seconds { get; }
-
-    /// <summary>Whether this is the chosen length. Setting false does nothing: choosing another one does it.</summary>
-    public bool IsSelected
-    {
-        get => _current() == Seconds;
-        set
-        {
-            if (value && _current() != Seconds)
-            {
-                _choose(Seconds);
-            }
-        }
-    }
-
-    /// <summary>The settings changed: the button looks again.</summary>
-    public void Refresh() => OnPropertyChanged(nameof(IsSelected));
+    private static List<SecondsChoice> Build(IReadOnlyList<double> values, string zero) =>
+        values.Select(v => new SecondsChoice(v <= 0 ? zero : v.ToString("0.#", System.Globalization.CultureInfo.GetCultureInfo("pt-BR")) + " s", v)).ToList();
 }
 
 /// <summary>One weekday chip of an alarm (<c>D S T Q Q S S</c>).</summary>

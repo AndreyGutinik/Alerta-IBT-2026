@@ -729,7 +729,7 @@
         <Setter Property="theme:IconToggle.OffGeometry" Value="{StaticResource LucideWifiOff}" />
     </Style>
 
-    <!-- Choices in one frame (5 s, 3 s, seco): the frame, and one item per choice (RadioButtons of one group). -->
+    <!-- Choices in one frame (a dropdown of seconds): the frame, and one item per choice (RadioButtons of one group). -->
     <Style x:Key="IbtSegmentedFrame" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource IbtInsetBrush}" />
         <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />

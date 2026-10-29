@@ -121,7 +121,7 @@ public sealed class SomLayoutTests
                     Alarms = alarmList,
                     Enabled = mode != Mode.Off,
                     AlarmsEnabled = !alarmsOff,
-                    StopFadeSeconds = mode == Mode.Paused ? 0 : 5,
+                    FadeOutSeconds = mode == Mode.Paused ? 0 : 5,
                 },
                 System = new SystemSettings { AlertsEnabled = !alertsOff },
             };
@@ -493,7 +493,7 @@ public sealed class SomLayoutTests
 
     [Theory]
     [MemberData(nameof(WindowWidths))]
-    public void The_playlist_strip_is_inside_the_hero_at_its_bottom_in_two_halves_the_list_on_the_left_and_the_behaviour_on_the_right(double width)
+    public void The_playlist_strip_is_inside_the_hero_at_its_bottom_the_list_and_the_folder_side_by_side_when_they_fit_and_the_behaviour_line_under_them(double width)
     {
         WpfTestHost.Run(() =>
         {
@@ -502,28 +502,29 @@ public sealed class SomLayoutTests
             var hero = rig.BoundsOf(page.PlayerHero);
             var strip = rig.BoundsOf(page.PlaylistStrip);
             var left = rig.BoundsOf(page.PlaylistHalf);
-            var right = rig.BoundsOf(page.BehaviorHalf);
+            var folderHalf = rig.BoundsOf(page.FolderHalf);
+            var behavior = rig.BoundsOf(page.BehaviorHalf);
 
             Assert.True(IsInside(page.PlaylistStrip, page.PlayerHero));
             Assert.True(strip.Left >= hero.Left && strip.Right <= hero.Right && strip.Bottom <= hero.Bottom);
             Assert.True(strip.Top >= rig.BoundsOf(page.TransportRow).Bottom, "the strip is under the transport");
             Assert.Equal(hero.Bottom - 24 - 1, strip.Bottom, 1); // at the bottom of the hero, its padding under it
 
-            // Two halves, side by side, the playlist controls on the left (under about 1000 px of window they stack, the list first).
-            Assert.Equal(width >= 1100, page.StripHalves.Columns == 2); // each half needs 380 px so the three behaviour rows never wrap
-            Assert.True(left.Left >= strip.Left + 16 && right.Right <= strip.Right - 16 + 0.5);
+            // The list controls and the folder controls sit side by side when there is room (each needs 300 px), stacked (list first) when there is not.
+            Assert.Equal(width >= 1100, page.StripHalves.Columns == 2);
+            Assert.True(left.Left >= strip.Left + 16 && folderHalf.Right <= strip.Right - 16 + 0.5);
             if (page.StripHalves.Columns == 2)
             {
-                Assert.True(right.Left >= left.Right + 16);
-                Assert.Equal(left.Top, right.Top, 1);
+                Assert.True(folderHalf.Left >= left.Right + 16);
+                Assert.Equal(left.Top, folderHalf.Top, 1);
             }
             else
             {
-                Assert.True(right.Top >= left.Bottom + 16 - 0.5);
-                Assert.Equal(left.Left, right.Left, 1);
+                Assert.True(folderHalf.Top >= left.Bottom + 8 - 0.5);
+                Assert.Equal(left.Left, folderHalf.Left, 1);
             }
 
-            // Left: the list with three icon buttons right next to it, then the folder (small, ellipsis) with two icon buttons.
+            // The list with three icon buttons right next to it, then the folder (small, ellipsis) with two icon buttons.
             var combo = rig.BoundsOf(page.PlaylistCombo);
             var add = rig.BoundsOf(page.AddPlaylistButton);
             var rename = rig.BoundsOf(page.RenamePlaylistButton);
@@ -535,38 +536,89 @@ public sealed class SomLayoutTests
             var folder = rig.BoundsOf(page.PlaylistInfoText);
             var change = rig.BoundsOf(page.ChangeFolderButton);
             var refresh = rig.BoundsOf(page.RefreshButton);
-            Assert.True(folder.Top >= combo.Bottom);
             Assert.True(folder.Right <= change.Left && change.Right <= refresh.Left);
             Assert.Equal(CenterY(folder), CenterY(change), 1);
             Assert.Equal(CenterY(change), CenterY(refresh), 1);
-            Assert.Equal(remove.Right, refresh.Right, 1); // both rows end at the same edge
+            if (page.StripHalves.Columns == 1)
+            {
+                Assert.True(folder.Top >= combo.Bottom);
+                Assert.Equal(remove.Right, refresh.Right, 1); // both rows end at the same edge
+            }
+            else
+            {
+                Assert.Equal(CenterY(combo), CenterY(change), 1); // one line: list on the left, folder on the right
+            }
+
             Assert.Equal(TextTrimming.CharacterEllipsis, page.PlaylistInfoText.TextTrimming);
             Assert.Equal(@"C:\Users\gutni\Music\Mornye\Igreja", page.PlaylistInfoText.Text);
             Assert.Contains("2 m\U000000FAsicas", (string)page.PlaylistInfoText.ToolTip, StringComparison.Ordinal);
             Assert.Contains(@"C:\Users\gutni\Music\Mornye\Igreja", (string)page.PlaylistInfoText.ToolTip, StringComparison.Ordinal);
 
-            // Right: the three behaviour rows, each an icon and its control, no written label (the name is in the tooltip).
-            foreach (var row in new FrameworkElement[] { page.StopFadeRow, page.AlarmFadeRow, page.MediaKeysRow })
+            // Under them, in their own line: fade-in, fade-out, crossfade and the media keys, each an icon and its control, no written label.
+            Assert.True(behavior.Top >= Math.Max(left.Bottom, folderHalf.Bottom) + 16 - 0.5, "the behaviour line is under the playlist controls, not beside them");
+            Assert.True(behavior.Left >= strip.Left + 16 - 0.5 && behavior.Right <= strip.Right - 16 + 0.5);
+            var rows = new FrameworkElement[] { page.FadeInRow, page.FadeOutRow, page.CrossfadeRow, page.MediaKeysRow };
+            var dropdowns = new[] { page.FadeInCombo, page.FadeOutCombo, page.CrossfadeCombo };
+            foreach (var row in rows)
             {
                 var bounds = rig.BoundsOf(row);
-                Assert.True(bounds.Left >= right.Left - 0.5 && bounds.Right <= right.Right + 0.5, row.Name);
+                Assert.True(bounds.Left >= behavior.Left - 0.5 && bounds.Right <= behavior.Right + 0.5, row.Name);
                 Assert.False(string.IsNullOrWhiteSpace(row.ToolTip as string), row.Name);
                 Assert.NotEmpty(Descendants(row).OfType<Shape>());
-                Assert.DoesNotContain(Descendants(row).OfType<TextBlock>(), t => t.Text.Length > 4 && !t.Text.EndsWith(" s", StringComparison.Ordinal) && t.Text != "seco");
             }
 
-            // The three rows are aligned on one line (fade out, fade in, media keys), left to right, at every width: nothing wraps to a second line.
-            var rowBounds = new[] { page.StopFadeRow, page.AlarmFadeRow, page.MediaKeysRow }.Select(r => rig.BoundsOf(r)).ToList();
+            // All four on ONE line, left to right in this order, at every width: nothing wraps to a second line, and the three dropdowns are aligned.
+            var rowBounds = rows.Select(r => rig.BoundsOf(r)).ToList();
             Assert.All(rowBounds, b => Assert.Equal(rowBounds[0].Top, b.Top, 1));
-            Assert.True(rowBounds[0].Right <= rowBounds[1].Left && rowBounds[1].Right <= rowBounds[2].Left);
+            for (var i = 1; i < rowBounds.Count; i++)
+            {
+                Assert.True(rowBounds[i - 1].Right <= rowBounds[i].Left, $"row {i} overlaps the one before");
+            }
 
-            Assert.Equal(["5 s", "3 s", "seco"], page.StopFadeList.Items.Cast<FadeOption>().Select(o => o.Label));
-            Assert.Equal(["5 s", "3 s", "seco"], page.AlarmFadeList.Items.Cast<FadeOption>().Select(o => o.Label));
-            Assert.Contains("Fade ao parar", (string)page.StopFadeRow.ToolTip, StringComparison.Ordinal);
-            Assert.Contains("despertador", (string)page.AlarmFadeRow.ToolTip, StringComparison.Ordinal);
+            var combos = dropdowns.Select(c => rig.BoundsOf(c)).ToList();
+            Assert.All(combos, b => Assert.Equal(32, b.Height, 1));
+            Assert.All(combos, b => Assert.Equal(CenterY(combos[0]), CenterY(b), 1));
+            Assert.Equal(combos[0].Width, combos[1].Width, 1); // the two fades are alike, the crossfade one is wider for "sem mescla"
+            Assert.InRange(combos[0].Width, 90, 104);
+            Assert.InRange(combos[2].Width, 120, 136);
+            Assert.Equal(CenterY(combos[0]), CenterY(rig.BoundsOf(page.MediaKeysSwitch)), 1);
+
+            // What the dropdowns offer, the names and the tooltips.
+            Assert.Equal(["seco", "0,5 s", "1 s", "2 s", "3 s", "4 s", "5 s", "6 s", "7 s", "8 s", "9 s", "10 s"], page.FadeInCombo.Items.Cast<SecondsChoice>().Select(o => o.Label));
+            Assert.Equal(page.FadeInCombo.Items.Cast<SecondsChoice>().Select(o => o.Label), page.FadeOutCombo.Items.Cast<SecondsChoice>().Select(o => o.Label));
+            Assert.Equal(["sem mescla", "0,5 s", "1 s", "2 s", "3 s", "4 s", "5 s", "6 s", "7 s", "8 s", "9 s", "10 s", "11 s", "12 s"], page.CrossfadeCombo.Items.Cast<SecondsChoice>().Select(o => o.Label));
+            Assert.StartsWith("Fade-in (play e despertador)", (string)page.FadeInRow.ToolTip, StringComparison.Ordinal);
+            Assert.StartsWith("Fade-out (pausar e parar)", (string)page.FadeOutRow.ToolTip, StringComparison.Ordinal);
+            Assert.StartsWith("Mescla entre m\U000000FAsicas", (string)page.CrossfadeRow.ToolTip, StringComparison.Ordinal);
             Assert.Contains("Teclas de m\U000000EDdia", (string)page.MediaKeysRow.ToolTip, StringComparison.Ordinal);
             Assert.Equal("Teclas de m\U000000EDdia controlam o player", AutomationProperties.GetName(page.MediaKeysSwitch));
-            Assert.Equal("Fade ao parar", AutomationProperties.GetName(page.StopFadeList));
+            Assert.Equal("Fade-in (play e despertador)", AutomationProperties.GetName(page.FadeInCombo));
+            Assert.Equal("Fade-out (pausar e parar)", AutomationProperties.GetName(page.FadeOutCombo));
+            Assert.Equal("Mescla entre m\U000000FAsicas", AutomationProperties.GetName(page.CrossfadeCombo));
+            Assert.All(dropdowns, c => Assert.Equal(246, c.MaxDropDownHeight)); // 8 rows, then it scrolls
+        });
+    }
+
+    [Fact]
+    public void The_dropdowns_show_the_saved_values_and_choosing_one_saves_it()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100, Mode.Playing);
+            var page = rig.Page;
+            Assert.Equal(5.0, (double)page.FadeInCombo.SelectedValue);
+            Assert.Equal(5.0, (double)page.FadeOutCombo.SelectedValue);
+            Assert.Equal(0.0, (double)page.CrossfadeCombo.SelectedValue);
+            Assert.Equal("sem mescla", ((SecondsChoice)page.CrossfadeCombo.SelectedItem).Label);
+
+            page.FadeOutCombo.SelectedIndex = 1; // 0,5 s
+            page.FadeInCombo.SelectedIndex = 0; // seco
+            page.CrossfadeCombo.SelectedIndex = 3; // 2 s
+
+            var saved = rig.Som.Settings.Settings.Current.Player;
+            Assert.Equal(0.5, saved.FadeOutSeconds);
+            Assert.Equal(0, saved.FadeInSeconds);
+            Assert.Equal(2, saved.CrossfadeSeconds);
         });
     }
 

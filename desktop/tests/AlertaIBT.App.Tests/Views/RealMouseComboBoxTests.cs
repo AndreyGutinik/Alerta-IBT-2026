@@ -43,8 +43,8 @@ public sealed class RealMouseComboBoxTests
             using var rig = new RealInputRig();
             var combos = Combos(rig);
 
-            // Lista de musicas, the three outputs and the Lista of each of the two alarms.
-            Assert.Equal(6, combos.Count);
+            // Lista de musicas, fade-in, fade-out, mescla, the three outputs and the Lista of each of the two alarms.
+            Assert.Equal(9, combos.Count);
             Assert.All(combos, combo => Assert.True(combo.Items.Count > 0, combo.GetType().Name + " " + combo.Name));
         });
     }
@@ -73,6 +73,8 @@ public sealed class RealMouseComboBoxTests
 
                 // choose the last item that is not the selected one
                 var target = items.Last(item => !item.IsSelected);
+                target.BringIntoView(); // a long list (8 rows, then it scrolls) shows the item before it is clicked, as a person scrolls to it
+                RealInputRig.Pump();
                 var wanted = combo.ItemContainerGenerator.ItemFromContainer(target);
                 rig.Click(rig.CenterOf(target));
                 RealInputRig.Pump();

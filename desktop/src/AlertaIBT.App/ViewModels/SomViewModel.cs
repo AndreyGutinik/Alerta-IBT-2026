@@ -159,9 +159,6 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
                 _saver.FlushNow();
             });
 
-        StopFadeOptions = FadeOptions(() => _settings.Current.Player.StopFadeSeconds, seconds => Player.StopFadeSeconds = seconds);
-        AlarmFadeOptions = FadeOptions(() => _settings.Current.Player.AlarmFadeSeconds, seconds => Player.AlarmFadeSeconds = seconds);
-
         ApplyNowCommand = new AsyncRelayCommand(ApplyNowAsync, () => !IsApplying);
         AddPlaylistCommand = new RelayCommand(AddPlaylist);
         RemovePlaylistCommand = new RelayCommand(RemovePlaylist);
@@ -205,11 +202,14 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
     /// <summary>"Holyrics" in the outputs.</summary>
     public OutputRow HolyricsOutput { get; }
 
-    /// <summary>"Ao parar": 5 s, 3 s, seco.</summary>
-    public IReadOnlyList<FadeOption> StopFadeOptions { get; }
+    /// <summary>Fade-in (play and alarm): seco, 0,5 s ... 10 s.</summary>
+    public IReadOnlyList<SecondsChoice> FadeInChoices { get; } = SecondsChoice.ForFade();
 
-    /// <summary>"Ao comecar pelo despertador": 5 s, 3 s, seco.</summary>
-    public IReadOnlyList<FadeOption> AlarmFadeOptions { get; }
+    /// <summary>Fade-out (pause and stop): seco, 0,5 s ... 10 s.</summary>
+    public IReadOnlyList<SecondsChoice> FadeOutChoices { get; } = SecondsChoice.ForFade();
+
+    /// <summary>Crossfade between tracks: sem mescla, 0,5 s ... 12 s.</summary>
+    public IReadOnlyList<SecondsChoice> CrossfadeChoices { get; } = SecondsChoice.ForCrossfade();
 
     /// <summary>The four volume rows, in the order of the card: Windows, Holyrics, Player, Sons do sistema.</summary>
     public IReadOnlyList<VolumeRow> VolumeRows { get; }
@@ -459,13 +459,6 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
     private void QueueAudio(string key, Func<AudioSettings, AudioSettings> edit) =>
         _saver.Queue(key, s => s with { Audio = edit(s.Audio) });
 
-    private List<FadeOption> FadeOptions(Func<int> current, Action<int> choose) =>
-    [
-        new FadeOption("5 s", 5, current, choose),
-        new FadeOption("3 s", 3, current, choose),
-        new FadeOption("seco", 0, current, choose),
-    ];
-
     private void LoadSwitches()
     {
         _quiet = true;
@@ -493,7 +486,7 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         }
 
         if (e.PropertyName is nameof(PlayerViewModel.OutputText) or nameof(PlayerViewModel.OutputKind) or nameof(PlayerViewModel.IsEnabled) or nameof(PlayerViewModel.OutputDevices) or nameof(PlayerViewModel.Alarms)
-            or nameof(PlayerViewModel.Playlists) or nameof(PlayerViewModel.StopFadeSeconds) or nameof(PlayerViewModel.AlarmFadeSeconds)
+            or nameof(PlayerViewModel.Playlists) or nameof(PlayerViewModel.FadeOutSeconds) or nameof(PlayerViewModel.FadeInSeconds) or nameof(PlayerViewModel.CrossfadeSeconds)
             or nameof(PlayerViewModel.OutputDeviceName) or nameof(PlayerViewModel.TrackCountText) or nameof(PlayerViewModel.CurrentPlaylist))
         {
             RefreshAll();
@@ -515,11 +508,6 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
             HolyricsRow.Load();
             PlayerRow.Load();
             SystemSoundsRow.Load();
-        }
-
-        foreach (var option in StopFadeOptions.Concat(AlarmFadeOptions))
-        {
-            option.Refresh();
         }
 
         var status = _audio.Status;

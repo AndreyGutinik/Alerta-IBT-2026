@@ -29,15 +29,6 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <!-- "5 s | 3 s | seco". -->
-        <DataTemplate x:Key="FadeButton" DataType="{x:Type vm:FadeOption}">
-            <RadioButton
-                AutomationProperties.Name="{Binding Label}"
-                Content="{Binding Label}"
-                IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                Style="{StaticResource IbtSegItem}" />
-        </DataTemplate>
-
         <DataTemplate x:Key="DayChipTemplate" DataType="{x:Type vm:DayChip}">
             <ToggleButton
                 AutomationProperties.Name="{Binding Name}"
@@ -790,19 +781,20 @@
                     </Grid>
 
                     <!--
-                        The strip: two halves. Left: the playlist (list, add, rename, delete; the folder with change and refresh). Right: how the player
-                        behaves (fade when it stops, fade when an alarm starts, media keys), icons only, the name in the tooltip.
+                        The strip: the playlist (list, add, rename, delete; the folder with change and refresh) side by side when it fits, and under it how the player
+                        behaves (fade-in, fade-out, crossfade, media keys), icons only, the name in the tooltip.
                     -->
                     <Border
                         x:Name="PlaylistStrip"
                         Grid.Row="1"
                         Margin="0,24,0,0"
                         Style="{StaticResource IbtBlock}">
+                        <StackPanel>
                         <theme:AdaptiveGrid
                             x:Name="StripHalves"
                             Gap="24"
                             MaxColumns="2"
-                            MinColumnWidth="380">
+                            MinColumnWidth="300">
                             <StackPanel x:Name="PlaylistHalf">
                                 <Grid Height="32">
                                     <Grid.ColumnDefinitions>
@@ -864,9 +856,10 @@
                                             Style="{StaticResource LucideIcon}" />
                                     </Button>
                                 </Grid>
+                            </StackPanel>
+                            <StackPanel x:Name="FolderHalf">
                                 <Grid
-                                    Height="32"
-                                    Margin="0,8,0,0">
+                                    Height="32">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
@@ -922,81 +915,99 @@
                                 </Grid>
                             </StackPanel>
 
-                            <!-- Three aligned icon rows in one line (fade out, fade in, media keys): the half is at least 380 px wide, so they never wrap; narrower than that the strip stacks. -->
-                            <WrapPanel
-                                x:Name="BehaviorHalf"
-                                HorizontalAlignment="Left"
-                                Margin="0,0,-10,-8">
-                                <StackPanel
-                                    x:Name="StopFadeRow"
-                                    Margin="0,0,10,8"
-                                    Background="Transparent"
-                                    Orientation="Horizontal"
-                                    ToolTip="Fade ao parar: quanto dura a descida do volume ao pausar ou parar (pelo botão, pela API do Holyrics ou pelas teclas). Seco para na hora, sem estalo.">
-                                    <Path
-                                        Margin="0,0,8,0"
-                                        Data="{StaticResource IbtFadeOut}"
-                                        Style="{StaticResource IbtRowIcon}" />
-                                    <Border Style="{StaticResource IbtSegmentedFrame}">
-                                        <ItemsControl
-                                            x:Name="StopFadeList"
-                                            AutomationProperties.Name="Fade ao parar"
-                                            Focusable="False"
-                                            ItemTemplate="{StaticResource FadeButton}"
-                                            ItemsSource="{Binding StopFadeOptions}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Orientation="Horizontal" />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                        </ItemsControl>
-                                    </Border>
-                                </StackPanel>
-                                <StackPanel
-                                    x:Name="AlarmFadeRow"
-                                    Margin="0,0,10,8"
-                                    Background="Transparent"
-                                    Orientation="Horizontal"
-                                    ToolTip="Fade ao começar pelo despertador: quanto dura a subida do volume quando um despertador começa a música. Seco começa direto no volume.">
-                                    <Path
-                                        Margin="0,0,8,0"
-                                        Data="{StaticResource IbtFadeIn}"
-                                        Style="{StaticResource IbtRowIcon}" />
-                                    <Border Style="{StaticResource IbtSegmentedFrame}">
-                                        <ItemsControl
-                                            x:Name="AlarmFadeList"
-                                            AutomationProperties.Name="Fade ao começar pelo despertador"
-                                            Focusable="False"
-                                            ItemTemplate="{StaticResource FadeButton}"
-                                            ItemsSource="{Binding AlarmFadeOptions}">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <StackPanel Orientation="Horizontal" />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                        </ItemsControl>
-                                    </Border>
-                                </StackPanel>
-                                <StackPanel
-                                    x:Name="MediaKeysRow"
-                                    Margin="0,0,10,8"
-                                    Background="Transparent"
-                                    Orientation="Horizontal"
-                                    ToolTip="Teclas de mídia: as teclas de play/pausa, próxima, anterior e parar do teclado comandam o player. O app só ouve essas teclas; as outras (e o que é digitado) ele não guarda.">
-                                    <Path
-                                        Margin="0,0,8,0"
-                                        Data="{StaticResource LucideKeyboard}"
-                                        Style="{StaticResource IbtRowIcon}" />
-                                    <ToggleButton
-                                        x:Name="MediaKeysSwitch"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.Name="Teclas de mídia controlam o player"
-                                        IsChecked="{Binding Player.MediaKeys, Mode=TwoWay}"
-                                        Style="{StaticResource IbtSwitch}"
-                                        ToolTip="Teclas de mídia: ligado, as teclas de play/pausa, próxima, anterior e parar do teclado comandam o player" />
-                                </StackPanel>
-                            </WrapPanel>
                         </theme:AdaptiveGrid>
+                        <!--
+                            How the player behaves, in one line under the playlist: fade-in, fade-out, crossfade (dropdowns, 8 rows then they scroll) and
+                            the media keys. Icon plus the dropdown, no written label (the name is in the tooltip). The widest line (2 x 122 + 154 + 66 + gaps) fits the
+                            smallest window (900 px), so nothing wraps.
+                        -->
+                        <Border
+                            Height="1"
+                            Margin="0,16,0,16"
+                            Style="{StaticResource IbtDivider}" />
+                        <StackPanel
+                            x:Name="BehaviorHalf"
+                            HorizontalAlignment="Left"
+                            Orientation="Horizontal">
+                            <StackPanel
+                                x:Name="FadeInRow"
+                                Margin="0,0,16,0"
+                                Background="Transparent"
+                                Orientation="Horizontal"
+                                ToolTip="Fade-in (play e despertador): quanto dura a subida do volume quando a música começa, ao tocar ou quando um despertador começa. Seco começa direto no volume.">
+                                <Path
+                                    Margin="0,0,8,0"
+                                    Data="{StaticResource IbtFadeIn}"
+                                    Style="{StaticResource IbtRowIcon}" />
+                                <ComboBox
+                                    x:Name="FadeInCombo"
+                                    Width="96"
+                                    AutomationProperties.Name="Fade-in (play e despertador)"
+                                    DisplayMemberPath="Label"
+                                    ItemsSource="{Binding FadeInChoices}"
+                                    SelectedValue="{Binding Player.FadeInSeconds, Mode=TwoWay}"
+                                    SelectedValuePath="Seconds"
+                                    Style="{StaticResource IbtComboBox}" />
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="FadeOutRow"
+                                Margin="0,0,16,0"
+                                Background="Transparent"
+                                Orientation="Horizontal"
+                                ToolTip="Fade-out (pausar e parar): quanto dura a descida do volume ao pausar ou parar (pelo botão, pela API do Holyrics ou pelas teclas). Seco para na hora, sem estalo.">
+                                <Path
+                                    Margin="0,0,8,0"
+                                    Data="{StaticResource IbtFadeOut}"
+                                    Style="{StaticResource IbtRowIcon}" />
+                                <ComboBox
+                                    x:Name="FadeOutCombo"
+                                    Width="96"
+                                    AutomationProperties.Name="Fade-out (pausar e parar)"
+                                    DisplayMemberPath="Label"
+                                    ItemsSource="{Binding FadeOutChoices}"
+                                    SelectedValue="{Binding Player.FadeOutSeconds, Mode=TwoWay}"
+                                    SelectedValuePath="Seconds"
+                                    Style="{StaticResource IbtComboBox}" />
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="CrossfadeRow"
+                                Margin="0,0,16,0"
+                                Background="Transparent"
+                                Orientation="Horizontal"
+                                ToolTip="Mescla entre músicas: a próxima música começa antes da atual acabar e as duas se misturam, como no Spotify. Só vale quando uma música termina sozinha (não nos botões de próxima e anterior). Sem mescla, uma música segue a outra sem pausa.">
+                                <Path
+                                    Margin="0,0,8,0"
+                                    Data="{StaticResource IbtCrossfade}"
+                                    Style="{StaticResource IbtRowIcon}" />
+                                <ComboBox
+                                    x:Name="CrossfadeCombo"
+                                    Width="128"
+                                    AutomationProperties.Name="Mescla entre músicas"
+                                    DisplayMemberPath="Label"
+                                    ItemsSource="{Binding CrossfadeChoices}"
+                                    SelectedValue="{Binding Player.CrossfadeSeconds, Mode=TwoWay}"
+                                    SelectedValuePath="Seconds"
+                                    Style="{StaticResource IbtComboBox}" />
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="MediaKeysRow"
+                                Background="Transparent"
+                                Orientation="Horizontal"
+                                ToolTip="Teclas de mídia: as teclas de play/pausa, próxima, anterior e parar do teclado comandam o player. O app só ouve essas teclas; as outras (e o que é digitado) ele não guarda.">
+                                <Path
+                                    Margin="0,0,8,0"
+                                    Data="{StaticResource LucideKeyboard}"
+                                    Style="{StaticResource IbtRowIcon}" />
+                                <ToggleButton
+                                    x:Name="MediaKeysSwitch"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.Name="Teclas de mídia controlam o player"
+                                    IsChecked="{Binding Player.MediaKeys, Mode=TwoWay}"
+                                    Style="{StaticResource IbtSwitch}"
+                                    ToolTip="Teclas de mídia: ligado, as teclas de play/pausa, próxima, anterior e parar do teclado comandam o player" />
+                            </StackPanel>
+                        </StackPanel>
+                        </StackPanel>
                     </Border>
                 </Grid>
             </Border>

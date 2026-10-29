@@ -362,18 +362,24 @@ public sealed class SomViewModelTests : IDisposable
     }
 
     [Fact]
-    public void The_fade_buttons_show_the_saved_length_and_choosing_one_saves_it()
+    public void The_fade_and_crossfade_dropdowns_offer_the_allowed_values_and_follow_the_settings()
     {
-        Assert.Equal(["5 s", "3 s", "seco"], _rig.Som.StopFadeOptions.Select(o => o.Label));
-        Assert.Equal([true, false, false], _rig.Som.StopFadeOptions.Select(o => o.IsSelected));
+        Assert.Equal(["seco", "0,5 s", "1 s", "2 s", "3 s", "4 s", "5 s", "6 s", "7 s", "8 s", "9 s", "10 s"], _rig.Som.FadeInChoices.Select(o => o.Label));
+        Assert.Equal(_rig.Som.FadeInChoices.Select(o => o.Seconds), _rig.Som.FadeOutChoices.Select(o => o.Seconds));
+        Assert.Equal(["sem mescla", "0,5 s", "1 s", "2 s", "3 s", "4 s", "5 s", "6 s", "7 s", "8 s", "9 s", "10 s", "11 s", "12 s"], _rig.Som.CrossfadeChoices.Select(o => o.Label));
+        Assert.Equal(new double[] { 0, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }, _rig.Som.CrossfadeChoices.Select(o => o.Seconds));
+        Assert.Equal(5, Player.FadeInSeconds);
+        Assert.Equal(5, Player.FadeOutSeconds);
+        Assert.Equal(0, Player.CrossfadeSeconds);
 
-        _rig.Som.StopFadeOptions[2].IsSelected = true; // seco
-        _rig.Som.AlarmFadeOptions[1].IsSelected = true; // 3 s
+        _rig.PlayerView.FadeOutSeconds = 0.5;
+        _rig.PlayerView.FadeInSeconds = 0;
+        _rig.PlayerView.CrossfadeSeconds = 7;
 
-        Assert.Equal(0, Player.StopFadeSeconds);
-        Assert.Equal(3, Player.AlarmFadeSeconds);
-        Assert.Equal([false, false, true], _rig.Som.StopFadeOptions.Select(o => o.IsSelected));
-        Assert.Equal([false, true, false], _rig.Som.AlarmFadeOptions.Select(o => o.IsSelected));
+        var saved = _rig.Settings.Settings.Current.Player;
+        Assert.Equal(0.5, saved.FadeOutSeconds);
+        Assert.Equal(0, saved.FadeInSeconds);
+        Assert.Equal(7, saved.CrossfadeSeconds);
     }
 
     // ---- alarms ----

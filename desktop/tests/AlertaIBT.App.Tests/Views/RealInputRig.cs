@@ -46,7 +46,7 @@ internal sealed class RealInputRig : IDisposable
                     AlarmEntry.CreateDefault("quarta", "Louvor") with { Start = "19:30", Latest = "19:55", Days = 0b0001000 },
                 ],
                 Enabled = true,
-                StopFadeSeconds = paused ? 0 : 5,
+                FadeOutSeconds = paused ? 0 : 5,
             },
         };
         _som = new SomRig(initial);

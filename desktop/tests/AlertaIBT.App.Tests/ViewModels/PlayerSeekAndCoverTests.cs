@@ -60,7 +60,7 @@ public sealed class PlayerSeekAndCoverTests : IDisposable
 
     private void Pause()
     {
-        _rig.Settings.Update(s => s with { Player = s.Player with { StopFadeSeconds = 0 } });
+        _rig.Settings.Update(s => s with { Player = s.Player with { FadeOutSeconds = 0 } });
         _vm.PauseCommand.Execute(null);
         Listen(0.2);
     }
@@ -268,7 +268,7 @@ public sealed class PlayerSeekAndCoverTests : IDisposable
         var path = _player.GetStatus().Track!.Path;
         Assert.False(_vm.HasCover); // still loading
 
-        _rig.Settings.Update(s => s with { Player = s.Player with { StopFadeSeconds = 0 } });
+        _rig.Settings.Update(s => s with { Player = s.Player with { FadeOutSeconds = 0 } });
         _vm.StopCommand.Execute(null);
         Listen(0.5);
         Assert.Equal(PlayerState.Stopped, _vm.State);
