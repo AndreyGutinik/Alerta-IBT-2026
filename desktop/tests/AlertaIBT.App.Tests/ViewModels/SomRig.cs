@@ -23,7 +23,24 @@ internal sealed class SomRig : IDisposable
         Player.Start();
         PlayerView = new PlayerViewModel(Settings.Settings, Player, Alarms, Audio, action => action(), action => action(), Settings.Clock, covers: covers);
         Controller = new AudioController(Audio, Settings.Settings, Settings.Clock, null, AppOutput);
-        Som = new SomViewModel(Settings.Settings, Settings.Saver, Controller, PlayerView, () => Folders.Count > 0 ? Folders.Dequeue() : null);
+        Som = new SomViewModel(
+            Settings.Settings,
+            Settings.Saver,
+            Controller,
+            PlayerView,
+            () => Folders.Count > 0 ? Folders.Dequeue() : null,
+            confirm: (title, message) =>
+            {
+                Confirmations.Add((title, message));
+                return ConfirmAnswer;
+            },
+            askName: (title, current, check) =>
+            {
+                NameRequests.Add((title, current));
+                var answer = Names.Count > 0 ? Names.Dequeue() : null;
+                // like the real box: a name with a problem never gets through
+                return answer is not null && check(answer) is null ? answer.Trim() : null;
+            });
     }
 
     public SettingsRig Settings { get; }
@@ -43,6 +60,18 @@ internal sealed class SomRig : IDisposable
     public AudioController Controller { get; }
 
     public SomViewModel Som { get; }
+
+    /// <summary>The questions the Sim / Nao window was asked (title, message), in order.</summary>
+    public List<(string Title, string Message)> Confirmations { get; } = [];
+
+    /// <summary>What the Sim / Nao window answers (true is Sim).</summary>
+    public bool ConfirmAnswer { get; set; } = true;
+
+    /// <summary>The name box was opened for (title, current name), in order.</summary>
+    public List<(string Title, string Current)> NameRequests { get; } = [];
+
+    /// <summary>What the name box answers, in order (empty means the user cancelled).</summary>
+    public Queue<string?> Names { get; } = new();
 
     /// <summary>What the folder picker answers, in order (empty means the user cancelled).</summary>
     public Queue<string?> Folders { get; } = new();

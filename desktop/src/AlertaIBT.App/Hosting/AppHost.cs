@@ -284,7 +284,9 @@ public static class AppHost
             provider.GetRequiredService<PlayerViewModel>(),
             PickPlaylistFolder,
             PostToUi,
-            provider.GetRequiredService<ILogger<SomViewModel>>()));
+            provider.GetRequiredService<ILogger<SomViewModel>>(),
+            (title, message) => ConfirmDialog.Ask(title, message, provider.GetRequiredService<AppWindowPolicy>()),
+            (title, current, check) => InputDialog.Ask(title, current, check, provider.GetRequiredService<AppWindowPolicy>())));
         services.AddSingleton(provider => new MainViewModel(
             provider.GetRequiredService<StatusHub>(),
             provider.GetRequiredService<HomeViewModel>(),

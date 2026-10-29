@@ -8,17 +8,19 @@ using System.Windows.Media.Imaging;
 using Shape = System.Windows.Shapes.Path;
 using AlertaIBT.App.Services;
 using AlertaIBT.App.Tests.ViewModels;
+using AlertaIBT.App.Theme;
 using AlertaIBT.App.ViewModels;
 using AlertaIBT.App.Views;
 using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Player;
+using AlertaIBT.Core.Services;
 using AlertaIBT.Core.Settings;
 
 namespace AlertaIBT.App.Tests.Views;
 
 // The real Som page laid out at three window widths (the window is 900 wide at the least). Set ALERTAIBT_RENDER_DIR to also get PNG pictures of
-// the whole page (every width and every state of the player) to look at.
+// the whole page (every width and every state) to look at.
 public sealed class SomLayoutTests
 {
     private static readonly double[] Widths = [900, 1100, 1600];
@@ -71,25 +73,54 @@ public sealed class SomLayoutTests
     {
         private readonly SomRig _som;
 
-        public Rig(double windowWidth, Mode mode = Mode.Idle, bool unplugged = false, bool alertsOff = false, bool art = true)
+        public Rig(
+            double windowWidth,
+            Mode mode = Mode.Idle,
+            bool unplugged = false,
+            bool alertsOff = false,
+            bool art = true,
+            int alarms = 2,
+            bool longNames = false,
+            bool alarmsOff = false)
         {
+            var playlists = longNames
+                ? new[]
+                {
+                    new PlaylistEntry("Louvores de domingo de manh\U000000E3 do culto da fam\U000000EDlia e das crian\U000000E7as (vers\U000000F5es longas)", "C:\\Users\\gutni\\Music\\Mornye\\Igreja\\Cultos de domingo\\Manh\U000000E3\\Louvores e adora\U000000E7\U000000E3o\\Vers\U000000F5es"),
+                    new PlaylistEntry("Louvor", @"D:\Louvor"),
+                }
+                : [new PlaylistEntry("Igreja", @"C:\Users\gutni\Music\Mornye\Igreja"), new PlaylistEntry("Louvor", @"D:\Louvor")];
+            var alarmList = new List<AlarmEntry>();
+            if (alarms >= 1)
+            {
+                alarmList.Add(AlarmEntry.CreateDefault("domingo", playlists[0].Name));
+            }
+
+            if (alarms >= 2)
+            {
+                alarmList.Add(AlarmEntry.CreateDefault("quarta", "Louvor") with { Start = "19:30", Latest = "19:55", Days = 0b0001000 });
+            }
+
+            for (var i = 3; i <= alarms; i++)
+            {
+                alarmList.Add(AlarmEntry.CreateDefault("extra" + i, "Louvor") with { Start = $"{6 + i}:00", Latest = $"{6 + i}:25", Days = 0b0100010 });
+            }
+
+            var deviceName = longNames ? "Alto-falantes (WING-USB Out 1-2 com um nome muito longo para testar o corte)" : "Alto-falantes (WING-USB Out 1-2)";
             var initial = new AppSettings
             {
                 Audio = new AudioSettings
                 {
                     OutputDeviceId = unplugged ? "{gone}" : null,
-                    OutputDeviceName = unplugged ? "Alto-falantes (WING-USB Out 1-2)" : null,
-                    OutputMatch = unplugged ? ["Alto-falantes (WING-USB Out 1-2)"] : AudioSettings.DefaultOutputWords, // chosen by hand: no lookalike stands in
+                    OutputDeviceName = unplugged ? deviceName : null,
+                    OutputMatch = unplugged ? [deviceName] : AudioSettings.DefaultOutputWords, // chosen by hand: no lookalike stands in
                 },
                 Player = new PlayerSettings
                 {
-                    Playlists = [new PlaylistEntry("Igreja", @"C:\Users\gutni\Music\Mornye\Igreja"), new PlaylistEntry("Louvor", @"D:\Louvor")],
-                    Alarms =
-                    [
-                        AlarmEntry.CreateDefault("domingo", "Igreja"),
-                        AlarmEntry.CreateDefault("quarta", "Louvor") with { Start = "19:30", Latest = "19:55", Days = 0b0001000 },
-                    ],
+                    Playlists = playlists,
+                    Alarms = alarmList,
                     Enabled = mode != Mode.Off,
+                    AlarmsEnabled = !alarmsOff,
                     StopFadeSeconds = mode == Mode.Paused ? 0 : 5,
                 },
                 System = new SystemSettings { AlertsEnabled = !alertsOff },
@@ -97,7 +128,7 @@ public sealed class SomLayoutTests
             _som = new SomRig(initial, new FakeCover(art), new NameMetadata());
             if (!unplugged)
             {
-                _som.Audio.Devices.Add(new AudioDevice("id-2", "Alto-falantes (WING-USB Out 1-2)"));
+                _som.Audio.Devices.Add(new AudioDevice("id-2", deviceName));
             }
 
             _som.Audio.Devices.Add(new AudioDevice("id-3", "Alto-falantes (WING-USB Out 3-4)"));
@@ -234,7 +265,7 @@ public sealed class SomLayoutTests
         return null;
     }
 
-    // The window is 900 wide at the least; there the cards are one column, from about 1000 on they are two.
+    // The window is 900 wide at the least; from about 1000 on the bottom row is two cards side by side, under it one column.
     private static bool TwoColumns(double width) => width >= 1000;
 
     // The window of the tests is never shown, so IsVisible is always false: this follows the Visibility of the element and its parents instead.
@@ -251,61 +282,143 @@ public sealed class SomLayoutTests
         return true;
     }
 
+    // A size of the design (32 px controls, 52 px boxes) may come out 1 px larger when its top or left falls between two device pixels (layout rounding).
+    private static void Near(double expected, double actual) => Assert.InRange(actual, expected - 0.6, expected + 1.1);
+
     private static double CenterX(Rect rect) => rect.Left + (rect.Width / 2);
+
+    private static double CenterY(Rect rect) => rect.Top + (rect.Height / 2);
+
+    private static bool IsInside(DependencyObject element, DependencyObject ancestor)
+    {
+        for (var node = VisualTreeHelper.GetParent(element); node is not null; node = VisualTreeHelper.GetParent(node))
+        {
+            if (ReferenceEquals(node, ancestor))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static double Luminance(Brush brush)
+    {
+        var c = ((SolidColorBrush)brush).Color;
+        return (0.2126 * c.R) + (0.7152 * c.G) + (0.0722 * c.B);
+    }
+
+    private static Brush Resource(string key) => (Brush)Application.Current.FindResource(key);
+
+    private static List<FrameworkElement> AlarmBlocks(Rig rig) =>
+        rig.Page.AlarmList.Items.Cast<object>()
+            .Where(item => item is AlarmRow)
+            .Select(item => (FrameworkElement)Descendants(rig.Page.AlarmList.ItemContainerGenerator.ContainerFromItem(item)).OfType<Border>().First())
+            .ToList();
 
     // ---- the structure ----
 
     [Theory]
     [MemberData(nameof(WindowWidths))]
-    public void The_player_is_on_top_and_the_five_cards_follow_in_two_columns_with_their_rows(double width)
+    public void The_order_is_the_player_then_the_alarms_then_one_bottom_row_with_volumes_and_outputs_side_by_side_or_stacked_when_narrow(double width)
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(width);
             var page = rig.Page;
-
-            Assert.Equal(
-                ["Volumes ao iniciar", "Sa\U000000EDdas de \U000000E1udio", "Playlists", "Despertadores", "Comportamento do player"],
-                new[] { page.VolumesSection, page.OutputsSection, page.PlaylistsSection, page.AlarmsSection, page.BehaviorSection }.Select(s => (string)s.Header));
-            Assert.All(
-                new[] { page.VolumesSection, page.OutputsSection, page.PlaylistsSection, page.AlarmsSection, page.BehaviorSection },
-                section => Assert.False(string.IsNullOrWhiteSpace(section.Subtitle), (string)section.Header));
-            Assert.Equal(
-                [
-                    "Ajustar o som ao iniciar", "Volume geral do Windows", "Holyrics", "Player", "Sons do Windows (notifica\U000000E7\U000000F5es e afins)", "Aplicar agora",
-                    "Sa\U000000EDda padr\U000000E3o do Windows", "Travar a sa\U000000EDda padr\U000000E3o neste dispositivo", "Player", "Holyrics", "Definir a sa\U000000EDda do Holyrics",
-                    "Lista de m\U000000FAsicas", "Pasta da lista",
-                    "Despertadores ligados",
-                    "Ao parar", "Ao come\U000000E7ar pelo despertador", "Teclas de m\U000000EDdia",
-                ],
-                rig.Find<SettingRow>().Select(r => r.Title));
-
-            // The player card is above everything else and spans the page.
             var hero = rig.BoundsOf(page.PlayerHero);
-            Assert.True(hero.Bottom <= rig.BoundsOf(page.VolumesSection).Top);
-            Assert.True(hero.Bottom <= rig.BoundsOf(page.PlaylistsSection).Top);
-            Assert.Equal(rig.BoundsOf(page.VolumesSection).Left, hero.Left, 1);
-            Assert.Equal(rig.BoundsOf(page.PlaylistsSection).Right, hero.Right, 1);
+            var alarms = rig.BoundsOf(page.AlarmsSection);
+            var volumes = rig.BoundsOf(page.VolumesSection);
+            var outputs = rig.BoundsOf(page.OutputsSection);
 
-            // Two columns: Volumes above Sa\U000000EDdas on the left; Playlists, Despertadores, Comportamento on the right, in that order.
-            // One column (narrow): the same five cards, one under the other, in the same reading order.
+            Assert.Equal(
+                ["Despertadores", "Volumes ao iniciar", "Sa\U000000EDdas de \U000000E1udio"],
+                new[] { page.AlarmsSection, page.VolumesSection, page.OutputsSection }.Select(s => (string)s.Header));
+
+            // Player on top, as wide as the page; the alarms under it; the bottom row under the alarms.
+            Assert.True(hero.Bottom <= alarms.Top);
+            Assert.True(alarms.Bottom <= volumes.Top);
+            Assert.True(alarms.Bottom <= outputs.Top);
+            Assert.Equal(hero.Left, alarms.Left, 1);
+            Assert.Equal(hero.Right, alarms.Right, 1);
+            Assert.Equal(hero.Left, volumes.Left, 1);
+            Assert.Equal(hero.Width, alarms.Width, 1);
+            Assert.True(hero.Width >= Math.Min(1280, width - 172 - (24 * 2) - 20), $"{hero.Width}"); // the page minus the side bar and its margins (at most 1280): it is the whole width
+
+            // The bottom row is the end of the page: nothing under it.
+            Assert.True(rig.ContentBottom - Math.Max(volumes.Bottom, outputs.Bottom) <= 24 + 1);
+
             Assert.Equal(TwoColumns(width), !page.IsSingleColumn);
-            Assert.True(rig.BoundsOf(page.OutputsSection).Top > rig.BoundsOf(page.VolumesSection).Bottom);
-            Assert.True(rig.BoundsOf(page.AlarmsSection).Top > rig.BoundsOf(page.PlaylistsSection).Bottom);
-            Assert.True(rig.BoundsOf(page.BehaviorSection).Top > rig.BoundsOf(page.AlarmsSection).Bottom);
-            Assert.Equal(rig.BoundsOf(page.PlaylistsSection).Left, rig.BoundsOf(page.BehaviorSection).Left, 1);
             if (TwoColumns(width))
             {
-                Assert.True(rig.BoundsOf(page.PlaylistsSection).Left > rig.BoundsOf(page.VolumesSection).Right);
-                Assert.True(rig.BoundsOf(page.PlaylistsSection).Top < rig.BoundsOf(page.OutputsSection).Bottom);
+                Assert.True(outputs.Left >= volumes.Right + 16, "side by side with a gap");
+                Assert.Equal(volumes.Top, outputs.Top, 1);
+                Assert.Equal(volumes.Height, outputs.Height, 1); // the two cards end on one line
+                Assert.Equal(hero.Right, outputs.Right, 1);
             }
             else
             {
-                Assert.True(rig.BoundsOf(page.PlaylistsSection).Top >= rig.BoundsOf(page.OutputsSection).Bottom);
-                Assert.Equal(rig.BoundsOf(page.VolumesSection).Left, rig.BoundsOf(page.PlaylistsSection).Left, 1);
-                Assert.Equal(rig.BoundsOf(page.VolumesSection).Width, rig.BoundsOf(page.PlaylistsSection).Width, 1);
+                Assert.True(outputs.Top >= volumes.Bottom + 16, "stacked: Volumes first, then Sa\U000000EDdas");
+                Assert.Equal(volumes.Left, outputs.Left, 1);
+                Assert.Equal(volumes.Width, outputs.Width, 1);
             }
-            Assert.DoesNotContain(rig.Find<SettingRow>(), r => r.Title.Contains("Spotify", StringComparison.OrdinalIgnoreCase));
+
+            // The old cards and their texts are gone.
+            var texts = rig.Find<TextBlock>().Select(t => t.Text).ToList();
+            Assert.DoesNotContain("Playlist", texts);
+            Assert.DoesNotContain("Playlists", texts);
+            Assert.DoesNotContain("Comportamento do player", texts);
+            Assert.DoesNotContain(texts, t => t.StartsWith("De onde vem a m\U000000FAsica", StringComparison.Ordinal));
+            Assert.DoesNotContain(rig.Find<SettingRow>(), _ => true);
+            Assert.DoesNotContain(rig.Find<RadioButton>(), r => AutomationProperties.GetName(r) is "Com som" or "Mudo");
+        });
+    }
+
+    [Fact]
+    public void The_cards_are_lighter_than_the_page_with_a_thin_border_a_12_px_radius_and_24_px_inside()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100, Mode.Playing);
+            var page = Luminance(Resource("IbtBackgroundBrush"));
+            var card = Luminance(Resource("IbtSurfaceBrush"));
+            var block = Luminance(Resource("IbtSurfaceRaisedBrush"));
+            var inset = Luminance(Resource("IbtInsetBrush"));
+
+            Assert.True(card >= page + 8, "a card is visibly lighter than the page");
+            Assert.True(block > card + 4, "a block inside a card is lighter again");
+            Assert.True(inset < card, "an input is a darker well");
+
+            var hero = rig.Page.PlayerHero;
+            Assert.Same(Resource("IbtSurfaceBrush"), hero.Background);
+            Assert.Equal(new Thickness(1), hero.BorderThickness);
+            Assert.Equal(12, hero.CornerRadius.TopLeft);
+            Assert.Equal(new Thickness(24), hero.Padding);
+
+            foreach (var section in new[] { rig.Page.AlarmsSection, rig.Page.VolumesSection, rig.Page.OutputsSection })
+            {
+                var border = Descendants(section).OfType<Border>().First();
+                Assert.Same(Resource("IbtSurfaceBrush"), border.Background);
+                Assert.Equal(new Thickness(1), border.BorderThickness);
+                Assert.Equal(12, border.CornerRadius.TopLeft);
+                Assert.Equal(new Thickness(24), border.Padding);
+            }
+
+            // the strip and the alarm blocks are the lighter blocks
+            Assert.Same(Resource("IbtSurfaceRaisedBrush"), rig.Page.PlaylistStrip.Background);
+            Assert.All(AlarmBlocks(rig), b => Assert.Same(Resource("IbtSurfaceRaisedBrush"), ((Border)b).Background));
+        });
+    }
+
+    [Fact]
+    public void The_window_opens_around_1100_by_860_and_works_from_900()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100);
+            Assert.Equal(1100, rig.Window.Width);
+            Assert.Equal(860, rig.Window.Height);
+            Assert.Equal(900, rig.Window.MinWidth);
         });
     }
 
@@ -326,7 +439,7 @@ public sealed class SomLayoutTests
             // The art: 168 square, at the left edge of the card, its own width; everything else is at its right.
             Assert.Equal(168, art.Width, 1);
             Assert.Equal(168, art.Height, 1);
-            Assert.Equal(hero.Left + 20 + 1, art.Left, 1); // card padding and border
+            Assert.Equal(hero.Left + 24 + 1, art.Left, 1); // card padding and border
             Assert.True(title.Left >= art.Right + 20);
             Assert.True(slider.Left >= art.Right + 20);
             Assert.True(rig.BoundsOf(page.PlayPauseButton).Left > art.Right);
@@ -358,11 +471,12 @@ public sealed class SomLayoutTests
                 Assert.True(rig.BoundsOf(order[i]).Left >= rig.BoundsOf(order[i - 1]).Right);
             }
 
-            // The corner: the switch and the next alarm are at the top right of the card, the volume at the right of the transport row.
+            // The corner: only the switch (the next alarm line lives in the alarms header, never twice); the volume at the right of the transport row.
             var corner = rig.BoundsOf(page.HeroCorner);
             Assert.Equal(rig.BoundsOf(page.HeroInfo).Right, corner.Right, 1);
             Assert.True(corner.Top <= title.Top + 4);
             Assert.True(rig.BoundsOf(page.PlayerOnSwitch).Right <= hero.Right);
+            Assert.DoesNotContain(rig.Find<TextBlock>(), t => t.Text.StartsWith("Pr\U000000F3ximo despertador", StringComparison.Ordinal));
             var volume = rig.BoundsOf(page.PlayerVolumeBox);
             Assert.True(volume.Left >= transport.Right);
             Assert.Equal(rig.BoundsOf(page.HeroInfo).Right, volume.Right, 1);
@@ -377,20 +491,122 @@ public sealed class SomLayoutTests
         });
     }
 
-    private static double CenterY(Rect rect) => rect.Top + (rect.Height / 2);
-
-    private static bool IsInside(DependencyObject element, DependencyObject ancestor)
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void The_playlist_strip_is_inside_the_hero_at_its_bottom_in_two_halves_the_list_on_the_left_and_the_behaviour_on_the_right(double width)
     {
-        for (var node = VisualTreeHelper.GetParent(element); node is not null; node = VisualTreeHelper.GetParent(node))
+        WpfTestHost.Run(() =>
         {
-            if (ReferenceEquals(node, ancestor))
-            {
-                return true;
-            }
-        }
+            using var rig = new Rig(width, Mode.Playing);
+            var page = rig.Page;
+            var hero = rig.BoundsOf(page.PlayerHero);
+            var strip = rig.BoundsOf(page.PlaylistStrip);
+            var left = rig.BoundsOf(page.PlaylistHalf);
+            var right = rig.BoundsOf(page.BehaviorHalf);
 
-        return false;
+            Assert.True(IsInside(page.PlaylistStrip, page.PlayerHero));
+            Assert.True(strip.Left >= hero.Left && strip.Right <= hero.Right && strip.Bottom <= hero.Bottom);
+            Assert.True(strip.Top >= rig.BoundsOf(page.TransportRow).Bottom, "the strip is under the transport");
+            Assert.Equal(hero.Bottom - 24 - 1, strip.Bottom, 1); // at the bottom of the hero, its padding under it
+
+            // Two halves, side by side, the playlist controls on the left (under about 1000 px of window they stack, the list first).
+            Assert.Equal(TwoColumns(width), page.StripHalves.Columns == 2);
+            Assert.True(left.Left >= strip.Left + 16 && right.Right <= strip.Right - 16 + 0.5);
+            if (page.StripHalves.Columns == 2)
+            {
+                Assert.True(right.Left >= left.Right + 16);
+                Assert.Equal(left.Top, right.Top, 1);
+            }
+            else
+            {
+                Assert.True(right.Top >= left.Bottom + 16 - 0.5);
+                Assert.Equal(left.Left, right.Left, 1);
+            }
+
+            // Left: the list with three icon buttons right next to it, then the folder (small, ellipsis) with two icon buttons.
+            var combo = rig.BoundsOf(page.PlaylistCombo);
+            var add = rig.BoundsOf(page.AddPlaylistButton);
+            var rename = rig.BoundsOf(page.RenamePlaylistButton);
+            var remove = rig.BoundsOf(page.RemovePlaylistButton);
+            Assert.True(add.Left >= combo.Right && add.Left - combo.Right <= 12, "the buttons sit right next to the list");
+            Assert.True(rename.Left >= add.Right && remove.Left >= rename.Right);
+            Assert.All(new[] { add, rename, remove }, b => Assert.Equal(32, b.Width, 1));
+            Assert.All(new[] { combo, add, rename, remove }, b => Assert.Equal(CenterY(combo), CenterY(b), 1));
+            var folder = rig.BoundsOf(page.PlaylistInfoText);
+            var change = rig.BoundsOf(page.ChangeFolderButton);
+            var refresh = rig.BoundsOf(page.RefreshButton);
+            Assert.True(folder.Top >= combo.Bottom);
+            Assert.True(folder.Right <= change.Left && change.Right <= refresh.Left);
+            Assert.Equal(CenterY(folder), CenterY(change), 1);
+            Assert.Equal(CenterY(change), CenterY(refresh), 1);
+            Assert.Equal(remove.Right, refresh.Right, 1); // both rows end at the same edge
+            Assert.Equal(TextTrimming.CharacterEllipsis, page.PlaylistInfoText.TextTrimming);
+            Assert.Equal(@"C:\Users\gutni\Music\Mornye\Igreja", page.PlaylistInfoText.Text);
+            Assert.Contains("2 m\U000000FAsicas", (string)page.PlaylistInfoText.ToolTip, StringComparison.Ordinal);
+            Assert.Contains(@"C:\Users\gutni\Music\Mornye\Igreja", (string)page.PlaylistInfoText.ToolTip, StringComparison.Ordinal);
+
+            // Right: the three behaviour rows, each an icon and its control, no written label (the name is in the tooltip).
+            foreach (var row in new FrameworkElement[] { page.StopFadeRow, page.AlarmFadeRow, page.MediaKeysRow })
+            {
+                var bounds = rig.BoundsOf(row);
+                Assert.True(bounds.Left >= right.Left - 0.5 && bounds.Right <= right.Right + 0.5, row.Name);
+                Assert.False(string.IsNullOrWhiteSpace(row.ToolTip as string), row.Name);
+                Assert.NotEmpty(Descendants(row).OfType<Shape>());
+                Assert.DoesNotContain(Descendants(row).OfType<TextBlock>(), t => t.Text.Length > 4 && !t.Text.EndsWith(" s", StringComparison.Ordinal) && t.Text != "seco");
+            }
+
+            Assert.Equal(["5 s", "3 s", "seco"], page.StopFadeList.Items.Cast<FadeOption>().Select(o => o.Label));
+            Assert.Equal(["5 s", "3 s", "seco"], page.AlarmFadeList.Items.Cast<FadeOption>().Select(o => o.Label));
+            Assert.Contains("Fade ao parar", (string)page.StopFadeRow.ToolTip, StringComparison.Ordinal);
+            Assert.Contains("despertador", (string)page.AlarmFadeRow.ToolTip, StringComparison.Ordinal);
+            Assert.Contains("Teclas de m\U000000EDdia", (string)page.MediaKeysRow.ToolTip, StringComparison.Ordinal);
+            Assert.Equal("Teclas de m\U000000EDdia controlam o player", AutomationProperties.GetName(page.MediaKeysSwitch));
+            Assert.Equal("Fade ao parar", AutomationProperties.GetName(page.StopFadeList));
+        });
     }
+
+    [Fact]
+    public void Every_icon_only_button_and_toggle_has_a_tooltip_and_an_automation_name()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100, Mode.Playing, alarms: 3);
+            var checkedCount = 0;
+            foreach (var control in rig.Find<ButtonBase>().Where(Shown))
+            {
+                if (control is RepeatButton)
+                {
+                    continue; // the invisible rails of a slider
+                }
+
+                if (control.TemplatedParent is ComboBox)
+                {
+                    continue; // the click area inside a list box
+                }
+
+                if (control is ToggleButton { Content: string })
+                {
+                    continue; // the weekday dots have a letter and carry the name of the day as tooltip too
+                }
+
+                var name = AutomationProperties.GetName(control);
+                Assert.False(string.IsNullOrWhiteSpace(name), $"{control.GetType().Name} {control.Name} {control.Content} without an automation name; parent {control.Parent?.GetType().Name} {control.TemplatedParent?.GetType().Name}");
+                var tip = control.ToolTip;
+                Assert.True(tip is not null && !string.IsNullOrWhiteSpace(tip.ToString()), $"{name} without a tooltip");
+                checkedCount++;
+            }
+
+            foreach (var chip in rig.Find<ToggleButton>().Where(t => t.Content is string { Length: 1 }))
+            {
+                Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(chip)));
+                Assert.False(string.IsNullOrWhiteSpace(chip.ToolTip?.ToString()));
+            }
+
+            Assert.True(checkedCount >= 20, checkedCount.ToString());
+        });
+    }
+
+    // ---- the hero ----
 
     [Fact]
     public void The_art_shows_the_cover_when_there_is_one_and_the_music_tile_when_there_is_not()
@@ -435,7 +651,6 @@ public sealed class SomLayoutTests
             Assert.Equal(75, page.SeekSlider.Value, 0);
             Assert.Equal("Pausar a m\U000000FAsica", AutomationProperties.GetName(page.PlayPauseButton));
             Assert.False(string.IsNullOrEmpty(page.HeroTitleText.ToolTip as string));
-            Assert.StartsWith("Pr\U000000F3ximo despertador:", page.NextAlarmText.Text, StringComparison.Ordinal);
         });
     }
 
@@ -472,6 +687,7 @@ public sealed class SomLayoutTests
             Assert.False(page.PlayerVolumeSlider.IsEnabled);
             Assert.InRange(page.ArtHost.Opacity, 0.2, 0.6);
             Assert.Equal(Visibility.Visible, page.CoverPlaceholder.Visibility);
+            Assert.Equal(StatusLight.Gray, rig.Som.Som.PlayerOutput.Light);
 
             rig.Player.PlayerOn = true;
             rig.Layout(1100);
@@ -535,197 +751,378 @@ public sealed class SomLayoutTests
         });
     }
 
-    // ---- the settings grid ----
+    // ---- the alarms ----
 
     [Theory]
     [MemberData(nameof(WindowWidths))]
-    public void Every_row_is_inside_its_card_and_nothing_leaves_the_page_or_needs_a_horizontal_scroll(double width)
+    public void The_alarms_header_has_the_title_the_master_toggle_and_the_next_alarm_and_each_alarm_is_its_own_block_two_per_row_or_one_when_narrow(double width)
     {
         WpfTestHost.Run(() =>
         {
-            using var rig = new Rig(width, Mode.Playing);
-            rig.Som.Som.AddAlarmCommand.Execute(null);
-            rig.Layout(width);
-            var scroll = (ScrollViewer)rig.Page.Content;
+            using var rig = new Rig(width, alarms: 3);
+            var page = rig.Page;
+            var section = rig.BoundsOf(page.AlarmsSection);
+            var blocks = AlarmBlocks(rig);
+            var add = Descendants(page.AlarmList).OfType<Button>().Single(b => AutomationProperties.GetName(b) == "Adicionar despertador");
 
-            Assert.Equal(0, scroll.ScrollableWidth, 1);
-            var pageBounds = rig.BoundsOf(rig.Page);
-            foreach (var row in rig.Find<SettingRow>())
+            // Header: the title, the next alarm (short) and the master toggle at the right end.
+            Assert.Equal("Despertadores", page.AlarmsSection.Header);
+            Assert.StartsWith("pr\U000000F3ximo: ", page.AlarmsNextText.Text, StringComparison.Ordinal);
+            Assert.DoesNotContain("despertador:", page.AlarmsNextText.Text, StringComparison.Ordinal);
+            Assert.True(rig.BoundsOf(page.AlarmsOnSwitch).Right <= section.Right - 24);
+            Assert.True(rig.BoundsOf(page.AlarmsNextText).Right <= rig.BoundsOf(page.AlarmsOnSwitch).Left);
+            Near(32, rig.BoundsOf(page.AlarmsOnSwitch).Width);
+            Assert.False(string.IsNullOrWhiteSpace(page.AlarmsOnSwitch.ToolTip as string));
+
+            // Blocks: 3 alarms and the dashed plus block at the end; 2 per row when there is room, 1 per row when narrow.
+            Assert.Equal(3, blocks.Count);
+            Assert.Equal(4, page.AlarmList.Items.Count);
+            Assert.IsType<AddAlarmTile>(page.AlarmList.Items[^1]);
+            var all = blocks.Select(rig.BoundsOf).ToList();
+            var addBounds = rig.BoundsOf(add);
+            if (width >= 1000)
             {
-                var section = AncestorOf<SettingsSection>(row)!;
-                var bounds = rig.BoundsOf(row);
-                Assert.True(bounds.Left >= rig.BoundsOf(section).Left + 12 && bounds.Right <= rig.BoundsOf(section).Right - 12, row.Title);
+                Assert.Equal(all[0].Top, all[1].Top, 1);
+                Assert.True(all[1].Left >= all[0].Right + 16 - 0.5);
+                Assert.Equal(all[0].Width, all[1].Width, 1);
+                Assert.True(all[2].Top >= all[0].Bottom + 16 - 0.5, "the third block starts the second row");
+                Assert.Equal(all[0].Left, all[2].Left, 1);
+                Assert.Equal(all[1].Left, addBounds.Left, 1); // the plus block follows the third
+                Assert.Equal(all[2].Top, addBounds.Top, 1);
+            }
+            else
+            {
+                Assert.All(all, b => Assert.Equal(all[0].Left, b.Left, 1));
+                Assert.All(all, b => Assert.Equal(all[0].Width, b.Width, 1));
+                Assert.True(all[1].Top >= all[0].Bottom + 16 - 0.5);
+                Assert.True(addBounds.Top >= all[2].Bottom + 16 - 0.5);
             }
 
-            foreach (var control in rig.Find<Control>().Where(c => c is TextBox or Button or ComboBox or ToggleButton or Slider or RadioButton && Shown(c)))
-            {
-                var bounds = rig.BoundsOf(control);
-                Assert.True(bounds.Left >= pageBounds.Left - 0.5 && bounds.Right <= pageBounds.Right + 0.5, $"{control.GetType().Name} {AutomationProperties.GetName(control)} {bounds}");
-                var section = AncestorOf<SettingsSection>(control);
-                if (section is null)
-                {
-                    Assert.True(IsInside(control, rig.Page.PlayerHero), $"{AutomationProperties.GetName(control)} is neither in a card nor in the player");
-                    continue;
-                }
-
-                Assert.True(bounds.Right <= rig.BoundsOf(section).Right - 8, $"{AutomationProperties.GetName(control)} {bounds} leaves its card");
-            }
-
-            // The text of a title or a status line is never cut off by the card: each one is as wide as it needs or wraps.
-            foreach (var text in rig.Find<TextBlock>().Where(t => Shown(t) && t.Text.Length > 0 && t.TextWrapping == TextWrapping.Wrap))
-            {
-                Assert.True(text.ActualHeight > 0, text.Text);
-                Assert.True(rig.BoundsOf(text).Right <= pageBounds.Right + 0.5, text.Text);
-            }
-
-            // A title that is not allowed to wrap shows all its text or has an ellipsis; the ones that show everything are as wide as the text.
-            foreach (var text in rig.Find<TextBlock>().Where(t => Shown(t) && t.Text.Length > 0 && t.TextWrapping == TextWrapping.NoWrap && t.TextTrimming == TextTrimming.None))
-            {
-                Assert.True(text.ActualWidth >= text.DesiredSize.Width - text.Margin.Left - text.Margin.Right - 0.5, text.Text);
-            }
+            Assert.All(all, b => Assert.True(b.Left >= section.Left + 24 && b.Right <= section.Right - 24 + 1));
+            Assert.True(addBounds.Bottom <= section.Bottom - 24 + 1);
         });
     }
 
     [Theory]
     [MemberData(nameof(WindowWidths))]
-    public void The_cards_of_a_column_are_as_wide_as_each_other_and_the_controls_share_a_right_edge(double width)
+    public void An_alarm_block_has_almost_no_text_the_switch_a_start_a_limit_seven_dots_the_list_and_the_trash_with_tooltips(double width)
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(width);
-            var page = rig.Page;
+            var blocks = AlarmBlocks(rig);
+            Assert.Equal(2, blocks.Count);
 
-            Assert.Equal(rig.BoundsOf(page.VolumesSection).Width, rig.BoundsOf(page.OutputsSection).Width, 1);
-            Assert.Equal(rig.BoundsOf(page.VolumesSection).Width, rig.BoundsOf(page.PlaylistsSection).Width, 1);
-            Assert.Equal(rig.BoundsOf(page.PlaylistsSection).Width, rig.BoundsOf(page.AlarmsSection).Width, 1);
-            Assert.Equal(rig.BoundsOf(page.PlaylistsSection).Width, rig.BoundsOf(page.BehaviorSection).Width, 1);
-
-            // Rows touch each other inside a card (one template, one line).
-            foreach (var section in new[] { page.VolumesSection, page.OutputsSection, page.BehaviorSection })
+            foreach (var block in blocks)
             {
-                var rows = rig.Find<SettingRow>().Where(r => ReferenceEquals(AncestorOf<SettingsSection>(r), section)).ToList();
-                for (var i = 1; i < rows.Count; i++)
-                {
-                    Assert.Equal(rig.BoundsOf(rows[i - 1]).Bottom, rig.BoundsOf(rows[i]).Top, 1);
-                }
-            }
+                var bounds = rig.BoundsOf(block);
+                var all = Descendants(block).OfType<FrameworkElement>().ToList();
+                ToggleButton Switch() => all.OfType<ToggleButton>().First(t => AutomationProperties.GetName(t) == "Despertador ligado");
+                TextBox Start() => all.OfType<TextBox>().First(t => AutomationProperties.GetName(t) == "Hora de in\U000000EDcio");
+                TextBox Latest() => all.OfType<TextBox>().First(t => AutomationProperties.GetName(t) == "N\U000000E3o iniciar depois de");
+                Button Trash() => all.OfType<Button>().First(t => AutomationProperties.GetName(t) == "Remover despertador");
+                var chips = all.OfType<ToggleButton>().Where(t => t.Content is string { Length: 1 }).ToList();
+                var combo = all.OfType<ComboBox>().Single();
 
-            // The switches and the list boxes of one column end at the same edge, and every list box is as wide as the others.
-            Assert.Equal(rig.BoundsOf(page.AdjustSwitch).Right, rig.BoundsOf(page.LockSwitch).Right, 1);
-            Assert.Equal(rig.BoundsOf(page.AdjustSwitch).Right, rig.BoundsOf(page.HolyricsRouteSwitch).Right, 1);
-            Assert.Equal(rig.BoundsOf(page.AlarmsOnSwitch).Right, rig.BoundsOf(page.MediaKeysSwitch).Right, 1);
-            Assert.Equal(rig.BoundsOf(page.DefaultOutputCombo).Right, rig.BoundsOf(page.AdjustSwitch).Right, 1);
-            Assert.Equal(rig.BoundsOf(page.PlaylistCombo).Right, rig.BoundsOf(page.MediaKeysSwitch).Right, 1);
-            Assert.Equal(rig.BoundsOf(page.DefaultOutputCombo).Width, rig.BoundsOf(page.HolyricsOutputCombo).Width, 1);
-            Assert.Equal(rig.BoundsOf(page.DefaultOutputCombo).Width, rig.BoundsOf(page.PlaylistCombo).Width, 1);
-            Assert.Equal(rig.BoundsOf(page.StopFadeList).Right, rig.BoundsOf(page.AlarmFadeList).Right, 1);
-            Assert.Equal(rig.BoundsOf(page.StopFadeList).Right, rig.BoundsOf(page.MediaKeysSwitch).Right, 1.5); // the list sits in a 1 px frame
+                // Line one: switch, start, limit, trash, in that order and on one line; the trash at the right edge of the block.
+                Assert.True(rig.BoundsOf(Switch()).Right < rig.BoundsOf(Start()).Left);
+                Assert.True(rig.BoundsOf(Start()).Right < rig.BoundsOf(Latest()).Left);
+                Assert.True(rig.BoundsOf(Latest()).Right < rig.BoundsOf(Trash()).Left);
+                Assert.Equal(CenterY(rig.BoundsOf(Start())), CenterY(rig.BoundsOf(Latest())), 1);
+                Assert.Equal(CenterY(rig.BoundsOf(Start())), CenterY(rig.BoundsOf(Trash())), 1);
+                Assert.Equal(bounds.Right - 16 - 1, rig.BoundsOf(Trash()).Right, 1);
+                Near(32, rig.BoundsOf(Start()).Height);
+                Near(32, rig.BoundsOf(Trash()).Height);
 
-            // Card padding is the same everywhere: the first row is the same distance in from the card on every card, left and right.
-            var insets = new List<(double Left, double Right)>();
-            foreach (var section in new[] { page.VolumesSection, page.OutputsSection, page.PlaylistsSection, page.AlarmsSection, page.BehaviorSection })
-            {
-                var first = rig.Find<SettingRow>().First(r => ReferenceEquals(AncestorOf<SettingsSection>(r), section));
-                insets.Add((rig.BoundsOf(first).Left - rig.BoundsOf(section).Left, rig.BoundsOf(section).Right - rig.BoundsOf(first).Right));
-            }
-
-            Assert.All(insets, inset =>
-            {
-                Assert.Equal(insets[0].Left, inset.Left, 0.6);
-                Assert.Equal(insets[0].Right, inset.Right, 0.6);
-                Assert.InRange(inset.Left, 12, 14);
-                Assert.InRange(inset.Right, 12, 14);
-            });
-        });
-    }
-
-    [Theory]
-    [MemberData(nameof(WindowWidths))]
-    public void The_alarm_rows_line_up_with_each_other_and_wrap_cleanly(double width)
-    {
-        WpfTestHost.Run(() =>
-        {
-            using var rig = new Rig(width);
-            var page = rig.Page;
-            var rows = page.AlarmList.Items.Cast<object>().Select(item => (FrameworkElement)page.AlarmList.ItemContainerGenerator.ContainerFromItem(item)).ToList();
-            Assert.Equal(2, rows.Count);
-
-            var fields = rows.Select(row => Descendants(row).OfType<FrameworkElement>().ToList()).ToList();
-            ToggleButton Switch(int i) => fields[i].OfType<ToggleButton>().First(t => AutomationProperties.GetName(t) == "Despertador ligado");
-            TextBox Start(int i) => fields[i].OfType<TextBox>().First(t => AutomationProperties.GetName(t) == "Hora de in\U000000EDcio");
-            TextBox Latest(int i) => fields[i].OfType<TextBox>().First(t => AutomationProperties.GetName(t) == "N\U000000E3o iniciar depois de");
-            Button Trash(int i) => fields[i].OfType<Button>().First(t => AutomationProperties.GetName(t) == "Remover despertador");
-            ComboBox Playlist(int i) => fields[i].OfType<ComboBox>().First();
-            List<ToggleButton> Chips(int i) => fields[i].OfType<ToggleButton>().Where(t => t.Content is string { Length: 1 }).ToList();
-
-            for (var i = 0; i < 2; i++)
-            {
-                var bounds = rig.BoundsOf(rows[i]);
-                // Line one: switch, start, the limit and the trash are on one line, in that order, the trash at the right edge.
-                Assert.Equal(CenterY(rig.BoundsOf(Start(i))), CenterY(rig.BoundsOf(Latest(i))), 1);
-                Assert.Equal(rig.BoundsOf(Start(i)).Bottom, rig.BoundsOf(Switch(i)).Bottom + 5, 1); // the switch sits on the line of the boxes
-                Assert.True(rig.BoundsOf(Switch(i)).Right < rig.BoundsOf(Start(i)).Left);
-                Assert.True(rig.BoundsOf(Start(i)).Right < rig.BoundsOf(Latest(i)).Left);
-                Assert.True(rig.BoundsOf(Latest(i)).Right < rig.BoundsOf(Trash(i)).Left);
-                Assert.Equal(bounds.Right, rig.BoundsOf(Trash(i)).Right, 1);
-
-                // Line two: the weekdays are below the first line, in a row, then the playlist (beside them or, when narrow, under them).
-                var chips = Chips(i);
+                // Line two: seven dots and the list, to the right of them, ending at the right padding.
                 Assert.Equal(7, chips.Count);
-                Assert.True(rig.BoundsOf(chips[0]).Top > rig.BoundsOf(Start(i)).Bottom);
+                Assert.True(rig.BoundsOf(chips[0]).Top > rig.BoundsOf(Start()).Bottom);
                 for (var c = 1; c < 7; c++)
                 {
                     Assert.Equal(rig.BoundsOf(chips[0]).Top, rig.BoundsOf(chips[c]).Top, 1);
                     Assert.True(rig.BoundsOf(chips[c]).Left > rig.BoundsOf(chips[c - 1]).Left);
                 }
 
-                var combo = rig.BoundsOf(Playlist(i));
-                var beside = combo.Left >= rig.BoundsOf(chips[6]).Right;
-                Assert.True(beside || combo.Top >= rig.BoundsOf(chips[0]).Bottom, "the playlist is beside the weekdays or under them, never on top of them");
-                Assert.True(combo.Right <= bounds.Right + 0.5);
-                Assert.True(beside, "with room, the playlist sits beside the weekdays");
+                Assert.True(rig.BoundsOf(combo).Left >= rig.BoundsOf(chips[6]).Right);
+                Assert.Equal(bounds.Right - 16 - 1, rig.BoundsOf(combo).Right, 1);
+                Assert.True(rig.BoundsOf(combo).Width >= 100, "the list is wide enough to read");
+
+                // Almost no text: only the letters of the dots, the times, the list and the switch; the field names are tooltips.
+                Assert.DoesNotContain(all.OfType<TextBlock>().Where(Shown), t => t.Text.Length > 1 && !t.Text.Contains(':', StringComparison.Ordinal) && t.Text != "Igreja" && t.Text != "Louvor");
+                Assert.False(string.IsNullOrWhiteSpace(Start().ToolTip as string));
+                Assert.Contains("In\U000000EDcio", ((string)Start().ToolTip), StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("N\U000000E3o iniciar depois de", (string)Latest().ToolTip, StringComparison.Ordinal);
+                Assert.Equal("Remover este despertador", Trash().ToolTip);
+                Assert.Equal(["Domingo", "Segunda", "Ter\U000000E7a", "Quarta", "Quinta", "Sexta", "S\U000000E1bado"], chips.Select(c => (string)c.ToolTip));
             }
 
-            // The two alarms use the very same columns.
-            Assert.Equal(rig.BoundsOf(Start(0)).Left, rig.BoundsOf(Start(1)).Left, 1);
-            Assert.Equal(rig.BoundsOf(Latest(0)).Left, rig.BoundsOf(Latest(1)).Left, 1);
-            Assert.Equal(rig.BoundsOf(Chips(0)[0]).Left, rig.BoundsOf(Chips(1)[0]).Left, 1);
-            Assert.Equal(rig.BoundsOf(Playlist(0)).Left, rig.BoundsOf(Playlist(1)).Left, 1);
+            // The two blocks use the same columns.
+            if (width >= 1000)
+            {
+                var a = Descendants(blocks[0]).OfType<TextBox>().First();
+                var b = Descendants(blocks[1]).OfType<TextBox>().First();
+                Assert.Equal(rig.BoundsOf(a).Left - rig.BoundsOf(blocks[0]).Left, rig.BoundsOf(b).Left - rig.BoundsOf(blocks[1]).Left, 1);
+            }
+        });
+    }
+
+    [Fact]
+    public void The_alarms_show_their_time_weekdays_limit_and_playlist_and_a_switched_off_alarm_is_dimmer()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100);
+            var page = rig.Page;
+
+            Assert.Equal(2, rig.Som.Som.Alarms.Count);
+            Assert.Equal(3, page.AlarmList.Items.Count); // two alarms and the plus block
+            Assert.StartsWith("pr\U000000F3ximo:", page.AlarmsNextText.Text, StringComparison.Ordinal);
+            var chips = rig.Find<ToggleButton>().Where(t => t.Content is string { Length: 1 } letter && "DSTQ".Contains(letter, StringComparison.Ordinal)).ToList();
+            Assert.Equal(14, chips.Count);
+            Assert.Equal(["D", "S", "T", "Q", "Q", "S", "S"], chips.Take(7).Select(c => (string)c.Content));
+            Assert.Equal([true, false, false, false, false, false, false], chips.Take(7).Select(c => c.IsChecked == true));
+            Assert.Equal([false, false, false, true, false, false, false], chips.Skip(7).Select(c => c.IsChecked == true));
+            Assert.Equal(["19:30"], Descendants(page.AlarmList).OfType<TextBox>().Select(t => t.Text).Where(t => t == "19:30"));
+
+            var blocks = AlarmBlocks(rig);
+            Assert.Equal(1, blocks[1].Opacity);
+            rig.Som.Som.Alarms[1].Enabled = false;
+            rig.Layout(1100);
+            Assert.InRange(AlarmBlocks(rig)[1].Opacity, 0.4, 0.8);
+            Assert.Equal(1, AlarmBlocks(rig)[0].Opacity);
+        });
+    }
+
+    [Fact]
+    public void With_no_alarm_the_grid_is_only_the_dashed_plus_block_with_a_word_and_it_adds_one()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100, alarms: 0);
+            var page = rig.Page;
+
+            Assert.Empty(AlarmBlocks(rig));
+            var add = Descendants(page.AlarmList).OfType<Button>().Single();
+            Assert.Equal("Adicionar despertador", AutomationProperties.GetName(add));
+            Assert.Equal("Adicionar despertador", add.ToolTip);
+            Assert.Contains(Descendants(add).OfType<TextBlock>(), t => t.Text == "Adicionar despertador" && Shown(t));
+
+            add.Command.Execute(null);
+            rig.Layout(1100);
+
+            Assert.Single(AlarmBlocks(rig));
+            Assert.Equal(2, page.AlarmList.Items.Count);
+            Assert.DoesNotContain(Descendants(page.AlarmList).OfType<TextBlock>(), t => t.Text == "Adicionar despertador" && Shown(t)); // with one alarm the plus block is only a plus
+        });
+    }
+
+    [Fact]
+    public void Removing_an_alarm_asks_in_a_window_and_No_keeps_it()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100);
+            var trash = Descendants(rig.Page.AlarmList).OfType<Button>().First(b => AutomationProperties.GetName(b) == "Remover despertador");
+
+            rig.Som.ConfirmAnswer = false;
+            trash.Command.Execute(null);
+            Assert.Equal(2, rig.Som.PlayerView.Alarms.Count);
+            var (title, message) = Assert.Single(rig.Som.Confirmations);
+            Assert.Equal("Remover este despertador?", title);
+            Assert.Contains("Nenhuma m\U000000FAsica", message, StringComparison.Ordinal);
+
+            rig.Som.ConfirmAnswer = true;
+            trash.Command.Execute(null);
+            Assert.Single(rig.Som.PlayerView.Alarms);
+            rig.Layout(1100);
+            Assert.Single(AlarmBlocks(rig));
+        });
+    }
+
+    [Fact]
+    public void The_trash_of_a_playlist_asks_first_and_the_pencil_opens_the_name_box()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100);
+            var page = rig.Page;
+
+            rig.Som.ConfirmAnswer = false;
+            page.RemovePlaylistButton.Command.Execute(null);
+            Assert.Equal(2, rig.Som.PlayerView.Playlists.Count);
+            Assert.Single(rig.Som.Confirmations);
+
+            rig.Som.Names.Enqueue("Domingo");
+            page.RenamePlaylistButton.Command.Execute(null);
+            Assert.Equal("Domingo", rig.Som.PlayerView.CurrentPlaylist);
+            Assert.Equal(["Domingo", "Louvor"], rig.Som.PlayerView.Playlists.Select(p => p.Name));
+        });
+    }
+
+    // ---- the bottom row ----
+
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void The_volumes_are_four_aligned_rows_icon_short_name_slider_percent_box_and_one_mute_toggle(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width);
+            var page = rig.Page;
+            var rows = page.VolumeList.Items.Cast<VolumeRow>().ToList();
+            Assert.Equal(["Windows", "Holyrics", "Player", "Sons do sistema"], rows.Select(r => r.Label));
+
+            var panels = rows.Select(r => (FrameworkElement)Descendants(page.VolumeList.ItemContainerGenerator.ContainerFromItem(r)).OfType<Grid>().First(g => g.Height == 32)).ToList();
+            var section = rig.BoundsOf(page.VolumesSection);
+            var sliders = panels.Select(p => Descendants(p).OfType<Slider>().Single()).ToList();
+            var boxes = panels.Select(p => Descendants(p).OfType<TextBox>().Single()).ToList();
+            var mutes = panels.Select(p => Descendants(p).OfType<ToggleButton>().Single()).ToList();
+
+            for (var i = 0; i < 4; i++)
+            {
+                var slider = rig.BoundsOf(sliders[i]);
+                Assert.True(slider.Width >= 64, $"{rows[i].Label}: the slider has room ({slider.Width})");
+                Assert.True(slider.Right < rig.BoundsOf(boxes[i]).Left);
+                Assert.True(rig.BoundsOf(boxes[i]).Right < rig.BoundsOf(mutes[i]).Left);
+                Near(52, rig.BoundsOf(boxes[i]).Width);
+                Near(32, rig.BoundsOf(boxes[i]).Height);
+                Near(32, rig.BoundsOf(mutes[i]).Width);
+                Assert.Equal(rig.BoundsOf(sliders[0]).Left, slider.Left, 1);
+                Assert.Equal(rig.BoundsOf(boxes[0]).Left, rig.BoundsOf(boxes[i]).Left, 1);
+                Assert.Equal(rig.BoundsOf(mutes[0]).Left, rig.BoundsOf(mutes[i]).Left, 1);
+                Assert.Equal(section.Right - 24 - 1, rig.BoundsOf(mutes[i]).Right, 1);
+                Assert.Equal("Mudo", AutomationProperties.GetName(mutes[i]));
+                Assert.False(string.IsNullOrWhiteSpace(mutes[i].ToolTip as string));
+                Assert.False(string.IsNullOrWhiteSpace(rows[i].Tip));
+                if (i > 0)
+                {
+                    Assert.True(rig.BoundsOf(panels[i]).Top >= rig.BoundsOf(panels[i - 1]).Bottom + 8, "rows are separated by spacing");
+                }
+            }
+
+            // The explanation sentences are tooltips now: no subtitle, no "Com som | Mudo".
+            Assert.DoesNotContain(rig.Find<TextBlock>().Where(Shown), t => t.Text.StartsWith("Os volumes que o app p\U000000F5e", StringComparison.Ordinal));
+        });
+    }
+
+    [Fact]
+    public void The_mute_toggle_mutes_a_row_and_the_card_header_has_the_dot_the_apply_button_and_the_master_with_tooltips()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100);
+            var page = rig.Page;
+            var holyrics = rig.Som.Som.HolyricsRow;
+            var panel = Descendants(page.VolumeList.ItemContainerGenerator.ContainerFromItem(holyrics)).OfType<ToggleButton>().Single();
+
+            Assert.False(panel.IsChecked);
+            panel.IsChecked = true;
+            Assert.True(holyrics.Muted);
+            Assert.True(holyrics.IsMuted);
+            Assert.False(holyrics.WithSound);
+            panel.IsChecked = false;
+            Assert.False(holyrics.Muted);
+
+            // The header: the dot, "Aplicar agora" (zap) and the master, at the right end, with the status only in tooltips.
+            var section = rig.BoundsOf(page.VolumesSection);
+            var dot = rig.BoundsOf(page.AdjustDot);
+            var apply = rig.BoundsOf(page.ApplyNowButton);
+            var master = rig.BoundsOf(page.AdjustSwitch);
+            Assert.True(dot.Right <= apply.Left && apply.Right <= master.Left);
+            Assert.Equal(section.Right - 24 - 1, master.Right, 1);
+            Assert.Equal(CenterY(apply), CenterY(master), 1);
+            Assert.Equal("Aplicar agora", AutomationProperties.GetName(page.ApplyNowButton));
+            Assert.Equal("Ajustar o som ao iniciar", AutomationProperties.GetName(page.AdjustSwitch));
+            Assert.StartsWith("Aplicar agora", (string)page.ApplyNowButton.ToolTip, StringComparison.Ordinal);
+            Assert.StartsWith("Ajustar o som ao iniciar: ligado", (string)page.AdjustSwitch.ToolTip, StringComparison.Ordinal);
+            Assert.StartsWith("Ajuste autom\U000000E1tico ligado", (string)page.AdjustDot.ToolTip, StringComparison.Ordinal);
+            var dotFill = Descendants(page.AdjustDot).OfType<System.Windows.Shapes.Ellipse>().Single().Fill;
+            Assert.Equal(((SolidColorBrush)Palette.Green).Color, ((SolidColorBrush)dotFill).Color);
+
+            page.AdjustSwitch.IsChecked = false;
+            rig.Layout(1100);
+            Assert.StartsWith("Ajuste autom\U000000E1tico desligado", (string)page.AdjustDot.ToolTip, StringComparison.Ordinal);
+            Assert.Equal(StatusLight.Gray, rig.Som.Som.AdjustLight);
         });
     }
 
     [Theory]
-    [InlineData(300)]
-    [InlineData(340)]
-    public void An_alarm_row_in_a_narrow_card_wraps_the_playlist_under_the_weekdays_and_stays_inside(double rowWidth)
+    [MemberData(nameof(WindowWidths))]
+    public void The_outputs_are_three_aligned_rows_icon_name_list_dot_with_the_lock_and_the_pin_as_icon_toggles(double width)
     {
         WpfTestHost.Run(() =>
         {
-            using var rig = new Rig(900);
-            var template = (DataTemplate)rig.Page.Resources["AlarmTemplate"];
-            var presenter = new ContentPresenter { Content = rig.Som.Som.Alarms[0], ContentTemplate = template, Width = rowWidth };
-            presenter.Measure(new Size(rowWidth, 1000));
-            presenter.Arrange(new Rect(0, 0, rowWidth, presenter.DesiredSize.Height));
-            presenter.UpdateLayout();
+            using var rig = new Rig(width);
+            var page = rig.Page;
+            var section = rig.BoundsOf(page.OutputsSection);
+            var combos = new[] { page.DefaultOutputCombo, page.PlayerOutputCombo, page.HolyricsOutputCombo };
+            var dots = new[] { page.DefaultOutputDot, page.PlayerOutputDot, page.HolyricsOutputDot };
 
-            var all = Descendants(presenter).OfType<FrameworkElement>().ToList();
-            var chips = all.OfType<ToggleButton>().Where(t => t.Content is string { Length: 1 }).ToList();
-            var combo = all.OfType<ComboBox>().Single();
-            Rect B(FrameworkElement e) => e.TransformToAncestor(presenter).TransformBounds(new Rect(e.RenderSize));
-
-            Assert.Equal(7, chips.Count);
-            Assert.True(B(combo).Top >= B(chips[0]).Bottom, "the playlist is under the weekdays");
-            Assert.Equal(B(chips[0]).Left, B(combo).Left, 1); // and starts at the same left edge
-            foreach (var element in all.Where(e => e is TextBox or Button or ComboBox or ToggleButton && Shown(e)))
+            Assert.Equal(["Sa\U000000EDda padr\U000000E3o do Windows", "Sa\U000000EDda do player", "Sa\U000000EDda do Holyrics"], combos.Select(AutomationProperties.GetName));
+            for (var i = 0; i < 3; i++)
             {
-                Assert.True(B(element).Right <= rowWidth + 0.5 && B(element).Left >= -0.5, $"{AutomationProperties.GetName(element)} {B(element)} is outside the row");
+                var combo = rig.BoundsOf(combos[i]);
+                Near(32, combo.Height);
+                Assert.Equal(rig.BoundsOf(combos[0]).Left, combo.Left, 1);
+                Assert.Equal(rig.BoundsOf(combos[0]).Right, combo.Right, 1);
+                Assert.True(combo.Width >= 140, $"the list is wide enough ({combo.Width})");
+                Assert.True(combo.Right <= rig.BoundsOf(dots[i]).Left);
+                Assert.Equal(rig.BoundsOf(dots[0]).Left, rig.BoundsOf(dots[i]).Left, 1);
+                Assert.InRange(Math.Abs(CenterY(combo) - CenterY(rig.BoundsOf(dots[i]))), 0, 1.01);
+                if (i > 0)
+                {
+                    Assert.True(combo.Top >= rig.BoundsOf(combos[i - 1]).Bottom + 8, "rows are separated by spacing");
+                }
             }
 
-            var start = all.OfType<TextBox>().First(t => AutomationProperties.GetName(t) == "Hora de in\U000000EDcio");
-            var latest = all.OfType<TextBox>().First(t => AutomationProperties.GetName(t) == "N\U000000E3o iniciar depois de");
-            var trash = all.OfType<Button>().First(t => AutomationProperties.GetName(t) == "Remover despertador");
-            Assert.Equal(CenterY(B(start)), CenterY(B(latest)), 1);
-            Assert.True(B(latest).Right < B(trash).Left, "the first line still holds the switch, both times and the trash");
+            // The lock (default output) and the pin (Holyrics) are 32 px icon toggles at the right edge, with tooltips and names.
+            var lockBounds = rig.BoundsOf(page.LockSwitch);
+            var pinBounds = rig.BoundsOf(page.HolyricsRouteSwitch);
+            Near(32, lockBounds.Width);
+            Assert.Equal(section.Right - 24 - 1, lockBounds.Right, 1);
+            Assert.InRange(Math.Abs(lockBounds.Right - pinBounds.Right), 0, 1.01);
+            Assert.True(lockBounds.Left >= rig.BoundsOf(dots[0]).Right);
+            Assert.Equal("Travar a sa\U000000EDda padr\U000000E3o neste dispositivo", AutomationProperties.GetName(page.LockSwitch));
+            Assert.Equal("Definir a sa\U000000EDda do Holyrics", AutomationProperties.GetName(page.HolyricsRouteSwitch));
+            Assert.StartsWith("Travar a sa\U000000EDda padr\U000000E3o", (string)page.LockSwitch.ToolTip, StringComparison.Ordinal);
+            Assert.StartsWith("Definir a sa\U000000EDda do Holyrics", (string)page.HolyricsRouteSwitch.ToolTip, StringComparison.Ordinal);
+            Assert.True(page.LockSwitch.IsChecked);
+            Assert.True(page.HolyricsRouteSwitch.IsChecked);
+
+            // The long status sentences are in the tooltip of the dot, not on the card.
+            Assert.DoesNotContain(rig.Find<TextBlock>().Where(Shown), t => t.Text.Contains("aguardando", StringComparison.Ordinal) || t.Text.StartsWith("Sa\U000000EDda atual", StringComparison.Ordinal));
+            Assert.All(dots, dot => Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(dot))));
+        });
+    }
+
+    [Fact]
+    public void The_dot_beside_an_output_is_green_when_active_amber_while_the_device_is_missing_and_gray_when_off_and_the_sentence_is_its_tooltip()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using (var ok = new Rig(1100))
+            {
+                Assert.Equal(StatusLight.Green, ok.Som.Som.DefaultOutput.Light);
+                Assert.Equal(StatusLight.Green, ok.Som.Som.PlayerOutput.Light);
+                Assert.Equal(StatusLight.Green, ok.Som.Som.HolyricsOutput.Light);
+            }
+
+            using var gone = new Rig(1100, unplugged: true);
+            var page = gone.Page;
+            var som = gone.Som.Som;
+
+            Assert.Equal(StatusLight.Yellow, som.DefaultOutput.Light);
+            Assert.Contains("desconectado, aguardando", som.DefaultOutput.Status, StringComparison.Ordinal);
+            Assert.Equal(som.DefaultOutput.Status, page.DefaultOutputDot.ToolTip);
+            var fill = ((SolidColorBrush)Descendants(page.DefaultOutputDot).OfType<System.Windows.Shapes.Ellipse>().Single().Fill).Color;
+            Assert.Equal(((SolidColorBrush)Palette.Yellow).Color, fill);
+
+            page.LockSwitch.IsChecked = false; // the rule is off: the dot goes gray at once
+            gone.Layout(1100);
+            Assert.Equal(StatusLight.Gray, som.DefaultOutput.Light);
+            page.HolyricsRouteSwitch.IsChecked = false;
+            gone.Layout(1100);
+            Assert.Equal(StatusLight.Gray, som.HolyricsOutput.Light);
         });
     }
 
@@ -745,47 +1142,147 @@ public sealed class SomLayoutTests
             Assert.Equal("Alto-falantes (WING-USB Out 1-2) (desconectado)", ((DeviceChoice)page.DefaultOutputCombo.SelectedItem).Display);
             Assert.Equal("Autom\U000000E1tico (WING + 3-4)", ((IEnumerable<DeviceChoice>)page.PlayerOutputCombo.ItemsSource).First().Display);
             Assert.Equal("Autom\U000000E1tico (WING + 1-2)", ((IEnumerable<DeviceChoice>)page.HolyricsOutputCombo.ItemsSource).First().Display);
+            Assert.Equal(246, page.DefaultOutputCombo.MaxDropDownHeight); // eight rows, then it scrolls
+        });
+    }
+
+    // ---- nothing is cut ----
+
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void Nothing_leaves_the_page_or_its_card_with_long_names_and_three_alarms(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width, Mode.Playing, unplugged: true, alarms: 3, longNames: true);
+            rig.Som.Som.AddAlarmCommand.Execute(null);
+            rig.Layout(width);
+            var scroll = (ScrollViewer)rig.Page.Content;
+
+            Assert.Equal(0, scroll.ScrollableWidth, 1);
+            var pageBounds = rig.BoundsOf(rig.Page);
+            var cards = new FrameworkElement[] { rig.Page.PlayerHero, rig.Page.AlarmsSection, rig.Page.VolumesSection, rig.Page.OutputsSection };
+            foreach (var control in rig.Find<Control>().Where(c => c is TextBox or ButtonBase or ComboBox or Slider or RadioButton && Shown(c)))
+            {
+                var bounds = rig.BoundsOf(control);
+                var name = $"{control.GetType().Name} {AutomationProperties.GetName(control)} {bounds}";
+                Assert.True(bounds.Left >= pageBounds.Left - 0.5 && bounds.Right <= pageBounds.Right + 0.5, name);
+                var card = cards.First(c => IsInside(control, c));
+                Assert.True(bounds.Left >= rig.BoundsOf(card).Left + 24 && bounds.Right <= rig.BoundsOf(card).Right - 24 + 0.5, $"{name} leaves its card");
+            }
+
+            // A text that is not allowed to wrap shows all of it or has an ellipsis; the rest wraps inside the page.
+            foreach (var text in rig.Find<TextBlock>().Where(t => Shown(t) && t.Text.Length > 0))
+            {
+                Assert.True(rig.BoundsOf(text).Right <= pageBounds.Right + 0.5, text.Text);
+                if (text.TextWrapping == TextWrapping.NoWrap && text.TextTrimming == TextTrimming.None)
+                {
+                    Assert.True(text.ActualWidth >= text.DesiredSize.Width - text.Margin.Left - text.Margin.Right - 0.5, text.Text);
+                }
+            }
+
+            // The long playlist name is cut with an ellipsis inside the list box, never over the buttons next to it.
+            Assert.True(rig.BoundsOf(rig.Page.PlaylistCombo).Right <= rig.BoundsOf(rig.Page.AddPlaylistButton).Left);
+            Assert.True(rig.BoundsOf(rig.Page.PlaylistInfoText).Right <= rig.BoundsOf(rig.Page.ChangeFolderButton).Left);
+        });
+    }
+
+    // ---- the design system pieces ----
+
+    [Fact]
+    public void The_adaptive_grid_drops_columns_when_narrow_and_keeps_the_order()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var grid = new AdaptiveGrid { MinColumnWidth = 300, MaxColumns = 2, Gap = 16 };
+            var items = Enumerable.Range(0, 3).Select(i => new Border { MinHeight = 40 + (i * 10) }).ToList();
+            items.ForEach(i => grid.Children.Add(i));
+
+            grid.Measure(new Size(700, 1000));
+            grid.Arrange(new Rect(0, 0, 700, grid.DesiredSize.Height));
+            Assert.Equal(2, grid.Columns);
+            Assert.Equal(342, items[0].ActualWidth, 1); // (700 - 16) / 2
+            Assert.Equal(358, items[1].RenderSize.Width + 16, 1);
+            Assert.Equal(50, items[0].ActualHeight, 1); // a row is as tall as its tallest
+            Assert.Equal(50 + 16, VisualTreeHelper.GetOffset(items[2]).Y, 1);
+
+            grid.Measure(new Size(500, 1000));
+            grid.Arrange(new Rect(0, 0, 500, grid.DesiredSize.Height));
+            Assert.Equal(1, grid.Columns);
+            Assert.Equal(500, items[0].ActualWidth, 1);
+            Assert.Equal(40 + 16, VisualTreeHelper.GetOffset(items[1]).Y, 1);
         });
     }
 
     [Fact]
-    public void The_alarms_show_their_time_weekdays_limit_and_playlist()
+    public void A_folding_area_changes_state_at_once_when_it_is_not_on_screen_and_closed_content_leaves_the_tab_order()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var content = new Border { Height = 60 };
+            var host = new RevealHost { Child = content };
+            host.Measure(new Size(300, 1000));
+            Assert.Equal(0, host.DesiredSize.Height);
+
+            host.IsOpen = true; // not shown: no animation, the final state at once
+            host.Measure(new Size(300, 1000));
+            Assert.Equal(1, host.Progress);
+            Assert.Equal(60, host.DesiredSize.Height);
+            Assert.Equal(1, host.Opacity);
+
+            host.IsOpen = false;
+            host.Measure(new Size(300, 1000));
+            Assert.Equal(0, host.Progress);
+            Assert.Equal(0, host.DesiredSize.Height);
+            Assert.Equal(Visibility.Collapsed, content.Visibility);
+        });
+    }
+
+    [Fact]
+    public void The_expander_style_opens_through_the_folding_area()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var expander = new Expander { Style = (Style)Application.Current.FindResource("IbtExpander"), Header = "x", Content = new Border { Height = 50 } };
+            var window = new Window { Content = expander, Width = 300, Height = 400 };
+            expander.ApplyTemplate();
+            window.Measure(new Size(300, 400));
+            window.Arrange(new Rect(0, 0, 300, 400));
+            var host = Descendants(expander).OfType<RevealHost>().Single();
+            Assert.False(host.IsOpen);
+            Assert.Equal(0, host.DesiredSize.Height);
+            expander.IsExpanded = true;
+            Assert.True(host.IsOpen, "the body follows IsExpanded");
+            host.Measure(new Size(300, 1000));
+            Assert.True(host.DesiredSize.Height >= 50, host.DesiredSize.Height.ToString());
+        });
+    }
+
+    [Fact]
+    public void Motion_follows_the_windows_setting_and_never_animates_what_is_not_on_screen()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var box = new Border();
+            Motion.FadeIn(box); // not on screen: nothing happens, opacity stays
+            Assert.Equal(1, box.Opacity);
+            Assert.False(Motion.ShouldAnimate(box));
+            Assert.Equal(SystemParameters.ClientAreaAnimation, Motion.Enabled);
+            Assert.Equal(140, Motion.Fast.TimeSpan.TotalMilliseconds);
+            Assert.Equal(180, Motion.Medium.TimeSpan.TotalMilliseconds);
+        });
+    }
+
+    [Fact]
+    public void The_four_pages_fade_in_when_their_tab_is_shown()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(1100);
-            var page = rig.Page;
-
-            Assert.Equal(2, rig.Som.Som.Alarms.Count);
-            Assert.Equal(2, page.AlarmList.Items.Count);
-            Assert.StartsWith("Pr\U000000F3ximo despertador:", page.AlarmsNextText.Text, StringComparison.Ordinal);
-            var chips = rig.Find<ToggleButton>().Where(t => t.Content is string { Length: 1 } letter && "DSTQ".Contains(letter, StringComparison.Ordinal)).ToList();
-            Assert.Equal(14, chips.Count);
-            Assert.Equal(["D", "S", "T", "Q", "Q", "S", "S"], chips.Take(7).Select(c => (string)c.Content));
-            Assert.Equal([true, false, false, false, false, false, false], chips.Take(7).Select(c => c.IsChecked == true));
-            Assert.Equal([false, false, false, true, false, false, false], chips.Skip(7).Select(c => c.IsChecked == true));
-        });
-    }
-
-    [Fact]
-    public void The_playlists_card_has_the_selector_the_folder_and_the_four_actions()
-    {
-        WpfTestHost.Run(() =>
-        {
-            using var rig = new Rig(1100, Mode.Playing);
-            var page = rig.Page;
-
-            Assert.Equal(["Igreja", "Louvor"], ((IEnumerable<PlaylistEntry>)page.PlaylistCombo.ItemsSource).Select(p => p.Name));
-            Assert.Contains(@"C:\Users\gutni\Music\Mornye\Igreja", page.PlaylistInfoText.Text, StringComparison.Ordinal);
-            Assert.Equal(
-                ["Adicionar lista", "Renomear lista", "Excluir lista"],
-                new[] { page.AddPlaylistButton, page.RenamePlaylistButton, page.RemovePlaylistButton }.Select(AutomationProperties.GetName));
-            Assert.Equal(["Trocar a pasta", "Atualizar"], new[] { page.ChangeFolderButton, page.RefreshButton }.Select(AutomationProperties.GetName));
-            var actions = new[] { page.AddPlaylistButton, page.RenamePlaylistButton, page.RemovePlaylistButton }.Select(rig.BoundsOf).ToList();
-            Assert.All(actions, bounds => Assert.Equal(actions[0].Top, bounds.Top, 1)); // one line, no orphan
-            var folder = new[] { page.ChangeFolderButton, page.RefreshButton }.Select(rig.BoundsOf).ToList();
-            Assert.Equal(folder[0].Top, folder[1].Top, 1);
-            Assert.Equal(rig.BoundsOf(page.PlaylistCombo).Right, folder[1].Right, 1);
+            Assert.True(Motion.GetFadeOnShow(rig.Page));
+            Assert.True(Motion.GetFadeOnShow(rig.Window.Home));
+            Assert.True(Motion.GetFadeOnShow(rig.Window.Settings));
+            Assert.True(Motion.GetFadeOnShow(rig.Window.Correction));
         });
     }
 
@@ -816,9 +1313,52 @@ public sealed class SomLayoutTests
                     noArt.Snapshot($"som-{width}-sem-capa");
                 }
 
-                using var off = new Rig(width, Mode.Off);
-                off.Snapshot($"som-{width}-desligado");
+                using (var off = new Rig(width, Mode.Off))
+                {
+                    off.Snapshot($"som-{width}-desligado");
+                }
+
+                using (var none = new Rig(width, Mode.Playing, alarms: 0))
+                {
+                    none.Snapshot($"som-{width}-0-despertadores");
+                }
+
+                using (var three = new Rig(width, Mode.Playing, alarms: 3, alarmsOff: true))
+                {
+                    three.Snapshot($"som-{width}-3-despertadores");
+                }
+
+                using (var longNames = new Rig(width, Mode.Playing, unplugged: true, alarms: 3, longNames: true))
+                {
+                    longNames.Snapshot($"som-{width}-nomes-longos");
+                }
             }
+
+            var policy = AlertaIBT.App.Tests.Platform.PolicyFakes.Policy(null, [AlertaIBT.App.Tests.Platform.PolicyFakes.Primary()], (0, 0));
+            SnapshotDialog(ConfirmDialog.Create("Excluir a lista \U0000201CIgreja\U0000201D?", "S\U000000F3 a lista sai do app. As m\U000000FAsicas continuam na pasta: nada \U000000E9 apagado do PC.", policy), "dialogo-excluir");
+            SnapshotDialog(InputDialog.Create("Renomear a lista", "Louvor", text => text.Trim() == "Igreja" ? "J\U000000E1 existe uma lista com esse nome." : null, policy), "dialogo-renomear");
         });
+    }
+
+    // The small windows are never shown in the tests: their content is drawn on its own, at the size the window would have.
+    private static void SnapshotDialog(Window dialog, string name)
+    {
+        var dir = Environment.GetEnvironmentVariable("ALERTAIBT_RENDER_DIR");
+        if (string.IsNullOrEmpty(dir))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(dir);
+        var content = (FrameworkElement)dialog.Content;
+        content.Measure(new Size(dialog.Width, dialog.Height));
+        content.Arrange(new Rect(0, 0, dialog.Width, dialog.Height));
+        content.UpdateLayout();
+        var bitmap = new RenderTargetBitmap((int)dialog.Width, (int)dialog.Height, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(content);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(System.IO.Path.Combine(dir, name + ".png"));
+        encoder.Save(stream);
     }
 }

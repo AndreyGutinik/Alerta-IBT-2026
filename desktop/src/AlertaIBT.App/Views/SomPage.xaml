@@ -3,84 +3,31 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="clr-namespace:AlertaIBT.App.Views"
+    xmlns:theme="clr-namespace:AlertaIBT.App.Theme"
     xmlns:vm="clr-namespace:AlertaIBT.App.ViewModels">
 
+    <!--
+        The Som tab, top to bottom: (1) the player with its playlist and behaviour strip, (2) the alarms, (3) one bottom row with the start volumes and
+        the audio outputs side by side (one column under about 1000 px of window). Cards, icon buttons and inputs come from the design system in
+        Theme/SettingsStyles.xaml (Ibt* styles, CardSection, AdaptiveGrid); this page only lays them out.
+    -->
+
     <UserControl.Resources>
-        <!-- A line of status under a row: quiet, small, wraps. -->
-        <Style x:Key="SomStatus" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11.5" />
-            <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
-            <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="Margin" Value="0,6,0,0" />
-        </Style>
-
-        <!-- The small caption over a field (alarm rows). -->
-        <Style x:Key="SomCaption" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
-            <Setter Property="Margin" Value="0,0,0,4" />
-        </Style>
-
-        <!-- The device lists: all the same width, so the right edge of every card lines up. -->
+        <!-- The device lists: they take the width of their column, so the right edge of every row lines up. -->
         <Style
             x:Key="OutputCombo"
             BasedOn="{StaticResource IbtComboBox}"
             TargetType="ComboBox">
-            <Setter Property="Width" Value="210" />
             <Setter Property="DisplayMemberPath" Value="Display" />
         </Style>
 
-        <!-- The number box and "Com som | Mudo" of a volume row. -->
-        <DataTemplate x:Key="VolumeBox" DataType="{x:Type vm:VolumeRow}">
-            <StackPanel Orientation="Horizontal">
-                <TextBox
-                    Width="46"
-                    Margin="0,0,8,0"
-                    AutomationProperties.Name="Volume em porcentagem"
-                    LostFocus="OnFieldLostFocus"
-                    Style="{StaticResource IbtSmallInput}"
-                    Tag="{Binding Box}"
-                    ToolTip="Volume de 0 a 100"
-                    Text="{Binding Box.Text, UpdateSourceTrigger=PropertyChanged}" />
-                <Border
-                    BorderBrush="{StaticResource IbtLineBrush}"
-                    BorderThickness="1"
-                    ClipToBounds="True"
-                    CornerRadius="8">
-                    <StackPanel Orientation="Horizontal">
-                        <RadioButton
-                            AutomationProperties.Name="Com som"
-                            Content="Com som"
-                            IsChecked="{Binding WithSound, Mode=TwoWay}"
-                            Style="{StaticResource IbtSegButton}">
-                            <RadioButton.Padding>9,6</RadioButton.Padding>
-                        </RadioButton>
-                        <RadioButton
-                            AutomationProperties.Name="Mudo"
-                            Content="Mudo"
-                            IsChecked="{Binding IsMuted, Mode=TwoWay}"
-                            Style="{StaticResource IbtSegButton}">
-                            <RadioButton.Padding>9,6</RadioButton.Padding>
-                        </RadioButton>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
-        </DataTemplate>
-
-        <DataTemplate x:Key="VolumeSlider" DataType="{x:Type vm:VolumeRow}">
-            <Slider
-                Margin="0,8,0,0"
-                AutomationProperties.Name="Volume"
-                IsMoveToPointEnabled="True"
-                IsSnapToTickEnabled="True"
-                LargeChange="10"
-                Maximum="100"
-                Minimum="0"
-                SmallChange="1"
-                Style="{StaticResource IbtSeekSlider}"
-                TickFrequency="1"
-                Value="{Binding Volume, Mode=TwoWay}" />
-        </DataTemplate>
+        <!-- A 10 px status dot (the colour comes from the row: green active, yellow waiting, gray off). -->
+        <Style x:Key="SomDot" BasedOn="{StaticResource IbtStatusDot}" TargetType="Ellipse">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
 
         <!-- "5 s | 3 s | seco". -->
         <DataTemplate x:Key="FadeButton" DataType="{x:Type vm:FadeOption}">
@@ -88,9 +35,7 @@
                 AutomationProperties.Name="{Binding Label}"
                 Content="{Binding Label}"
                 IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                Style="{StaticResource IbtSegButton}">
-                <RadioButton.Padding>12,6</RadioButton.Padding>
-            </RadioButton>
+                Style="{StaticResource IbtSegItem}" />
         </DataTemplate>
 
         <DataTemplate x:Key="DayChipTemplate" DataType="{x:Type vm:DayChip}">
@@ -98,21 +43,24 @@
                 AutomationProperties.Name="{Binding Name}"
                 Content="{Binding Letter}"
                 IsChecked="{Binding IsOn, Mode=TwoWay}"
-                Style="{StaticResource IbtToggleChip}"
+                Style="{StaticResource IbtDayDot}"
                 ToolTip="{Binding Name}" />
         </DataTemplate>
 
         <!--
-            One alarm, two lines that always line up: the switch, the start, "não iniciar depois de" and the trash; under them the weekdays and
-            the playlist (the playlist drops under the weekdays when the card is narrow).
+            One alarm is its own block: line one has the switch, the start (clock), the limit (alarm clock off) and the trash; line two the seven weekday
+            dots and the playlist. Field names live in tooltips and automation names, not in the block.
         -->
         <DataTemplate x:Key="AlarmTemplate" DataType="{x:Type vm:AlarmRow}">
             <Border
-                Padding="0,12"
-                BorderBrush="{StaticResource IbtLineBrush}"
-                BorderThickness="0,1,0,0">
-                <StackPanel>
-                    <Grid>
+                x:Name="Block"
+                Style="{StaticResource IbtBlock}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid Height="32">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
@@ -121,97 +69,197 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <ToggleButton
-                            Margin="0,0,16,5"
-                            VerticalAlignment="Bottom"
+                            VerticalAlignment="Center"
                             AutomationProperties.Name="Despertador ligado"
                             IsChecked="{Binding Enabled, Mode=TwoWay}"
                             Style="{StaticResource IbtSwitch}"
                             ToolTip="Liga e desliga só este despertador" />
-                        <StackPanel Grid.Column="1">
-                            <TextBlock Style="{StaticResource SomCaption}" Text="Início" />
+                        <StackPanel
+                            Grid.Column="1"
+                            Margin="20,0,0,0"
+                            Background="Transparent"
+                            Orientation="Horizontal"
+                            ToolTip="Hora de início: a hora em que a música começa (hh:mm)">
+                            <Path
+                                Margin="0,0,8,0"
+                                Data="{StaticResource LucideClock}"
+                                Style="{StaticResource IbtRowIcon}" />
                             <TextBox
-                                Width="58"
-                                HorizontalAlignment="Left"
                                 AutomationProperties.Name="Hora de início"
                                 LostFocus="OnStartLostFocus"
-                                Style="{StaticResource IbtSmallInput}"
+                                Style="{StaticResource IbtNumberBox}"
                                 Tag="{Binding}"
                                 Text="{Binding StartText, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTip="A hora em que a música começa (hh:mm)" />
+                                ToolTip="Hora de início: a hora em que a música começa (hh:mm)" />
                         </StackPanel>
                         <StackPanel
                             Grid.Column="2"
-                            Margin="16,0,0,0">
-                            <TextBlock Style="{StaticResource SomCaption}" Text="Não iniciar depois de" />
+                            Margin="16,0,0,0"
+                            Background="Transparent"
+                            Orientation="Horizontal"
+                            ToolTip="Não iniciar depois de: se o PC abrir depois da hora de início, a música ainda começa até este horário. Depois dele, não começa.">
+                            <Path
+                                Margin="0,0,8,0"
+                                Data="{StaticResource LucideAlarmClockOff}"
+                                Style="{StaticResource IbtRowIcon}" />
                             <TextBox
-                                Width="58"
-                                HorizontalAlignment="Left"
                                 AutomationProperties.Name="Não iniciar depois de"
                                 LostFocus="OnLatestLostFocus"
-                                Style="{StaticResource IbtSmallInput}"
+                                Style="{StaticResource IbtNumberBox}"
                                 Tag="{Binding}"
                                 Text="{Binding LatestText, UpdateSourceTrigger=PropertyChanged}"
-                                ToolTip="Se o PC abrir depois da hora de início, a música ainda começa até este horário. Depois dele, não começa." />
+                                ToolTip="Não iniciar depois de: se o PC abrir depois da hora de início, a música ainda começa até este horário. Depois dele, não começa." />
                         </StackPanel>
                         <Button
                             Grid.Column="4"
-                            VerticalAlignment="Bottom"
                             AutomationProperties.Name="Remover despertador"
                             Command="{Binding RemoveCommand}"
-                            Style="{StaticResource IbtIconButton}"
+                            Style="{StaticResource IbtDangerToolButton}"
                             ToolTip="Remover este despertador">
                             <Path
-                                Width="14"
-                                Height="14"
+                                Width="16"
+                                Height="16"
                                 Data="{StaticResource LucideTrash2}"
                                 Style="{StaticResource LucideIcon}" />
                         </Button>
                     </Grid>
-                    <WrapPanel Margin="0,10,0,0">
-                        <StackPanel Margin="0,0,16,0">
-                            <TextBlock Style="{StaticResource SomCaption}" Text="Dias" />
-                            <ItemsControl
-                                Focusable="False"
-                                ItemTemplate="{StaticResource DayChipTemplate}"
-                                ItemsSource="{Binding Days}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                            </ItemsControl>
-                        </StackPanel>
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource SomCaption}" Text="Lista" />
-                            <ComboBox
-                                Width="130"
-                                HorizontalAlignment="Left"
-                                AutomationProperties.Name="Lista do despertador"
-                                ItemsSource="{Binding PlaylistNames}"
-                                SelectedItem="{Binding Playlist, Mode=TwoWay}"
-                                Style="{StaticResource IbtComboBox}" />
-                        </StackPanel>
-                    </WrapPanel>
-                </StackPanel>
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ItemsControl
+                            VerticalAlignment="Center"
+                            Focusable="False"
+                            ItemTemplate="{StaticResource DayChipTemplate}"
+                            ItemsSource="{Binding Days}"
+                            ToolTip="Dias da semana em que o despertador toca">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <ComboBox
+                            Grid.Column="1"
+                            Margin="12,0,0,0"
+                            AutomationProperties.Name="Lista do despertador"
+                            ItemsSource="{Binding PlaylistNames}"
+                            SelectedItem="{Binding Playlist, Mode=TwoWay}"
+                            Style="{StaticResource IbtComboBox}" />
+                    </Grid>
+                </Grid>
             </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Enabled}" Value="False">
+                    <Setter TargetName="Block" Property="Opacity" Value="0.6" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
         </DataTemplate>
 
-        <!-- ===== The player card ===== -->
+        <!-- The dashed plus block at the end of the alarm grid. -->
+        <DataTemplate x:Key="AddAlarmTemplate" DataType="{x:Type vm:AddAlarmTile}">
+            <Button
+                x:Name="AddAlarmButton"
+                AutomationProperties.Name="Adicionar despertador"
+                Command="{Binding AddCommand}"
+                Style="{StaticResource IbtAddTile}"
+                ToolTip="Adicionar despertador">
+                <StackPanel Orientation="Horizontal">
+                    <Path
+                        Width="22"
+                        Height="22"
+                        Data="{StaticResource LucidePlus}"
+                        Style="{StaticResource LucideIcon}" />
+                    <TextBlock
+                        x:Name="AddAlarmLabel"
+                        Margin="10,0,0,0"
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        Text="Adicionar despertador"
+                        Visibility="Collapsed" />
+                </StackPanel>
+            </Button>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding ShowLabel}" Value="True">
+                    <Setter TargetName="AddAlarmLabel" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
 
-        <Style x:Key="HeroCard" TargetType="Border">
-            <Setter Property="Padding" Value="20" />
-            <Setter Property="BorderBrush" Value="#1FFFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="Background">
-                <Setter.Value>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Offset="0" Color="#16FFFFFF" />
-                        <GradientStop Offset="1" Color="#07FFFFFF" />
-                    </LinearGradientBrush>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <!--
+            One start volume: icon, short name, slider, the number with its percent sign, and one click-to-mute speaker. The long explanation is the
+            tooltip of the row. The columns are fixed, so the four rows line up.
+        -->
+        <DataTemplate x:Key="VolumeRowTemplate" DataType="{x:Type vm:VolumeRow}">
+            <Grid
+                Height="32"
+                Margin="0,0,0,12"
+                Background="Transparent"
+                ToolTip="{Binding Tip}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="18" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="112" />
+                    <ColumnDefinition Width="*" MinWidth="64" />
+                    <ColumnDefinition Width="14" />
+                    <ColumnDefinition Width="52" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="32" />
+                </Grid.ColumnDefinitions>
+                <Path
+                    Data="{Binding IconKey, Converter={StaticResource GeometryKey}}"
+                    Style="{StaticResource IbtRowIcon}" />
+                <TextBlock
+                    Grid.Column="2"
+                    Style="{StaticResource IbtRowLabel}"
+                    Text="{Binding Label}" />
+                <Slider
+                    x:Name="VolumeSlider"
+                    Grid.Column="3"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="{Binding Label, StringFormat='Volume: {0}'}"
+                    IsMoveToPointEnabled="True"
+                    IsSnapToTickEnabled="True"
+                    LargeChange="10"
+                    Maximum="100"
+                    Minimum="0"
+                    SmallChange="1"
+                    Style="{StaticResource IbtSeekSlider}"
+                    TickFrequency="1"
+                    Value="{Binding Volume, Mode=TwoWay}" />
+                <Grid Grid.Column="5">
+                    <TextBox
+                        AutomationProperties.Name="{Binding Label, StringFormat='Volume em porcentagem: {0}'}"
+                        LostFocus="OnFieldLostFocus"
+                        Padding="4,7,14,7"
+                        Style="{StaticResource IbtNumberBox}"
+                        Tag="{Binding Box}"
+                        Text="{Binding Box.Text, UpdateSourceTrigger=PropertyChanged}"
+                        ToolTip="Volume de 0 a 100"
+                        Width="52" />
+                    <TextBlock
+                        Margin="0,0,8,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        FontSize="11"
+                        Foreground="{StaticResource IbtMutedBrush}"
+                        IsHitTestVisible="False"
+                        Text="%" />
+                </Grid>
+                <ToggleButton
+                    Grid.Column="7"
+                    AutomationProperties.Name="Mudo"
+                    IsChecked="{Binding Muted, Mode=TwoWay}"
+                    Style="{StaticResource IbtMuteToggle}"
+                    ToolTip="Mudo: clique para silenciar ou devolver o som" />
+            </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Muted}" Value="True">
+                    <Setter TargetName="VolumeSlider" Property="Opacity" Value="0.4" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
 
         <!-- Everything of the player card that needs the player on: dimmed and dead when it is off. -->
         <Style x:Key="HeroDim" TargetType="FrameworkElement">
@@ -365,12 +413,15 @@
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Width" Value="42" />
         </Style>
+
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="16">
-            <Grid Margin="0,0,0,12">
-                <TextBlock Style="{StaticResource IbtTitle}" Text="Som" />
+        <StackPanel
+            MaxWidth="1280"
+            Margin="24">
+            <Grid Margin="0,0,0,24">
+                <TextBlock Style="{StaticResource IbtPageTitle}" Text="Som" />
                 <Border
                     x:Name="SavedBadge"
                     HorizontalAlignment="Right"
@@ -379,10 +430,16 @@
                 </Border>
             </Grid>
 
-            <!-- ===== The player, on top, as wide as the page ===== -->
+            <!-- ===== (1) The player, as wide as the page, with the playlist and the behaviour in a strip at its bottom ===== -->
             <Border
                 x:Name="PlayerHero"
-                Style="{StaticResource HeroCard}">
+                Style="{StaticResource IbtSurfaceCard}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="168" />
@@ -484,18 +541,22 @@
                                     Foreground="{StaticResource IbtMutedBrush}"
                                     Text="{Binding Player.HeroSubtitle}"
                                     TextTrimming="CharacterEllipsis" />
-                                <StackPanel
-                                    Margin="0,9,0,0"
-                                    Orientation="Horizontal">
+                                <Grid Margin="0,9,0,0">
                                     <Border
                                         x:Name="PlaylistChip"
+                                        HorizontalAlignment="Left"
                                         Padding="9,3"
                                         Background="#14FFFFFF"
                                         BorderBrush="{StaticResource IbtLineBrush}"
                                         BorderThickness="1"
                                         CornerRadius="10"
                                         Style="{StaticResource IbtChip}">
-                                        <StackPanel Orientation="Horizontal">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
                                             <Path
                                                 Width="11"
                                                 Height="11"
@@ -506,19 +567,22 @@
                                                 TextElement.Foreground="{StaticResource IbtMutedBrush}" />
                                             <TextBlock
                                                 x:Name="PlaylistChipText"
+                                                Grid.Column="1"
                                                 FontSize="11.5"
+                                                TextTrimming="CharacterEllipsis"
                                                 Foreground="{StaticResource IbtTextBrush}"
                                                 Text="{Binding Player.PlaylistName}" />
-                                        </StackPanel>
+                                            <TextBlock
+                                                x:Name="TrackIndexLabel"
+                                                Grid.Column="2"
+                                                Margin="8,0,0,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="11.5"
+                                                Foreground="{StaticResource IbtMutedBrush}"
+                                                Text="{Binding Player.TrackIndexText}" />
+                                        </Grid>
                                     </Border>
-                                    <TextBlock
-                                        x:Name="TrackIndexLabel"
-                                        Margin="9,0,0,0"
-                                        VerticalAlignment="Center"
-                                        FontSize="11.5"
-                                        Foreground="{StaticResource IbtMutedBrush}"
-                                        Text="{Binding Player.TrackIndexText}" />
-                                </StackPanel>
+                                </Grid>
                             </StackPanel>
 
                             <StackPanel
@@ -542,26 +606,6 @@
                                         Style="{StaticResource IbtSwitch}"
                                         ToolTip="Desligado: nada toca, os despertadores não disparam e a API (/player) e as teclas de mídia são ignoradas." />
                                 </StackPanel>
-                                <TextBlock
-                                    x:Name="NextAlarmText"
-                                    MaxWidth="200"
-                                    Margin="0,7,0,0"
-                                    HorizontalAlignment="Right"
-                                    FontSize="11.5"
-                                    Foreground="{StaticResource IbtMutedBrush}"
-                                    Text="{Binding Player.NextAlarmText}"
-                                    TextAlignment="Right"
-                                    TextWrapping="Wrap">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Player.IsEnabled}" Value="False">
-                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
                             </StackPanel>
                         </Grid>
 
@@ -569,7 +613,7 @@
                         <Grid
                             x:Name="SeekRow"
                             Grid.Row="1"
-                            Margin="0,10"
+                            Margin="0,12"
                             VerticalAlignment="Center"
                             Style="{StaticResource HeroDim}">
                             <Grid.ColumnDefinitions>
@@ -742,554 +786,472 @@
                             Text="{Binding Player.LastError}"
                             Visibility="{Binding Player.HasError, Converter={StaticResource BoolToVisibility}}" />
                     </Grid>
-                </Grid>
-            </Border>
 
-            <!-- ===== The settings, two columns of cards ===== -->
-            <Grid x:Name="SettingsGrid">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1*" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="1*" />
-                </Grid.ColumnDefinitions>
+                    </Grid>
 
-                <!-- Left: the volumes and where the sound goes. (Under about 800 px the two columns become one: left first, then right.) -->
-                <StackPanel x:Name="LeftColumn">
-                    <local:SettingsSection
-                        x:Name="VolumesSection"
-                        Header="Volumes ao iniciar"
-                        Style="{StaticResource SettingsSectionStyle}"
-                        Subtitle="Os volumes que o app põe quando o PC liga e quando um programa abre o som.">
-                        <StackPanel>
-                            <local:SettingRow
-                                x:Name="AdjustRow"
-                                Title="Ajustar o som ao iniciar"
-                                Info="Quando o PC liga e a cada vez que um programa abre o som dele, o app põe o volume que está nesta lista.&#10;Desligado, o app não mexe em nenhum volume (só em Aplicar agora)."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ToggleButton
-                                    x:Name="AdjustSwitch"
-                                    AutomationProperties.Name="Ajustar o som ao iniciar"
-                                    IsChecked="{Binding AdjustAtStart, Mode=TwoWay}"
-                                    Style="{StaticResource IbtSwitch}" />
-                            </local:SettingRow>
-
-                            <local:SettingRow
-                                x:Name="MasterRowView"
-                                Title="Volume geral do Windows"
-                                Info="O volume principal da saída do Windows (o controle do alto-falante na barra de tarefas)."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ContentControl
-                                    Content="{Binding MasterRow}"
-                                    ContentTemplate="{StaticResource VolumeBox}"
-                                    Focusable="False" />
-                                <local:SettingRow.Footer>
-                                    <ContentControl
-                                        Content="{Binding MasterRow}"
-                                        ContentTemplate="{StaticResource VolumeSlider}"
-                                        Focusable="False" />
-                                </local:SettingRow.Footer>
-                            </local:SettingRow>
-
-                            <local:SettingRow
-                                x:Name="HolyricsVolumeRow"
-                                Title="Holyrics"
-                                Info="O volume do Holyrics (o som dele vem do javaw). Vale a cada vez que o Holyrics abre."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ContentControl
-                                    Content="{Binding HolyricsRow}"
-                                    ContentTemplate="{StaticResource VolumeBox}"
-                                    Focusable="False" />
-                                <local:SettingRow.Footer>
-                                    <ContentControl
-                                        Content="{Binding HolyricsRow}"
-                                        ContentTemplate="{StaticResource VolumeSlider}"
-                                        Focusable="False" />
-                                </local:SettingRow.Footer>
-                            </local:SettingRow>
-
-                            <local:SettingRow
-                                x:Name="PlayerVolumeRow"
-                                Title="Player"
-                                Info="O volume do player de música do app. Mudo deixa o player calado. É o mesmo controle do volume ao lado do play."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ContentControl
-                                    Content="{Binding PlayerRow}"
-                                    ContentTemplate="{StaticResource VolumeBox}"
-                                    Focusable="False" />
-                                <local:SettingRow.Footer>
-                                    <ContentControl
-                                        Content="{Binding PlayerRow}"
-                                        ContentTemplate="{StaticResource VolumeSlider}"
-                                        Focusable="False" />
-                                </local:SettingRow.Footer>
-                            </local:SettingRow>
-
-                            <local:SettingRow
-                                x:Name="SystemSoundsRowView"
-                                Title="Sons do Windows (notificações e afins)"
-                                Info="Os avisos sonoros do Windows (o item Sons do sistema do misturador de volume). Em 0, eles não tocam no telão."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ContentControl
-                                    Content="{Binding SystemSoundsRow}"
-                                    ContentTemplate="{StaticResource VolumeBox}"
-                                    Focusable="False" />
-                                <local:SettingRow.Footer>
-                                    <ContentControl
-                                        Content="{Binding SystemSoundsRow}"
-                                        ContentTemplate="{StaticResource VolumeSlider}"
-                                        Focusable="False" />
-                                </local:SettingRow.Footer>
-                            </local:SettingRow>
-
-                            <local:SettingRow
-                                x:Name="ApplyRowView"
-                                Title="Aplicar agora"
-                                Info="Põe todos os volumes da lista agora, nos programas que já estão tocando, e a saída do Holyrics."
-                                Style="{StaticResource SettingRowStyle}">
-                                <Button
-                                    x:Name="ApplyNowButton"
-                                    AutomationProperties.Name="Aplicar agora"
-                                    Command="{Binding ApplyNowCommand}"
-                                    Style="{StaticResource IbtButton}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path
-                                            Width="15"
-                                            Height="15"
-                                            Data="{StaticResource LucideVolume2}"
-                                            Style="{StaticResource LucideIcon}" />
-                                        <TextBlock Margin="6,0,0,0" Text="Aplicar agora" />
-                                    </StackPanel>
-                                </Button>
-                                <local:SettingRow.Footer>
-                                    <TextBlock
-                                        x:Name="AppliedLineText"
-                                        Style="{StaticResource SomStatus}"
-                                        Text="{Binding AppliedLine}"
-                                        Visibility="{Binding HasAppliedLine, Converter={StaticResource BoolToVisibility}}" />
-                                </local:SettingRow.Footer>
-                            </local:SettingRow>
-                        </StackPanel>
-                    </local:SettingsSection>
-
-                    <local:SettingsSection
-                        x:Name="OutputsSection"
-                        Header="Saídas de áudio"
-                        Style="{StaticResource SettingsSectionStyle}"
-                        Subtitle="Por onde o som sai na mesa: o padrão do Windows, o player e o Holyrics.">
-                        <StackPanel>
-                            <local:SettingRow
-                                x:Name="DefaultOutputRow"
-                                Title="Saída padrão do Windows"
-                                Info="A saída de som que o Windows usa para tudo que não tem saída própria.&#10;Se o aparelho escolhido não estiver ligado, o app espera e não mexe em nada."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ComboBox
-                                    x:Name="DefaultOutputCombo"
-                                    AutomationProperties.Name="Saída padrão do Windows"
-                                    ItemsSource="{Binding DefaultOutput.Choices}"
-                                    SelectedItem="{Binding DefaultOutput.Selected, Mode=TwoWay}"
-                                    Style="{StaticResource OutputCombo}" />
-                                <local:SettingRow.Footer>
-                                    <TextBlock
-                                        x:Name="DefaultOutputStatus"
-                                        Style="{StaticResource SomStatus}"
-                                        Text="{Binding DefaultOutput.Status}"
-                                        Visibility="{Binding DefaultOutput.HasStatus, Converter={StaticResource BoolToVisibility}}" />
-                                </local:SettingRow.Footer>
-                            </local:SettingRow>
-
-                            <local:SettingRow
-                                x:Name="LockRow"
-                                Title="Travar a saída padrão neste dispositivo"
-                                Info="Se o Windows trocar a saída padrão (por exemplo quando um aparelho USB liga), o app põe de volta neste dispositivo.&#10;É o único lugar onde isto se liga e desliga."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ToggleButton
-                                    x:Name="LockSwitch"
-                                    AutomationProperties.Name="Travar a saída padrão neste dispositivo"
-                                    IsChecked="{Binding LockOutput, Mode=TwoWay}"
-                                    Style="{StaticResource IbtSwitch}" />
-                            </local:SettingRow>
-
-                            <local:SettingRow
-                                x:Name="PlayerOutputRow"
-                                Title="Player"
-                                Info="Por onde sai a música do player (a saída 3-4 da mesa). Se o aparelho não estiver ligado, toca na saída padrão do Windows."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ComboBox
-                                    x:Name="PlayerOutputCombo"
-                                    AutomationProperties.Name="Saída do player"
-                                    ItemsSource="{Binding PlayerOutput.Choices}"
-                                    SelectedItem="{Binding PlayerOutput.Selected, Mode=TwoWay}"
-                                    Style="{StaticResource OutputCombo}" />
-                                <local:SettingRow.Footer>
-                                    <TextBlock
-                                        x:Name="PlayerOutputStatus"
-                                        Style="{StaticResource SomStatus}"
-                                        Text="{Binding PlayerOutput.Status}"
-                                        Visibility="{Binding PlayerOutput.HasStatus, Converter={StaticResource BoolToVisibility}}" />
-                                </local:SettingRow.Footer>
-                            </local:SettingRow>
-
-                            <local:SettingRow
-                                x:Name="HolyricsOutputRow"
-                                Title="Holyrics"
-                                Info="Por onde sai o som do Holyrics (a saída 1-2 da mesa). É a saída por programa do Windows, a mesma de Configurações, Sistema, Som, Misturador de volume. Se o aparelho não estiver ligado, o Holyrics fica como está."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ComboBox
-                                    x:Name="HolyricsOutputCombo"
-                                    AutomationProperties.Name="Saída do Holyrics"
-                                    ItemsSource="{Binding HolyricsOutput.Choices}"
-                                    SelectedItem="{Binding HolyricsOutput.Selected, Mode=TwoWay}"
-                                    Style="{StaticResource OutputCombo}" />
-                                <local:SettingRow.Footer>
-                                    <TextBlock
-                                        x:Name="HolyricsOutputStatus"
-                                        Style="{StaticResource SomStatus}"
-                                        Text="{Binding HolyricsOutput.Status}"
-                                        Visibility="{Binding HolyricsOutput.HasStatus, Converter={StaticResource BoolToVisibility}}" />
-                                </local:SettingRow.Footer>
-                            </local:SettingRow>
-
-                            <local:SettingRow
-                                x:Name="HolyricsRouteRow"
-                                Title="Definir a saída do Holyrics"
-                                Info="Ligado: quando o Holyrics começa a tocar, o app põe a saída dele na escolhida acima.&#10;Desligado: o app nunca mexe na saída do Holyrics."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ToggleButton
-                                    x:Name="HolyricsRouteSwitch"
-                                    AutomationProperties.Name="Definir a saída do Holyrics"
-                                    IsChecked="{Binding HolyricsRoute, Mode=TwoWay}"
-                                    Style="{StaticResource IbtSwitch}" />
-                            </local:SettingRow>
-                        </StackPanel>
-                    </local:SettingsSection>
-                </StackPanel>
-
-                <!-- Right: the music, the alarms and how the player behaves. -->
-                <StackPanel
-                    x:Name="RightColumn"
-                    Grid.Column="2">
-                    <local:SettingsSection
-                        x:Name="PlaylistsSection"
-                        Header="Playlists"
-                        Style="{StaticResource SettingsSectionStyle}"
-                        Subtitle="De onde vem a música: cada lista é uma pasta do PC.">
-                        <StackPanel>
-                            <local:SettingRow
-                                x:Name="PlaylistRow"
-                                Title="Lista de músicas"
-                                Info="Cada lista é uma pasta do PC (com as subpastas). A música que entra na pasta aparece na lista em poucos segundos.&#10;Excluir a lista só tira ela daqui: as músicas continuam na pasta."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ComboBox
-                                    x:Name="PlaylistCombo"
-                                    AutomationProperties.Name="Lista de músicas"
-                                    DisplayMemberPath="Name"
-                                    ItemsSource="{Binding Player.Playlists}"
-                                    SelectedValue="{Binding Player.CurrentPlaylist, Mode=TwoWay}"
-                                    SelectedValuePath="Name"
-                                    Style="{StaticResource OutputCombo}"
-                                    Visibility="{Binding IsNotRenaming, Converter={StaticResource BoolToVisibility}}" />
-                                <local:SettingRow.Footer>
-                                    <StackPanel>
-                                        <Grid
-                                            x:Name="RenameHost"
-                                            Margin="0,8,0,0"
-                                            Visibility="{Binding IsRenaming, Converter={StaticResource BoolToVisibility}}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBox
-                                                x:Name="RenameBox"
-                                                AutomationProperties.Name="Novo nome da lista"
-                                                Style="{StaticResource IbtSmallInput}"
-                                                Text="{Binding RenameText, UpdateSourceTrigger=PropertyChanged}"
-                                                TextAlignment="Left" />
-                                            <Button
-                                                x:Name="RenameOkButton"
-                                                Grid.Column="1"
-                                                Margin="6,0,0,0"
-                                                AutomationProperties.Name="Salvar o nome"
-                                                Command="{Binding CommitRenameCommand}"
-                                                Style="{StaticResource IbtPrimaryButton}">
-                                                <Path
-                                                    Width="14"
-                                                    Height="14"
-                                                    Data="{StaticResource LucideCheck}"
-                                                    Style="{StaticResource LucideIcon}" />
-                                            </Button>
-                                            <Button
-                                                x:Name="RenameCancelButton"
-                                                Grid.Column="2"
-                                                Margin="4,0,0,0"
-                                                AutomationProperties.Name="Cancelar"
-                                                Command="{Binding CancelRenameCommand}"
-                                                Style="{StaticResource IbtIconButton}">
-                                                <Path
-                                                    Width="14"
-                                                    Height="14"
-                                                    Data="{StaticResource LucideX}"
-                                                    Style="{StaticResource LucideIcon}" />
-                                            </Button>
-                                        </Grid>
-                                        <TextBlock
-                                            x:Name="PlaylistMessageText"
-                                            Style="{StaticResource IbtHint}"
-                                            Text="{Binding PlaylistMessage}"
-                                            Visibility="{Binding HasPlaylistMessage, Converter={StaticResource BoolToVisibility}}" />
-                                    </StackPanel>
-                                </local:SettingRow.Footer>
-                            </local:SettingRow>
-
-                            <local:SettingRow
-                                x:Name="FolderRow"
-                                Title="Pasta da lista"
-                                Info="A pasta do PC onde estão as músicas desta lista."
-                                Style="{StaticResource SettingRowStyle}">
-                                <StackPanel Orientation="Horizontal">
-                                    <Button
-                                        x:Name="ChangeFolderButton"
-                                        AutomationProperties.Name="Trocar a pasta"
-                                        Command="{Binding ChangeFolderCommand}"
-                                        Style="{StaticResource IbtButton}"
-                                        ToolTip="Escolher outra pasta para esta lista">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Path
-                                                Width="14"
-                                                Height="14"
-                                                Data="{StaticResource LucideFolder}"
-                                                Style="{StaticResource LucideIcon}" />
-                                            <TextBlock Margin="6,0,0,0" Text="Trocar a pasta" />
-                                        </StackPanel>
-                                    </Button>
-                                    <Button
-                                        x:Name="RefreshButton"
-                                        Margin="8,0,0,0"
-                                        AutomationProperties.Name="Atualizar"
-                                        Command="{Binding Player.RefreshCommand}"
-                                        Style="{StaticResource IbtButton}"
-                                        ToolTip="Ler a pasta de novo e conferir as saídas">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Path
-                                                Width="14"
-                                                Height="14"
-                                                Data="{StaticResource LucideRotateCcw}"
-                                                Style="{StaticResource LucideIcon}" />
-                                            <TextBlock Margin="6,0,0,0" Text="Atualizar" />
-                                        </StackPanel>
-                                    </Button>
-                                </StackPanel>
-                                <local:SettingRow.Footer>
-                                    <TextBlock
-                                        x:Name="PlaylistInfoText"
-                                        Style="{StaticResource SomStatus}"
-                                        Text="{Binding PlaylistInfo}"
-                                        TextTrimming="CharacterEllipsis"
-                                        TextWrapping="NoWrap"
-                                        ToolTip="{Binding PlaylistInfo}" />
-                                </local:SettingRow.Footer>
-                            </local:SettingRow>
-
-                            <Border
-                                x:Name="PlaylistActions"
-                                Padding="0,12,0,0"
-                                BorderBrush="{StaticResource IbtLineBrush}"
-                                BorderThickness="0,1,0,0">
-                                <WrapPanel>
+                    <!--
+                        The strip: two halves. Left: the playlist (list, add, rename, delete; the folder with change and refresh). Right: how the player
+                        behaves (fade when it stops, fade when an alarm starts, media keys), icons only, the name in the tooltip.
+                    -->
+                    <Border
+                        x:Name="PlaylistStrip"
+                        Grid.Row="1"
+                        Margin="0,24,0,0"
+                        Style="{StaticResource IbtBlock}">
+                        <theme:AdaptiveGrid
+                            x:Name="StripHalves"
+                            Gap="24"
+                            MaxColumns="2"
+                            MinColumnWidth="300">
+                            <StackPanel x:Name="PlaylistHalf">
+                                <Grid Height="32">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox
+                                        x:Name="PlaylistCombo"
+                                        Margin="0,0,8,0"
+                                        AutomationProperties.Name="Lista de músicas"
+                                        DisplayMemberPath="Name"
+                                        ItemsSource="{Binding Player.Playlists}"
+                                        SelectedValue="{Binding Player.CurrentPlaylist, Mode=TwoWay}"
+                                        SelectedValuePath="Name"
+                                        Style="{StaticResource IbtComboBox}" />
                                     <Button
                                         x:Name="AddPlaylistButton"
-                                        Margin="0,0,8,0"
+                                        Grid.Column="1"
                                         AutomationProperties.Name="Adicionar lista"
                                         Command="{Binding AddPlaylistCommand}"
-                                        Style="{StaticResource IbtButton}"
-                                        ToolTip="Adicionar uma lista: escolha a pasta da música">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Path
-                                                Width="14"
-                                                Height="14"
-                                                Data="{StaticResource LucidePlus}"
-                                                Style="{StaticResource LucideIcon}" />
-                                            <TextBlock Margin="6,0,0,0" Text="Adicionar" />
-                                        </StackPanel>
+                                        Style="{StaticResource IbtToolButton}"
+                                        ToolTip="Adicionar lista: escolha a pasta da música, a lista leva o nome da pasta">
+                                        <Path
+                                            Width="16"
+                                            Height="16"
+                                            Data="{StaticResource LucidePlus}"
+                                            Style="{StaticResource LucideIcon}" />
                                     </Button>
                                     <Button
                                         x:Name="RenamePlaylistButton"
-                                        Margin="0,0,8,0"
+                                        Grid.Column="2"
+                                        Margin="4,0,0,0"
                                         AutomationProperties.Name="Renomear lista"
-                                        Command="{Binding StartRenameCommand}"
-                                        Style="{StaticResource IbtButton}"
+                                        Command="{Binding RenamePlaylistCommand}"
+                                        IsEnabled="{Binding HasPlaylist}"
+                                        Style="{StaticResource IbtToolButton}"
                                         ToolTip="Renomear esta lista">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Path
-                                                Width="14"
-                                                Height="14"
-                                                Data="{StaticResource LucidePencil}"
-                                                Style="{StaticResource LucideIcon}" />
-                                            <TextBlock Margin="6,0,0,0" Text="Renomear" />
-                                        </StackPanel>
+                                        <Path
+                                            Width="16"
+                                            Height="16"
+                                            Data="{StaticResource LucidePencil}"
+                                            Style="{StaticResource LucideIcon}" />
                                     </Button>
                                     <Button
                                         x:Name="RemovePlaylistButton"
+                                        Grid.Column="3"
+                                        Margin="4,0,0,0"
                                         AutomationProperties.Name="Excluir lista"
                                         Command="{Binding RemovePlaylistCommand}"
-                                        Style="{StaticResource IbtButton}"
+                                        IsEnabled="{Binding HasPlaylist}"
+                                        Style="{StaticResource IbtDangerToolButton}"
                                         ToolTip="Excluir esta lista (as músicas ficam na pasta)">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Path
-                                                Width="14"
-                                                Height="14"
-                                                Data="{StaticResource LucideTrash2}"
-                                                Style="{StaticResource LucideIcon}" />
-                                            <TextBlock Margin="6,0,0,0" Text="Excluir" />
-                                        </StackPanel>
-                                    </Button>
-                                </WrapPanel>
-                            </Border>
-                        </StackPanel>
-                    </local:SettingsSection>
-
-                    <local:SettingsSection
-                        x:Name="AlarmsSection"
-                        Header="Despertadores"
-                        Style="{StaticResource SettingsSectionStyle}"
-                        Subtitle="Começam a música sozinhos, na hora e nos dias marcados.">
-                        <StackPanel>
-                            <local:SettingRow
-                                x:Name="AlarmsOnRow"
-                                Title="Despertadores ligados"
-                                Info="Cada despertador começa a música sozinho, na hora, nos dias marcados. Se o PC abrir depois da hora mas antes do limite, a música começa na hora que ele abrir. Nunca para a música que já está tocando."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ToggleButton
-                                    x:Name="AlarmsOnSwitch"
-                                    AutomationProperties.Name="Despertadores ligados"
-                                    IsChecked="{Binding Player.AlarmsEnabled, Mode=TwoWay}"
-                                    Style="{StaticResource IbtSwitch}" />
-                            </local:SettingRow>
-
-                            <ItemsControl
-                                x:Name="AlarmList"
-                                Focusable="False"
-                                ItemTemplate="{StaticResource AlarmTemplate}"
-                                ItemsSource="{Binding Alarms}" />
-
-                            <Border
-                                Padding="0,12,0,0"
-                                BorderBrush="{StaticResource IbtLineBrush}"
-                                BorderThickness="0,1,0,0">
-                                <StackPanel>
-                                    <Button
-                                        x:Name="AddAlarmButton"
-                                        HorizontalAlignment="Left"
-                                        AutomationProperties.Name="Adicionar despertador"
-                                        Command="{Binding AddAlarmCommand}"
-                                        Style="{StaticResource IbtButton}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Path
-                                                Width="14"
-                                                Height="14"
-                                                Data="{StaticResource LucidePlus}"
-                                                Style="{StaticResource LucideIcon}" />
-                                            <TextBlock Margin="6,0,0,0" Text="Adicionar despertador" />
-                                        </StackPanel>
-                                    </Button>
-                                    <StackPanel
-                                        Margin="2,10,0,0"
-                                        Orientation="Horizontal">
                                         <Path
-                                            Width="14"
-                                            Height="14"
-                                            Margin="0,0,6,0"
-                                            VerticalAlignment="Center"
-                                            Data="{StaticResource LucideClock}"
-                                            Style="{StaticResource LucideIcon}"
-                                            TextElement.Foreground="{StaticResource IbtMutedBrush}" />
-                                        <TextBlock
-                                            x:Name="AlarmsNextText"
-                                            VerticalAlignment="Center"
-                                            FontSize="12"
-                                            Foreground="{StaticResource IbtMutedBrush}"
-                                            Text="{Binding Player.NextAlarmText}"
-                                            TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
+                                            Width="16"
+                                            Height="16"
+                                            Data="{StaticResource LucideTrash2}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Button>
+                                </Grid>
+                                <Grid
+                                    Height="32"
+                                    Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Path
+                                        Width="14"
+                                        Height="14"
+                                        Margin="0,0,8,0"
+                                        VerticalAlignment="Center"
+                                        Data="{StaticResource LucideFolder}"
+                                        Style="{StaticResource LucideIcon}"
+                                        TextElement.Foreground="{StaticResource IbtMutedBrush}" />
+                                    <TextBlock
+                                        x:Name="PlaylistInfoText"
+                                        Grid.Column="1"
+                                        Margin="0,0,8,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="11.5"
+                                        Foreground="{StaticResource IbtTextSecondaryBrush}"
+                                        Text="{Binding PlaylistFolder}"
+                                        TextTrimming="CharacterEllipsis"
+                                        ToolTip="{Binding PlaylistInfo}" />
+                                    <Button
+                                        x:Name="ChangeFolderButton"
+                                        Grid.Column="2"
+                                        AutomationProperties.Name="Trocar a pasta"
+                                        Command="{Binding ChangeFolderCommand}"
+                                        IsEnabled="{Binding HasPlaylist}"
+                                        Style="{StaticResource IbtToolButton}"
+                                        ToolTip="Trocar a pasta: escolher outra pasta para esta lista">
+                                        <Path
+                                            Width="16"
+                                            Height="16"
+                                            Data="{StaticResource LucideFolder}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Button>
+                                    <Button
+                                        x:Name="RefreshButton"
+                                        Grid.Column="3"
+                                        Margin="4,0,0,0"
+                                        AutomationProperties.Name="Atualizar"
+                                        Command="{Binding Player.RefreshCommand}"
+                                        Style="{StaticResource IbtToolButton}"
+                                        ToolTip="Atualizar: ler a pasta de novo e conferir as saídas">
+                                        <Path
+                                            Width="16"
+                                            Height="16"
+                                            Data="{StaticResource LucideRefreshCw}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+
+                            <WrapPanel
+                                x:Name="BehaviorHalf"
+                                MaxWidth="328"
+                                HorizontalAlignment="Left"
+                                ItemWidth="164"
+                                Margin="0,0,0,-8">
+                                <StackPanel
+                                    x:Name="StopFadeRow"
+                                    Margin="0,0,0,8"
+                                    Background="Transparent"
+                                    Orientation="Horizontal"
+                                    ToolTip="Fade ao parar: quanto dura a descida do volume ao pausar ou parar (pelo botão, pela API do Holyrics ou pelas teclas). Seco para na hora, sem estalo.">
+                                    <Path
+                                        Margin="0,0,8,0"
+                                        Data="{StaticResource IbtFadeOut}"
+                                        Style="{StaticResource IbtRowIcon}" />
+                                    <Border Style="{StaticResource IbtSegmentedFrame}">
+                                        <ItemsControl
+                                            x:Name="StopFadeList"
+                                            AutomationProperties.Name="Fade ao parar"
+                                            Focusable="False"
+                                            ItemTemplate="{StaticResource FadeButton}"
+                                            ItemsSource="{Binding StopFadeOptions}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                    </Border>
                                 </StackPanel>
+                                <StackPanel
+                                    x:Name="AlarmFadeRow"
+                                    Margin="0,0,0,8"
+                                    Background="Transparent"
+                                    Orientation="Horizontal"
+                                    ToolTip="Fade ao começar pelo despertador: quanto dura a subida do volume quando um despertador começa a música. Seco começa direto no volume.">
+                                    <Path
+                                        Margin="0,0,8,0"
+                                        Data="{StaticResource IbtFadeIn}"
+                                        Style="{StaticResource IbtRowIcon}" />
+                                    <Border Style="{StaticResource IbtSegmentedFrame}">
+                                        <ItemsControl
+                                            x:Name="AlarmFadeList"
+                                            AutomationProperties.Name="Fade ao começar pelo despertador"
+                                            Focusable="False"
+                                            ItemTemplate="{StaticResource FadeButton}"
+                                            ItemsSource="{Binding AlarmFadeOptions}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel
+                                    x:Name="MediaKeysRow"
+                                    Margin="0,0,0,8"
+                                    Background="Transparent"
+                                    Orientation="Horizontal"
+                                    ToolTip="Teclas de mídia: as teclas de play/pausa, próxima, anterior e parar do teclado comandam o player. O app só ouve essas teclas; as outras (e o que é digitado) ele não guarda.">
+                                    <Path
+                                        Margin="0,0,8,0"
+                                        Data="{StaticResource LucideKeyboard}"
+                                        Style="{StaticResource IbtRowIcon}" />
+                                    <ToggleButton
+                                        x:Name="MediaKeysSwitch"
+                                        VerticalAlignment="Center"
+                                        AutomationProperties.Name="Teclas de mídia controlam o player"
+                                        IsChecked="{Binding Player.MediaKeys, Mode=TwoWay}"
+                                        Style="{StaticResource IbtSwitch}"
+                                        ToolTip="Teclas de mídia: ligado, as teclas de play/pausa, próxima, anterior e parar do teclado comandam o player" />
+                                </StackPanel>
+                            </WrapPanel>
+                        </theme:AdaptiveGrid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- ===== (2) The alarms: a header with the master and the next one, each alarm its own block, two per row ===== -->
+            <local:CardSection
+                x:Name="AlarmsSection"
+                Margin="0,24,0,0"
+                Header="Despertadores"
+                Icon="{StaticResource LucideAlarmClock}"
+                Info="Cada despertador começa a música sozinho, na hora, nos dias marcados. Se o PC abrir depois da hora mas antes do limite, a música começa na hora que ele abrir. Nunca para a música que já está tocando."
+                Style="{StaticResource IbtCardSectionStyle}">
+                <local:CardSection.HeaderActions>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock
+                            x:Name="AlarmsNextText"
+                            MaxWidth="260"
+                            Margin="0,0,12,0"
+                            Style="{StaticResource IbtSecondaryText}"
+                            Text="{Binding NextAlarmShort}"
+                            TextTrimming="CharacterEllipsis"
+                            ToolTip="{Binding Player.NextAlarmText}" />
+                        <ToggleButton
+                            x:Name="AlarmsOnSwitch"
+                            AutomationProperties.Name="Despertadores ligados"
+                            IsChecked="{Binding Player.AlarmsEnabled, Mode=TwoWay}"
+                            Style="{StaticResource IbtPowerToggle}"
+                            ToolTip="Despertadores ligados: desligado, nenhum despertador toca" />
+                    </StackPanel>
+                </local:CardSection.HeaderActions>
+                <ItemsControl
+                    x:Name="AlarmList"
+                    Focusable="False"
+                    ItemsSource="{Binding AlarmTiles}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <theme:AdaptiveGrid
+                                Gap="16"
+                                MaxColumns="2"
+                                MinColumnWidth="360" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.Resources>
+                        <DataTemplate DataType="{x:Type vm:AlarmRow}">
+                            <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource AlarmTemplate}" />
+                        </DataTemplate>
+                        <DataTemplate DataType="{x:Type vm:AddAlarmTile}">
+                            <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource AddAlarmTemplate}" />
+                        </DataTemplate>
+                    </ItemsControl.Resources>
+                    <ItemsControl.Style>
+                        <Style TargetType="ItemsControl">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Player.AlarmsEnabled}" Value="False">
+                                    <Setter Property="Opacity" Value="0.55" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ItemsControl.Style>
+                </ItemsControl>
+            </local:CardSection>
+
+            <!-- ===== (3) The bottom row: the volumes at start and the audio outputs, side by side (stacked when narrow) ===== -->
+            <theme:AdaptiveGrid
+                x:Name="BottomRow"
+                Margin="0,24,0,0"
+                Gap="24"
+                MaxColumns="2"
+                MinColumnWidth="340">
+                <local:CardSection
+                    x:Name="VolumesSection"
+                    Header="Volumes ao iniciar"
+                    Icon="{StaticResource LucideVolume2}"
+                    Info="Os volumes que o app põe quando o PC liga e quando um programa abre o som. Desligado, o app não mexe em nenhum volume (só em Aplicar agora)."
+                    Style="{StaticResource IbtCardSectionStyle}">
+                    <local:CardSection.HeaderActions>
+                        <StackPanel Orientation="Horizontal">
+                            <Border
+                                x:Name="AdjustDot"
+                                Margin="0,0,4,0"
+                                AutomationProperties.Name="Estado do ajuste"
+                                Style="{StaticResource IbtDotHost}"
+                                ToolTip="{Binding AdjustStatusTip}">
+                                <Ellipse
+                                    Fill="{Binding AdjustLight, Converter={StaticResource StatusLightBrush}}"
+                                    Style="{StaticResource SomDot}" />
                             </Border>
+                            <Button
+                                x:Name="ApplyNowButton"
+                                AutomationProperties.Name="Aplicar agora"
+                                Command="{Binding ApplyNowCommand}"
+                                Style="{StaticResource IbtToolButton}"
+                                ToolTip="{Binding ApplyTip}">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{StaticResource LucideZap}"
+                                    Style="{StaticResource LucideIcon}" />
+                            </Button>
+                            <ToggleButton
+                                x:Name="AdjustSwitch"
+                                Margin="8,0,0,0"
+                                AutomationProperties.Name="Ajustar o som ao iniciar"
+                                IsChecked="{Binding AdjustAtStart, Mode=TwoWay}"
+                                Style="{StaticResource IbtPowerToggle}"
+                                ToolTip="{Binding AdjustSwitchTip}" />
                         </StackPanel>
-                    </local:SettingsSection>
+                    </local:CardSection.HeaderActions>
+                    <ItemsControl
+                        x:Name="VolumeList"
+                        Margin="0,0,0,-12"
+                        Focusable="False"
+                        ItemTemplate="{StaticResource VolumeRowTemplate}"
+                        ItemsSource="{Binding VolumeRows}" />
+                </local:CardSection>
 
-                    <local:SettingsSection
-                        x:Name="BehaviorSection"
-                        Header="Comportamento do player"
-                        Style="{StaticResource SettingsSectionStyle}"
-                        Subtitle="Como o volume sobe e desce, e se as teclas de mídia do teclado mandam.">
-                        <StackPanel>
-                            <local:SettingRow
-                                x:Name="StopFadeRow"
-                                Title="Ao parar"
-                                Info="Quanto dura a descida do volume ao pausar ou parar (pelo botão, pela API do Holyrics ou pelas teclas). Seco para na hora, sem estalo."
-                                Style="{StaticResource SettingRowStyle}">
-                                <Border
-                                    BorderBrush="{StaticResource IbtLineBrush}"
-                                    BorderThickness="1"
-                                    ClipToBounds="True"
-                                    CornerRadius="8">
-                                    <ItemsControl
-                                        x:Name="StopFadeList"
-                                        Focusable="False"
-                                        ItemTemplate="{StaticResource FadeButton}"
-                                        ItemsSource="{Binding StopFadeOptions}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                    </ItemsControl>
-                                </Border>
-                            </local:SettingRow>
+                <local:CardSection
+                    x:Name="OutputsSection"
+                    Header="Saídas de áudio"
+                    Icon="{StaticResource LucideSpeaker}"
+                    Info="Por onde o som sai na mesa: o padrão do Windows, o player e o Holyrics. O ponto mostra o estado: verde, saída ativa; amarelo, esperando o aparelho (a WING desligada, por exemplo); cinza, desligado. Passe o mouse no ponto para ler o detalhe."
+                    Style="{StaticResource IbtCardSectionStyle}">
+                    <Grid x:Name="OutputGrid">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="68" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="32" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="32" />
+                            <RowDefinition Height="44" />
+                            <RowDefinition Height="44" />
+                        </Grid.RowDefinitions>
 
-                            <local:SettingRow
-                                x:Name="AlarmFadeRow"
-                                Title="Ao começar pelo despertador"
-                                Info="Quanto dura a subida do volume quando um despertador começa a música. Seco começa direto no volume."
-                                Style="{StaticResource SettingRowStyle}">
-                                <Border
-                                    BorderBrush="{StaticResource IbtLineBrush}"
-                                    BorderThickness="1"
-                                    ClipToBounds="True"
-                                    CornerRadius="8">
-                                    <ItemsControl
-                                        x:Name="AlarmFadeList"
-                                        Focusable="False"
-                                        ItemTemplate="{StaticResource FadeButton}"
-                                        ItemsSource="{Binding AlarmFadeOptions}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <StackPanel Orientation="Horizontal" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                    </ItemsControl>
-                                </Border>
-                            </local:SettingRow>
+                        <Path
+                            Data="{StaticResource LucideMonitorSpeaker}"
+                            Style="{StaticResource IbtRowIcon}" />
+                        <TextBlock
+                            Grid.Column="2"
+                            Style="{StaticResource IbtRowLabel}"
+                            Text="Windows"
+                            ToolTip="Saída padrão do Windows: a saída de som que o Windows usa para tudo que não tem saída própria. Se o aparelho escolhido não estiver ligado, o app espera e não mexe em nada." />
+                        <ComboBox
+                            x:Name="DefaultOutputCombo"
+                            Grid.Column="3"
+                            AutomationProperties.Name="Saída padrão do Windows"
+                            ItemsSource="{Binding DefaultOutput.Choices}"
+                            SelectedItem="{Binding DefaultOutput.Selected, Mode=TwoWay}"
+                            Style="{StaticResource OutputCombo}" />
+                        <Border
+                            x:Name="DefaultOutputDot"
+                            Grid.Column="4"
+                            Margin="4,0,0,0"
+                            AutomationProperties.Name="Estado da saída padrão"
+                            Style="{StaticResource IbtDotHost}"
+                            ToolTip="{Binding DefaultOutput.Status}">
+                            <Ellipse
+                                Fill="{Binding DefaultOutput.Light, Converter={StaticResource StatusLightBrush}}"
+                                Style="{StaticResource SomDot}" />
+                        </Border>
+                        <ToggleButton
+                            x:Name="LockSwitch"
+                            Grid.Column="5"
+                            HorizontalAlignment="Right"
+                            AutomationProperties.Name="Travar a saída padrão neste dispositivo"
+                            IsChecked="{Binding LockOutput, Mode=TwoWay}"
+                            Style="{StaticResource IbtLockToggle}"
+                            ToolTip="Travar a saída padrão neste dispositivo: se o Windows trocar a saída padrão (por exemplo quando um aparelho USB liga), o app põe de volta neste dispositivo. É o único lugar onde isto se liga e desliga." />
 
-                            <local:SettingRow
-                                x:Name="MediaKeysRow"
-                                Title="Teclas de mídia"
-                                Info="As teclas de play/pausa, próxima, anterior e parar do teclado comandam o player. O app só ouve essas teclas; as outras (e o que é digitado) ele não guarda."
-                                Style="{StaticResource SettingRowStyle}">
-                                <ToggleButton
-                                    x:Name="MediaKeysSwitch"
-                                    AutomationProperties.Name="Teclas de mídia controlam o player"
-                                    IsChecked="{Binding Player.MediaKeys, Mode=TwoWay}"
-                                    Style="{StaticResource IbtSwitch}" />
-                            </local:SettingRow>
-                        </StackPanel>
-                    </local:SettingsSection>
-                </StackPanel>
-            </Grid>
+                        <Path
+                            Grid.Row="1"
+                            Margin="0,12,0,0"
+                            VerticalAlignment="Center"
+                            Data="{StaticResource LucideMusic}"
+                            Style="{StaticResource IbtRowIcon}" />
+                        <TextBlock
+                            Grid.Row="1"
+                            Grid.Column="2"
+                            Margin="0,12,0,0"
+                            Style="{StaticResource IbtRowLabel}"
+                            Text="Player"
+                            ToolTip="Saída do player: por onde sai a música do player (a saída 3-4 da mesa). Se o aparelho não estiver ligado, toca na saída padrão do Windows." />
+                        <ComboBox
+                            x:Name="PlayerOutputCombo"
+                            Grid.Row="1"
+                            Grid.Column="3"
+                            Margin="0,12,0,0"
+                            AutomationProperties.Name="Saída do player"
+                            ItemsSource="{Binding PlayerOutput.Choices}"
+                            SelectedItem="{Binding PlayerOutput.Selected, Mode=TwoWay}"
+                            Style="{StaticResource OutputCombo}" />
+                        <Border
+                            x:Name="PlayerOutputDot"
+                            Grid.Row="1"
+                            Grid.Column="4"
+                            Margin="4,12,0,0"
+                            AutomationProperties.Name="Estado da saída do player"
+                            Style="{StaticResource IbtDotHost}"
+                            ToolTip="{Binding PlayerOutput.Status}">
+                            <Ellipse
+                                Fill="{Binding PlayerOutput.Light, Converter={StaticResource StatusLightBrush}}"
+                                Style="{StaticResource SomDot}" />
+                        </Border>
 
+                        <Path
+                            Grid.Row="2"
+                            Margin="0,12,0,0"
+                            VerticalAlignment="Center"
+                            Data="{StaticResource LucidePresentation}"
+                            Style="{StaticResource IbtRowIcon}" />
+                        <TextBlock
+                            Grid.Row="2"
+                            Grid.Column="2"
+                            Margin="0,12,0,0"
+                            Style="{StaticResource IbtRowLabel}"
+                            Text="Holyrics"
+                            ToolTip="Saída do Holyrics: por onde sai o som do Holyrics (a saída 1-2 da mesa). É a saída por programa do Windows, a mesma de Configurações, Sistema, Som, Misturador de volume. Se o aparelho não estiver ligado, o Holyrics fica como está." />
+                        <ComboBox
+                            x:Name="HolyricsOutputCombo"
+                            Grid.Row="2"
+                            Grid.Column="3"
+                            Margin="0,12,0,0"
+                            AutomationProperties.Name="Saída do Holyrics"
+                            ItemsSource="{Binding HolyricsOutput.Choices}"
+                            SelectedItem="{Binding HolyricsOutput.Selected, Mode=TwoWay}"
+                            Style="{StaticResource OutputCombo}" />
+                        <Border
+                            x:Name="HolyricsOutputDot"
+                            Grid.Row="2"
+                            Grid.Column="4"
+                            Margin="4,12,0,0"
+                            AutomationProperties.Name="Estado da saída do Holyrics"
+                            Style="{StaticResource IbtDotHost}"
+                            ToolTip="{Binding HolyricsOutput.Status}">
+                            <Ellipse
+                                Fill="{Binding HolyricsOutput.Light, Converter={StaticResource StatusLightBrush}}"
+                                Style="{StaticResource SomDot}" />
+                        </Border>
+                        <ToggleButton
+                            x:Name="HolyricsRouteSwitch"
+                            Grid.Row="2"
+                            Grid.Column="5"
+                            Margin="0,12,0,0"
+                            HorizontalAlignment="Right"
+                            AutomationProperties.Name="Definir a saída do Holyrics"
+                            IsChecked="{Binding HolyricsRoute, Mode=TwoWay}"
+                            Style="{StaticResource IbtPinToggle}"
+                            ToolTip="Definir a saída do Holyrics: ligado, quando o Holyrics começa a tocar o app põe a saída dele na escolhida ao lado. Desligado, o app nunca mexe na saída do Holyrics." />
+                    </Grid>
+                </local:CardSection>
+            </theme:AdaptiveGrid>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

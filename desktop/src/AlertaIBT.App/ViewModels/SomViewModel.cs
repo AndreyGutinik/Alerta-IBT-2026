@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using AlertaIBT.Core.Audio;
+using AlertaIBT.Core.Services;
 using AlertaIBT.Core.Settings;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -24,8 +25,11 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
     private readonly Func<string?> _pickFolder;
     private readonly Action<Action> _post;
     private readonly ILogger _logger;
+    private readonly Func<string, string, bool>? _confirm;
+    private readonly Func<string, string, Func<string, string?>, string?>? _askName;
     private bool _quiet;
     private bool _disposed;
+    private readonly AddAlarmTile _addTile;
 
     [ObservableProperty]
     private bool _adjustAtStart;
@@ -43,16 +47,10 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
     private bool _isApplying;
 
     [ObservableProperty]
-    private bool _isRenaming;
-
-    [ObservableProperty]
-    private string _renameText = string.Empty;
-
-    [ObservableProperty]
-    private string _playlistMessage = string.Empty;
-
-    [ObservableProperty]
     private string _playlistInfo = string.Empty;
+
+    [ObservableProperty]
+    private string _playlistFolder = string.Empty;
 
     /// <param name="settings">The settings.</param>
     /// <param name="saver">The autosave (the "Salvo" stamp of the tab).</param>
@@ -61,6 +59,8 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
     /// <param name="pickFolder">Asks the user for a folder (the playlist's); <c>null</c> when cancelled.</param>
     /// <param name="post">Runs an action on the UI thread; runs it at once when null (tests).</param>
     /// <param name="logger">Receives failures.</param>
+    /// <param name="confirm">Asks "title, message" in a window and answers whether the owner said yes (Sim); null never asks, it acts (tests).</param>
+    /// <param name="askName">Asks for a name in a small window: "title, current name, check" where the check gives the problem with a name or null; answers the name, or null when cancelled.</param>
     public SomViewModel(
         SettingsService settings,
         Autosaver saver,
@@ -68,7 +68,9 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         PlayerViewModel player,
         Func<string?> pickFolder,
         Action<Action>? post = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        Func<string, string, bool>? confirm = null,
+        Func<string, string, Func<string, string?>, string?>? askName = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(saver);
@@ -83,27 +85,50 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         _pickFolder = pickFolder;
         _post = post ?? (action => action());
         _logger = logger ?? NullLogger.Instance;
+        _confirm = confirm;
+        _askName = askName;
 
         MasterRow = new VolumeRow(
             () => Audio.MasterVolume,
             () => Audio.MasterMuted,
             volume => QueueAudio("audio.masterVolume", a => a with { MasterVolume = volume }),
-            muted => QueueAudio("audio.masterMuted", a => a with { MasterMuted = muted }));
+            muted => QueueAudio("audio.masterMuted", a => a with { MasterMuted = muted }))
+        {
+            Label = "Windows",
+            IconKey = "LucideMonitor",
+            Tip = "Volume geral do Windows: o volume principal da sa\U000000EDda do Windows (o controle do alto-falante na barra de tarefas).",
+        };
         HolyricsRow = new VolumeRow(
             () => HolyricsApp()?.Volume ?? 100,
             () => HolyricsApp()?.Muted ?? false,
             volume => QueueAudio("audio.holyricsVolume", a => WithHolyrics(a, e => e with { Volume = volume })),
-            muted => QueueAudio("audio.holyricsMuted", a => WithHolyrics(a, e => e with { Muted = muted })));
+            muted => QueueAudio("audio.holyricsMuted", a => WithHolyrics(a, e => e with { Muted = muted })))
+        {
+            Label = "Holyrics",
+            IconKey = "LucidePresentation",
+            Tip = "Holyrics: o volume do Holyrics (o som dele vem do javaw). Vale a cada vez que o Holyrics abre.",
+        };
         PlayerRow = new VolumeRow(
             () => _settings.Current.Player.Volume,
             () => _settings.Current.Player.StartMuted,
             volume => _saver.Queue("player.volume", s => s with { Player = s.Player with { Volume = volume } }),
-            muted => _saver.Queue("player.startMuted", s => s with { Player = s.Player with { StartMuted = muted } }));
+            muted => _saver.Queue("player.startMuted", s => s with { Player = s.Player with { StartMuted = muted } }))
+        {
+            Label = "Player",
+            IconKey = "LucideMusic",
+            Tip = "Player: o volume do player de m\U000000FAsica do app. Mudo deixa o player calado. \U000000C9 o mesmo controle do volume ao lado do play.",
+        };
         SystemSoundsRow = new VolumeRow(
             () => Audio.SystemSoundsVolume,
             () => Audio.SystemSoundsMuted,
             volume => QueueAudio("audio.systemSoundsVolume", a => a with { SystemSoundsVolume = volume }),
-            muted => QueueAudio("audio.systemSoundsMuted", a => a with { SystemSoundsMuted = muted }));
+            muted => QueueAudio("audio.systemSoundsMuted", a => a with { SystemSoundsMuted = muted }))
+        {
+            Label = "Sons do sistema",
+            IconKey = "LucideBell",
+            Tip = "Sons do sistema: os avisos sonoros do Windows (o item Sons do sistema do misturador de volume). Em 0, eles n\U000000E3o tocam no tel\U000000E3o.",
+        };
+        VolumeRows = [MasterRow, HolyricsRow, PlayerRow, SystemSoundsRow];
 
         DefaultOutput = new OutputRow(
             () => (Audio.OutputDeviceId, Audio.OutputDeviceName),
@@ -141,10 +166,10 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         AddPlaylistCommand = new RelayCommand(AddPlaylist);
         RemovePlaylistCommand = new RelayCommand(RemovePlaylist);
         ChangeFolderCommand = new RelayCommand(ChangeFolder);
-        StartRenameCommand = new RelayCommand(StartRename);
-        CommitRenameCommand = new RelayCommand(CommitRename);
-        CancelRenameCommand = new RelayCommand(() => IsRenaming = false);
+        RenamePlaylistCommand = new RelayCommand(RenamePlaylist);
         AddAlarmCommand = new RelayCommand(() => Player.AddAlarm());
+        _addTile = new AddAlarmTile(AddAlarmCommand);
+        AlarmTiles = [_addTile];
 
         LoadSwitches();
         _settings.Changed += OnSettingsChanged;
@@ -186,8 +211,43 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
     /// <summary>"Ao comecar pelo despertador": 5 s, 3 s, seco.</summary>
     public IReadOnlyList<FadeOption> AlarmFadeOptions { get; }
 
+    /// <summary>The four volume rows, in the order of the card: Windows, Holyrics, Player, Sons do sistema.</summary>
+    public IReadOnlyList<VolumeRow> VolumeRows { get; }
+
     /// <summary>The alarms.</summary>
     public ObservableCollection<AlarmRow> Alarms { get; } = [];
+
+    /// <summary>What the alarm grid shows: the alarms, then the dashed plus block.</summary>
+    public ObservableCollection<object> AlarmTiles { get; }
+
+    /// <summary>The next-alarm line of the card header, short (proximo: quarta 19:30).</summary>
+    public string NextAlarmShort
+    {
+        get
+        {
+            const string Prefix = "Pr\U000000F3ximo despertador: ";
+            var text = Player.NextAlarmText;
+            return text.StartsWith(Prefix, StringComparison.Ordinal) ? "pr\U000000F3ximo: " + text[Prefix.Length..] : text;
+        }
+    }
+
+    /// <summary>The dot of the "ajustar o som ao iniciar" master: green when on, gray when off.</summary>
+    public StatusLight AdjustLight => AdjustAtStart ? StatusLight.Green : StatusLight.Gray;
+
+    /// <summary>The tooltip of the dot: whether the adjusting is on, and what was applied last.</summary>
+    public string AdjustStatusTip =>
+        (AdjustAtStart ? "Ajuste autom\U000000E1tico ligado." : "Ajuste autom\U000000E1tico desligado: o app n\U000000E3o mexe em nenhum volume.")
+        + (HasAppliedLine ? "\n" + AppliedLine : string.Empty);
+
+    /// <summary>The tooltip of the master switch.</summary>
+    public string AdjustSwitchTip => AdjustAtStart
+        ? "Ajustar o som ao iniciar: ligado.\nQuando o PC liga e a cada vez que um programa abre o som dele, o app p\U000000F5e o volume que est\U000000E1 nesta lista."
+        : "Ajustar o som ao iniciar: desligado.\nO app n\U000000E3o mexe em nenhum volume (s\U000000F3 em Aplicar agora).";
+
+    /// <summary>The tooltip of "Aplicar agora": what it does, then when it was last done and what waits.</summary>
+    public string ApplyTip =>
+        "Aplicar agora: p\U000000F5e todos os volumes da lista agora, nos programas que j\U000000E1 est\U000000E3o tocando, e a sa\U000000EDda do Holyrics."
+        + (HasAppliedLine ? "\n" + AppliedLine : string.Empty);
 
     /// <summary>"Aplicar agora": sets every volume (and the Holyrics output) now.</summary>
     public IAsyncRelayCommand ApplyNowCommand { get; }
@@ -201,14 +261,8 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
     /// <summary>Changes the folder of the selected playlist.</summary>
     public IRelayCommand ChangeFolderCommand { get; }
 
-    /// <summary>Opens the name box of the selected playlist.</summary>
-    public IRelayCommand StartRenameCommand { get; }
-
-    /// <summary>Saves the new name.</summary>
-    public IRelayCommand CommitRenameCommand { get; }
-
-    /// <summary>Closes the name box.</summary>
-    public IRelayCommand CancelRenameCommand { get; }
+    /// <summary>Asks for a new name for the selected playlist in a small window and renames it (alarms that play it follow).</summary>
+    public IRelayCommand RenamePlaylistCommand { get; }
 
     /// <summary>Adds an alarm (18:00, not after 18:25, Sunday only).</summary>
     public IRelayCommand AddAlarmCommand { get; }
@@ -216,14 +270,8 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
     /// <summary>Whether the line under "Aplicar agora" has text.</summary>
     public bool HasAppliedLine => AppliedLine.Length > 0;
 
-    /// <summary>Whether the playlist message (a name that already exists) has text.</summary>
-    public bool HasPlaylistMessage => PlaylistMessage.Length > 0;
-
     /// <summary>Whether there is a playlist to remove, rename or change.</summary>
     public bool HasPlaylist => Player.Playlists.Count > 0;
-
-    /// <summary>Whether the name box is closed (the playlist list is showing).</summary>
-    public bool IsNotRenaming => !IsRenaming;
 
     /// <inheritdoc />
     public void Dispose()
@@ -243,6 +291,9 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
 
     partial void OnAdjustAtStartChanged(bool value)
     {
+        OnPropertyChanged(nameof(AdjustLight));
+        OnPropertyChanged(nameof(AdjustStatusTip));
+        OnPropertyChanged(nameof(AdjustSwitchTip));
         if (!_quiet)
         {
             QueueAudio("audio.enabled", a => a with { Enabled = value });
@@ -256,6 +307,7 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         {
             QueueAudio("audio.lockOutput", a => a with { LockOutput = value });
             _saver.FlushNow();
+            RefreshAll(); // the dot beside the output follows at once
         }
     }
 
@@ -265,14 +317,16 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         {
             QueueAudio("audio.holyricsRoute", a => a with { HolyricsRoute = value });
             _saver.FlushNow();
+            RefreshAll();
         }
     }
 
-    partial void OnAppliedLineChanged(string value) => OnPropertyChanged(nameof(HasAppliedLine));
-
-    partial void OnPlaylistMessageChanged(string value) => OnPropertyChanged(nameof(HasPlaylistMessage));
-
-    partial void OnIsRenamingChanged(bool value) => OnPropertyChanged(nameof(IsNotRenaming));
+    partial void OnAppliedLineChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasAppliedLine));
+        OnPropertyChanged(nameof(AdjustStatusTip));
+        OnPropertyChanged(nameof(ApplyTip));
+    }
 
     partial void OnIsApplyingChanged(bool value) => ApplyNowCommand.NotifyCanExecuteChanged();
 
@@ -320,20 +374,26 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         if (Player.AddPlaylist(name, folder))
         {
             Player.CurrentPlaylist = name;
-            PlaylistMessage = string.Empty;
         }
     }
 
+    // The trash asks first (a window, Sim / Nao): only the list leaves the app, the music files are never touched.
     private void RemovePlaylist()
     {
         var current = Player.CurrentPlaylist;
+        if (Player.Playlists.Count == 0
+            || (_confirm is not null && !_confirm(
+                $"Excluir a lista \U0000201C{current}\U0000201D?",
+                "S\U000000F3 a lista sai do app. As m\U000000FAsicas continuam na pasta: nada \U000000E9 apagado do PC.")))
+        {
+            return;
+        }
+
         Player.RemovePlaylist(current);
         if (Player.Playlists.FirstOrDefault() is { } first)
         {
             Player.CurrentPlaylist = first.Name;
         }
-
-        IsRenaming = false;
     }
 
     private void ChangeFolder()
@@ -345,36 +405,34 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void StartRename()
+    // The pencil: a small window asks for the name (and shows the problem with it, so a taken name never gets through).
+    private void RenamePlaylist()
     {
-        if (Player.Playlists.Count == 0)
+        if (Player.Playlists.Count == 0 || _askName is null)
         {
             return;
         }
 
-        RenameText = Player.CurrentPlaylist;
-        PlaylistMessage = string.Empty;
-        IsRenaming = true;
+        var current = Player.CurrentPlaylist;
+        var name = _askName("Renomear a lista", current, text => PlaylistNameProblem(text, current));
+        if (name is not null)
+        {
+            Player.RenamePlaylist(current, name);
+        }
     }
 
-    private void CommitRename()
+    /// <summary>What is wrong with <paramref name="text"/> as the new name of <paramref name="current"/>, or null when it can be used.</summary>
+    public string? PlaylistNameProblem(string text, string current)
     {
-        if (!IsRenaming)
+        if (string.IsNullOrWhiteSpace(text))
         {
-            return;
+            return "Digite um nome.";
         }
 
-        if (Player.RenamePlaylist(Player.CurrentPlaylist, RenameText))
-        {
-            PlaylistMessage = string.Empty;
-            IsRenaming = false;
-        }
-        else
-        {
-            PlaylistMessage = string.IsNullOrWhiteSpace(RenameText)
-                ? "Digite um nome."
-                : "J\U000000E1 existe uma lista com esse nome.";
-        }
+        var other = _settings.Current.Player.FindPlaylist(text.Trim());
+        return other is not null && !string.Equals(other.Name, current, StringComparison.OrdinalIgnoreCase)
+            ? "J\U000000E1 existe uma lista com esse nome."
+            : null;
     }
 
     // ---- following the world ----
@@ -429,7 +487,12 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
 
     private void OnPlayerChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(PlayerViewModel.OutputText) or nameof(PlayerViewModel.OutputDevices) or nameof(PlayerViewModel.Alarms)
+        if (e.PropertyName is nameof(PlayerViewModel.NextAlarmText))
+        {
+            OnPropertyChanged(nameof(NextAlarmShort));
+        }
+
+        if (e.PropertyName is nameof(PlayerViewModel.OutputText) or nameof(PlayerViewModel.OutputKind) or nameof(PlayerViewModel.IsEnabled) or nameof(PlayerViewModel.OutputDevices) or nameof(PlayerViewModel.Alarms)
             or nameof(PlayerViewModel.Playlists) or nameof(PlayerViewModel.StopFadeSeconds) or nameof(PlayerViewModel.AlarmFadeSeconds)
             or nameof(PlayerViewModel.OutputDeviceName) or nameof(PlayerViewModel.TrackCountText) or nameof(PlayerViewModel.CurrentPlaylist))
         {
@@ -461,11 +524,13 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
 
         var status = _audio.Status;
         var devices = status.Known ? status.Devices : Player.OutputDevices;
-        DefaultOutput.Refresh(devices, DefaultOutputStatus(status));
-        PlayerOutput.Refresh(devices, Player.OutputText);
-        HolyricsOutput.Refresh(devices, status.Known ? status.HolyricsText ?? HolyricsOffText : string.Empty);
+        DefaultOutput.Refresh(devices, DefaultOutputStatus(status), DefaultLight(status));
+        PlayerOutput.Refresh(devices, Player.OutputText, PlayerLight());
+        HolyricsOutput.Refresh(devices, status.Known ? status.HolyricsText ?? HolyricsOffText : string.Empty, Audio.HolyricsRoute ? HolyricsLight(status) : StatusLight.Gray);
         AppliedLine = status.Known ? status.AppliedLine : string.Empty;
         PlaylistInfo = PlaylistInfoText();
+        PlaylistFolder = _settings.Current.Player.FindPlaylist(Player.CurrentPlaylist)?.Folder ?? string.Empty;
+        OnPropertyChanged(nameof(NextAlarmShort));
         OnPropertyChanged(nameof(HasPlaylist));
         RefreshAlarms();
     }
@@ -496,6 +561,51 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         return status.OutputLine;
     }
 
+    // The dot of the default output: gray when the lock is off, green when the chosen output is there, yellow while the app waits for it.
+    private StatusLight DefaultLight(AudioStatus status)
+    {
+        if (!status.Known || !Audio.LockOutput)
+        {
+            return StatusLight.Gray;
+        }
+
+        return status.SelectedPresent ? StatusLight.Green : StatusLight.Yellow;
+    }
+
+    // The player: green when its own output is in use, yellow when the Windows default stands in for a device that is not there, gray when it is off.
+    private StatusLight PlayerLight()
+    {
+        if (!Player.IsEnabled)
+        {
+            return StatusLight.Gray;
+        }
+
+        return Player.OutputKind switch
+        {
+            OutputChoiceKind.ById or OutputChoiceKind.ByRule => StatusLight.Green,
+            OutputChoiceKind.Default => StatusLight.Yellow,
+            _ => StatusLight.Gray,
+        };
+    }
+
+    // Holyrics: gray when the Holyrics output switch is off, yellow while the device is absent, red when Windows refused, green otherwise.
+    internal static StatusLight HolyricsLight(AudioStatus status)
+    {
+        if (!status.Known || status.HolyricsText is not { } text)
+        {
+            return StatusLight.Gray;
+        }
+
+        if (text.Contains("desconectado", StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusLight.Yellow;
+        }
+
+        return text.Contains("sem acesso", StringComparison.OrdinalIgnoreCase) || text.Contains("n\U000000E3o foi poss", StringComparison.OrdinalIgnoreCase)
+            ? StatusLight.Red
+            : StatusLight.Green;
+    }
+
     private string PlaylistInfoText()
     {
         var entry = _settings.Current.Player.FindPlaylist(Player.CurrentPlaylist);
@@ -509,6 +619,7 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         {
             if (entries.All(entry => entry.Id != Alarms[i].Id))
             {
+                AlarmTiles.Remove(Alarms[i]);
                 Alarms.RemoveAt(i);
             }
         }
@@ -522,8 +633,12 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
             }
             else
             {
-                Alarms.Add(new AlarmRow(entry, Player));
+                var created = new AlarmRow(entry, Player, _confirm);
+                Alarms.Add(created);
+                AlarmTiles.Insert(AlarmTiles.Count - 1, created); // before the dashed plus block
             }
         }
+
+        _addTile.ShowLabel = Alarms.Count == 0;
     }
 }

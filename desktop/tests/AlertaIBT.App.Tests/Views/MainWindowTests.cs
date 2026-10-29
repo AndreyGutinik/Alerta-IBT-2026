@@ -321,7 +321,7 @@ public sealed class MainWindowTests
             rig.Layout();
 
             var labels = rig.Find<TextBlock>().Where(t => t.FontWeight == FontWeights.Light && t.FontSize == 10.5).Select(t => t.Text).ToList();
-            var rows = rig.Find<StackPanel>().Where(p => p.ToolTip is string).ToList();
+            var rows = rig.Find<StackPanel>().Where(p => p.ToolTip is string && !IsInside(p, rig.Window.Som)).ToList();
 
             Assert.Equal(["Telegram", "Site", "LED", "Barra", "Offline"], labels);
             Assert.Equal(5, rows.Count);

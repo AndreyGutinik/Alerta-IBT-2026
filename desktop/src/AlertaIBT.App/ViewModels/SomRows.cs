@@ -1,5 +1,6 @@
 using System.Globalization;
 using AlertaIBT.Core.Audio;
+using AlertaIBT.Core.Services;
 using AlertaIBT.Core.Settings;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -92,6 +93,9 @@ public sealed partial class OutputRow : ObservableObject
     [ObservableProperty]
     private string _status = string.Empty;
 
+    [ObservableProperty]
+    private StatusLight _light = StatusLight.Gray;
+
     /// <param name="saved">The remembered output (id and name) in the settings.</param>
     /// <param name="autoText">The text of the automatic choice.</param>
     /// <param name="apply">Writes a choice into the settings.</param>
@@ -105,9 +109,13 @@ public sealed partial class OutputRow : ObservableObject
     /// <summary>Whether the status line has text.</summary>
     public bool HasStatus => Status.Length > 0;
 
-    /// <summary>Rebuilds the list and the choice from the settings and the active outputs.</summary>
-    public void Refresh(IReadOnlyList<AudioDevice> active, string status)
+    /// <summary>
+    /// Rebuilds the list and the choice from the settings and the active outputs. <paramref name="light"/> is the dot beside the list: green when the
+    /// output is active, yellow while the app waits for the device (the WING is off), gray when the rule is off.
+    /// </summary>
+    public void Refresh(IReadOnlyList<AudioDevice> active, string status, StatusLight light = StatusLight.Gray)
     {
+        Light = light;
         var (id, name) = _saved();
         var choices = DeviceChoice.Build(active, id, name, _autoText());
         _quiet = true;
@@ -190,6 +198,15 @@ public sealed partial class VolumeRow : ObservableObject
             () => { });
         Load();
     }
+
+    /// <summary>The short name of the row (<c>Windows</c>, <c>Holyrics</c>, <c>Player</c>, <c>Sons do sistema</c>).</summary>
+    public string Label { get; init; } = string.Empty;
+
+    /// <summary>The resource key of the Lucide icon of the row.</summary>
+    public string IconKey { get; init; } = "LucideVolume2";
+
+    /// <summary>What the row is, for the tooltip (the long explanation that used to be written under the title).</summary>
+    public string Tip { get; init; } = string.Empty;
 
     /// <summary>The number box (the same value as the slider).</summary>
     public IntegerField Box { get; }
@@ -373,16 +390,19 @@ public sealed class DayChip : ObservableObject
 public sealed partial class AlarmRow : ObservableObject
 {
     private readonly PlayerViewModel _player;
+    private readonly Func<string, string, bool>? _confirm;
     private AlarmEntry _entry;
     private string _startText;
     private string _latestText;
 
     /// <param name="entry">The alarm.</param>
     /// <param name="player">Where changes go.</param>
-    public AlarmRow(AlarmEntry entry, PlayerViewModel player)
+    /// <param name="confirm">Asks "title, message" and answers whether the owner said yes; null removes without asking (tests).</param>
+    public AlarmRow(AlarmEntry entry, PlayerViewModel player, Func<string, string, bool>? confirm = null)
     {
         _entry = entry;
         _player = player;
+        _confirm = confirm;
         _startText = entry.Start;
         _latestText = entry.Latest;
         string[] letters = ["D", "S", "T", "Q", "Q", "S", "S"];
@@ -390,7 +410,7 @@ public sealed partial class AlarmRow : ObservableObject
         Days = Enumerable.Range(0, 7)
             .Select(i => new DayChip((DayOfWeek)i, letters[i], names[i], () => _entry, Save))
             .ToList();
-        RemoveCommand = new RelayCommand(() => _player.RemoveAlarm(_entry.Id));
+        RemoveCommand = new RelayCommand(Remove);
     }
 
     /// <summary>Identifies the alarm.</summary>
@@ -414,6 +434,7 @@ public sealed partial class AlarmRow : ObservableObject
             if (_entry.Enabled != value)
             {
                 Save(_entry with { Enabled = value });
+                OnPropertyChanged(); // the block dims at once (the alarm that is off is quieter)
             }
         }
     }
@@ -519,6 +540,16 @@ public sealed partial class AlarmRow : ObservableObject
 
     private static string Format(TimeOnly time) => time.ToString("HH:mm", CultureInfo.InvariantCulture);
 
+    // The trash asks first: a removed alarm cannot be brought back.
+    private void Remove()
+    {
+        if (_confirm is null
+            || _confirm("Remover este despertador?", $"O despertador das {_entry.Start} deixa de existir. Nenhuma m\U000000FAsica \U000000E9 apagada."))
+        {
+            _player.RemoveAlarm(_entry.Id);
+        }
+    }
+
     private void Save(AlarmEntry entry)
     {
         _entry = entry;
@@ -528,4 +559,20 @@ public sealed partial class AlarmRow : ObservableObject
             day.Refresh();
         }
     }
+}
+
+/// <summary>
+/// The dashed "+" block at the end of the alarm grid. It is an item of <see cref="SomViewModel.AlarmTiles"/> next to the alarms, so the grid lays
+/// it out like one; it shows a word only while there is no alarm (an empty grid still says what the block is for).
+/// </summary>
+public sealed partial class AddAlarmTile : ObservableObject
+{
+    [ObservableProperty]
+    private bool _showLabel;
+
+    /// <param name="add">Adds an alarm.</param>
+    public AddAlarmTile(IRelayCommand add) => AddCommand = add;
+
+    /// <summary>Adds an alarm (18:00, not after 18:25, Sunday only).</summary>
+    public IRelayCommand AddCommand { get; }
 }

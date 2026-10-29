@@ -291,6 +291,9 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     /// <summary>Where the sound goes: <c>Sa\U000000EDda do player: WING-USB (Out 3-4)</c>, or that it is disconnected and the default output stands in.</summary>
     public string OutputText => _status.Output.Text;
 
+    /// <summary>How the output was found: the device the owner wants (<c>ById</c>, <c>ByRule</c>), the Windows default standing in for it, or none at all.</summary>
+    public OutputChoiceKind OutputKind => _status.Output.Kind;
+
     /// <summary>"Pr\U000000F3ximo despertador: domingo 18:00" (or why there is none).</summary>
     public string NextAlarmText => _nextAlarmText;
 
@@ -816,7 +819,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     [
         nameof(State), nameof(StateText), nameof(IsPlaying), nameof(IsFading), nameof(HasTrack), nameof(TrackTitle), nameof(TrackArtist),
         nameof(TrackFileName), nameof(QuickTitle), nameof(Position), nameof(Duration), nameof(Progress), nameof(PositionText),
-        nameof(PlaylistName), nameof(TrackCount), nameof(TrackCountText), nameof(OutputText), nameof(LastError), nameof(HasError),
+        nameof(PlaylistName), nameof(TrackCount), nameof(TrackCountText), nameof(OutputText), nameof(OutputKind), nameof(LastError), nameof(HasError),
         nameof(PlayPauseIconKey), nameof(PlayPauseTip), nameof(ElapsedText), nameof(DurationText), nameof(SeekMaximum), nameof(SeekValue), nameof(CanSeek),
         nameof(TrackIndexText), nameof(HeroTitle), nameof(HeroTitleTip), nameof(HeroSubtitle),
     ];

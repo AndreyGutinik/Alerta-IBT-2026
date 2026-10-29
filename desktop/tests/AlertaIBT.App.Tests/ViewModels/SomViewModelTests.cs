@@ -290,30 +290,45 @@ public sealed class SomViewModelTests : IDisposable
         _rig.Som.AddPlaylistCommand.Execute(null);
         _rig.PlayerView.UpdateAlarm(Player.Alarms[0] with { Playlist = "Louvor" });
 
-        _rig.Som.StartRenameCommand.Execute(null);
-        Assert.True(_rig.Som.IsRenaming);
-        Assert.Equal("Louvor", _rig.Som.RenameText);
+        // the name box opens with the current name; a name another list already has (any case) is refused, and so is an empty one
+        Assert.Equal("J\U000000E1 existe uma lista com esse nome.", _rig.Som.PlaylistNameProblem("igreja", "Louvor"));
+        Assert.Equal("Digite um nome.", _rig.Som.PlaylistNameProblem("   ", "Louvor"));
+        Assert.Null(_rig.Som.PlaylistNameProblem("Louvor", "Louvor")); // the same name is not a clash with itself
+        Assert.Null(_rig.Som.PlaylistNameProblem("LOUVOR", "Louvor"));
 
-        _rig.Som.RenameText = "igreja"; // another playlist already has this name (any case)
-        _rig.Som.CommitRenameCommand.Execute(null);
-        Assert.True(_rig.Som.IsRenaming);
-        Assert.True(_rig.Som.HasPlaylistMessage);
+        _rig.Names.Enqueue("igreja"); // refused: nothing is renamed
+        _rig.Som.RenamePlaylistCommand.Execute(null);
+        Assert.Equal(("Renomear a lista", "Louvor"), _rig.NameRequests[0]);
+        Assert.Equal("Louvor", Player.Playlists[1].Name);
 
-        _rig.Som.RenameText = "Louvor de domingo";
-        _rig.Som.CommitRenameCommand.Execute(null);
+        _rig.Names.Enqueue("  Louvor de domingo ");
+        _rig.Som.RenamePlaylistCommand.Execute(null);
 
-        Assert.False(_rig.Som.IsRenaming);
-        Assert.Equal("Louvor de domingo", Player.CurrentPlaylist);
-        Assert.Equal(["Igreja", "Louvor de domingo"], Player.Playlists.Select(p => p.Name));
-        Assert.Equal("Louvor de domingo", Player.Alarms[0].Playlist);
-        Assert.False(_rig.Som.HasPlaylistMessage);
+        Assert.Equal("Louvor de domingo", _rig.PlayerView.CurrentPlaylist);
+        Assert.Equal(["Igreja", "Louvor de domingo"], _rig.PlayerView.Playlists.Select(p => p.Name));
+        Assert.Equal("Louvor de domingo", _rig.PlayerView.Alarms[0].Playlist);
 
-        _rig.Som.StartRenameCommand.Execute(null);
-        _rig.Som.RenameText = "   ";
-        _rig.Som.CommitRenameCommand.Execute(null);
-        Assert.True(_rig.Som.HasPlaylistMessage);
-        _rig.Som.CancelRenameCommand.Execute(null);
-        Assert.False(_rig.Som.IsRenaming);
+        _rig.Som.RenamePlaylistCommand.Execute(null); // the box is cancelled
+        Assert.Equal("Louvor de domingo", _rig.PlayerView.CurrentPlaylist);
+    }
+
+    [Fact]
+    public void Deleting_a_playlist_asks_first_says_only_the_list_goes_and_No_keeps_it()
+    {
+        _rig.Folders.Enqueue(@"C:\Musica\Louvor");
+        _rig.Som.AddPlaylistCommand.Execute(null);
+
+        _rig.ConfirmAnswer = false;
+        _rig.Som.RemovePlaylistCommand.Execute(null);
+
+        Assert.Equal(2, _rig.PlayerView.Playlists.Count);
+        var (title, message) = Assert.Single(_rig.Confirmations);
+        Assert.Contains("Louvor", title, StringComparison.Ordinal);
+        Assert.Contains("continuam na pasta", message, StringComparison.Ordinal);
+
+        _rig.ConfirmAnswer = true;
+        _rig.Som.RemovePlaylistCommand.Execute(null);
+        Assert.Equal(["Igreja"], _rig.PlayerView.Playlists.Select(p => p.Name));
     }
 
     [Fact]
@@ -436,6 +451,97 @@ public sealed class SomViewModelTests : IDisposable
 
         _rig.Som.Player.AlarmsEnabled = false;
         Assert.False(Player.AlarmsEnabled);
+    }
+
+    [Fact]
+    public void The_alarm_grid_is_the_alarms_then_the_plus_block_which_has_a_word_only_while_there_is_no_alarm()
+    {
+        Assert.Equal(2, _rig.Som.AlarmTiles.Count);
+        Assert.Same(_rig.Som.Alarms[0], _rig.Som.AlarmTiles[0]);
+        var tile = Assert.IsType<AddAlarmTile>(_rig.Som.AlarmTiles[^1]);
+        Assert.False(tile.ShowLabel);
+
+        _rig.Som.AddAlarmCommand.Execute(null);
+        Assert.Equal(3, _rig.Som.AlarmTiles.Count);
+        Assert.Same(_rig.Som.Alarms[1], _rig.Som.AlarmTiles[1]);
+        Assert.Same(tile, _rig.Som.AlarmTiles[^1]); // the plus block stays last
+
+        _rig.Som.Alarms[1].RemoveCommand.Execute(null);
+        _rig.Som.Alarms[0].RemoveCommand.Execute(null);
+        Assert.Single(_rig.Som.AlarmTiles);
+        Assert.True(tile.ShowLabel);
+        tile.AddCommand.Execute(null);
+        Assert.Equal(2, _rig.Som.AlarmTiles.Count);
+        Assert.False(tile.ShowLabel);
+    }
+
+    [Fact]
+    public void Removing_an_alarm_asks_first_and_No_keeps_it()
+    {
+        _rig.Som.AddAlarmCommand.Execute(null);
+        _rig.ConfirmAnswer = false;
+        _rig.Som.Alarms[1].RemoveCommand.Execute(null);
+
+        Assert.Equal(2, _rig.Som.Alarms.Count);
+        var (title, message) = Assert.Single(_rig.Confirmations);
+        Assert.Equal("Remover este despertador?", title);
+        Assert.Contains("18:00", message, StringComparison.Ordinal);
+
+        _rig.ConfirmAnswer = true;
+        _rig.Som.Alarms[1].RemoveCommand.Execute(null);
+        Assert.Single(_rig.Som.Alarms);
+    }
+
+    [Fact]
+    public void The_next_alarm_of_the_header_is_short()
+    {
+        Assert.StartsWith("pr\U000000F3ximo: ", _rig.Som.NextAlarmShort, StringComparison.Ordinal);
+        Assert.DoesNotContain("despertador", _rig.Som.NextAlarmShort, StringComparison.Ordinal);
+
+        _rig.Som.Player.AlarmsEnabled = false;
+        Assert.Equal("Despertadores desligados", _rig.Som.NextAlarmShort); // what is not a next alarm is shown as it is
+    }
+
+    [Fact]
+    public void The_volume_rows_know_their_short_name_icon_and_tooltip_and_the_header_tips_follow_the_master()
+    {
+        Assert.Equal(["Windows", "Holyrics", "Player", "Sons do sistema"], _rig.Som.VolumeRows.Select(r => r.Label));
+        Assert.Equal(["LucideMonitor", "LucidePresentation", "LucideMusic", "LucideBell"], _rig.Som.VolumeRows.Select(r => r.IconKey));
+        Assert.All(_rig.Som.VolumeRows, row => Assert.Contains(row.Label, row.Tip, StringComparison.Ordinal));
+        Assert.Same(_rig.Som.MasterRow, _rig.Som.VolumeRows[0]);
+
+        Assert.Equal(AlertaIBT.Core.Services.StatusLight.Green, _rig.Som.AdjustLight);
+        Assert.StartsWith("Ajustar o som ao iniciar: ligado", _rig.Som.AdjustSwitchTip, StringComparison.Ordinal);
+        _rig.Som.AdjustAtStart = false;
+        Assert.Equal(AlertaIBT.Core.Services.StatusLight.Gray, _rig.Som.AdjustLight);
+        Assert.StartsWith("Ajuste autom\U000000E1tico desligado", _rig.Som.AdjustStatusTip, StringComparison.Ordinal);
+        Assert.StartsWith("Aplicar agora", _rig.Som.ApplyTip, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_holyrics_dot_is_gray_yellow_red_or_green_from_what_the_audio_controller_says()
+    {
+        AudioStatus With(string? text) => AudioStatus.Empty with { Known = true, HolyricsText = text };
+
+        Assert.Equal(AlertaIBT.Core.Services.StatusLight.Gray, SomViewModel.HolyricsLight(AudioStatus.Empty));
+        Assert.Equal(AlertaIBT.Core.Services.StatusLight.Gray, SomViewModel.HolyricsLight(With(null)));
+        Assert.Equal(AlertaIBT.Core.Services.StatusLight.Yellow, SomViewModel.HolyricsLight(With("WING \U00002014 desconectado, deixando o Holyrics como est\U000000E1")));
+        Assert.Equal(AlertaIBT.Core.Services.StatusLight.Red, SomViewModel.HolyricsLight(With("WING \U00002014 sem acesso \U000000E0 sa\U000000EDda por programa neste Windows")));
+        Assert.Equal(AlertaIBT.Core.Services.StatusLight.Red, SomViewModel.HolyricsLight(With("WING \U00002014 n\U000000E3o foi poss\U000000EDvel mudar a sa\U000000EDda do Holyrics")));
+        Assert.Equal(AlertaIBT.Core.Services.StatusLight.Green, SomViewModel.HolyricsLight(With("WING \U00002014 aguardando o Holyrics tocar")));
+        Assert.Equal(AlertaIBT.Core.Services.StatusLight.Green, SomViewModel.HolyricsLight(With("Holyrics toca em WING")));
+    }
+
+    [Fact]
+    public void The_playlist_folder_alone_is_what_the_strip_shows_and_the_info_keeps_the_count_for_the_tooltip()
+    {
+        Assert.Equal(PlayerSettings.DefaultPlaylistFolder, _rig.Som.PlaylistFolder);
+        Assert.Contains(PlayerSettings.DefaultPlaylistFolder, _rig.Som.PlaylistInfo, StringComparison.Ordinal);
+        Assert.Contains("m\U000000FAsicas", _rig.Som.PlaylistInfo, StringComparison.Ordinal);
+
+        _rig.Folders.Enqueue(@"E:\Nova");
+        _rig.Som.ChangeFolderCommand.Execute(null);
+        Assert.Equal(@"E:\Nova", _rig.Som.PlaylistFolder);
     }
 
     [Fact]
