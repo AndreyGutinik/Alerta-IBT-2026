@@ -1,6 +1,7 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- Alerta-IBT identity (spec 7): dark theme, green #1DA35F, Marble font. Colors follow docs/superpowers/specs/mockups/painel-v7.html. -->
 
@@ -24,6 +25,34 @@
     <SolidColorBrush x:Key="IbtBadBrush" Color="#FF5C5C" />
     <SolidColorBrush x:Key="IbtInfoBrush" Color="#5AA9FF" />
     <SolidColorBrush x:Key="IbtCreamBrush" Color="#FFF3DC" />
+
+    <!--
+        Design system v2 (the redesigned tabs; first used by Som). The page is the darkest layer; a card is a visibly lighter surface with a thin border;
+        a block inside a card (an alarm, the player strip) is lighter again; an input is a darker well. Spacing runs on an 8 px grid.
+        Layers, darkest to lightest:  IbtBackgroundBrush (page) < IbtInsetBrush (input well) < IbtSurfaceBrush (card) < IbtSurfaceRaisedBrush (block) < IbtSurfaceHoverBrush.
+    -->
+    <SolidColorBrush x:Key="IbtInsetBrush" Color="#0F0F13" />
+    <SolidColorBrush x:Key="IbtSurfaceBrush" Color="#17171C" />
+    <SolidColorBrush x:Key="IbtSurfaceRaisedBrush" Color="#202026" />
+    <SolidColorBrush x:Key="IbtSurfaceHoverBrush" Color="#2A2A31" />
+    <SolidColorBrush x:Key="IbtBorderBrush" Color="#2E2E36" />
+    <SolidColorBrush x:Key="IbtBorderStrongBrush" Color="#4A4A55" />
+    <SolidColorBrush x:Key="IbtDividerBrush" Color="#26262D" />
+    <SolidColorBrush x:Key="IbtTextSecondaryBrush" Color="#A8A296" />
+    <SolidColorBrush x:Key="IbtAccentWashBrush" Color="#261DA35F" />
+    <SolidColorBrush x:Key="IbtAccentBorderBrush" Color="#661DA35F" />
+    <SolidColorBrush x:Key="IbtFocusRingBrush" Color="#CC22E07E" />
+    <SolidColorBrush x:Key="IbtHoverOverlayBrush" Color="#18FFFFFF" />
+
+    <CornerRadius x:Key="IbtCardRadius">12</CornerRadius>
+    <CornerRadius x:Key="IbtBlockRadius">10</CornerRadius>
+    <CornerRadius x:Key="IbtControlRadius">8</CornerRadius>
+    <Thickness x:Key="IbtCardPadding">24</Thickness>
+    <Thickness x:Key="IbtBlockPadding">16</Thickness>
+    <sys:Double x:Key="IbtControlHeight">32</sys:Double>
+    <sys:Double x:Key="IbtControlHeightLarge">40</sys:Double>
+    <sys:Double x:Key="IbtGap">16</sys:Double>
+    <sys:Double x:Key="IbtGapLarge">24</sys:Double>
 
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 

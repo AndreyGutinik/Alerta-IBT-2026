@@ -112,4 +112,22 @@
     <Geometry x:Key="LucideVolumeX">M 11 4.702 A 0.705 0.705 0 0 0 9.797 4.204 L 6.413 7.587 A 1.4 1.4 0 0 1 5.416 8 H 3 A 1 1 0 0 0 2 9 V 15 A 1 1 0 0 0 3 16 H 5.416 A 1.4 1.4 0 0 1 6.413 16.413 L 9.796 19.797 A 0.705 0.705 0 0 0 11 19.298 Z M 22 9 L 16 15 M 16 9 L 22 15</Geometry>
     <Geometry x:Key="LucideVolume1">M 11 4.702 A 0.705 0.705 0 0 0 9.797 4.204 L 6.413 7.587 A 1.4 1.4 0 0 1 5.416 8 H 3 A 1 1 0 0 0 2 9 V 15 A 1 1 0 0 0 3 16 H 5.416 A 1.4 1.4 0 0 1 6.413 16.413 L 9.796 19.797 A 0.705 0.705 0 0 0 11 19.298 Z M 16 9 A 5 5 0 0 1 16 15</Geometry>
 
+    <!-- The redesigned Som tab and the shared design system (Theme/SettingsStyles.xaml): same source and conventions as above. -->
+    <Geometry x:Key="LucideAlarmClock">M 20 13 A 8 8 0 1 1 4 13 A 8 8 0 1 1 20 13 Z M 12 9 V 13 L 14 15 M 5 3 L 2 6 M 22 6 L 19 3 M 6.38 18.7 L 4 21 M 17.64 18.67 L 20 21</Geometry>
+    <Geometry x:Key="LucideAlarmClockOff">M 6.87 6.87 A 8 8 0 1 0 18.13 18.13 M 19.9 14.25 A 8 8 0 0 0 10.75 5.1 M 22 6 L 19 3 M 6.26 18.67 L 4 21 M 2 2 L 22 22 M 4 4 L 2 6</Geometry>
+    <Geometry x:Key="LucideHourglass">M 5 22 H 19 M 5 2 H 19 M 17 22 V 17.828 A 2 2 0 0 0 16.414 16.414 L 12 12 L 7.586 16.414 A 2 2 0 0 0 7 17.828 V 22 M 7 2 V 6.172 A 2 2 0 0 0 7.586 7.586 L 12 12 L 16.414 7.586 A 2 2 0 0 0 17 6.172 V 2</Geometry>
+    <Geometry x:Key="LucideSpeaker">M 6 2 H 18 A 2 2 0 0 1 20 4 V 20 A 2 2 0 0 1 18 22 H 6 A 2 2 0 0 1 4 20 V 4 A 2 2 0 0 1 6 2 Z M 12 6 H 12.01 M 16 14 A 4 4 0 1 1 8 14 A 4 4 0 1 1 16 14 Z M 12 14 H 12.01</Geometry>
+    <Geometry x:Key="LucideMonitorSpeaker">M 5.5 20 H 8 M 17 9 H 17.01 M 14 4 H 20 A 2 2 0 0 1 22 6 V 18 A 2 2 0 0 1 20 20 H 14 A 2 2 0 0 1 12 18 V 6 A 2 2 0 0 1 14 4 Z M 8 6 H 4 A 2 2 0 0 0 2 8 V 14 A 2 2 0 0 0 4 16 H 8 M 18 15 A 1 1 0 1 1 16 15 A 1 1 0 1 1 18 15 Z</Geometry>
+    <Geometry x:Key="LucidePresentation">M 2 3 H 22 M 21 3 V 14 A 2 2 0 0 1 19 16 H 5 A 2 2 0 0 1 3 14 V 3 M 7 21 L 12 16 L 17 21</Geometry>
+    <Geometry x:Key="LucideBell">M 10.268 21 A 2 2 0 0 0 13.732 21 M 3.262 15.326 A 1 1 0 0 0 4 17 H 20 A 1 1 0 0 0 20.74 15.327 C 19.41 13.956 18 12.499 18 8 A 6 6 0 0 0 6 8 C 6 12.499 4.589 13.956 3.262 15.326</Geometry>
+    <Geometry x:Key="LucideListMusic">M 21 15 V 6 M 21 15.5 A 2.5 2.5 0 1 1 16 15.5 A 2.5 2.5 0 1 1 21 15.5 Z M 12 12 H 3 M 16 6 H 3 M 12 18 H 3</Geometry>
+    <Geometry x:Key="LucideRefreshCw">M 3 12 A 9 9 0 0 1 12 3 A 9.75 9.75 0 0 1 18.74 5.74 L 21 8 M 21 3 V 8 H 16 M 21 12 A 9 9 0 0 1 12 21 A 9.75 9.75 0 0 1 5.26 18.26 L 3 16 M 8 16 H 3 V 21</Geometry>
+    <Geometry x:Key="LucidePin">M 12 17 V 22 M 9 10.76 A 2 2 0 0 1 7.89 12.55 L 6.11 13.45 A 2 2 0 0 0 5 15.24 V 16 A 1 1 0 0 0 6 17 H 18 A 1 1 0 0 0 19 16 V 15.24 A 2 2 0 0 0 17.89 13.45 L 16.11 12.55 A 2 2 0 0 1 15 10.76 V 7 A 1 1 0 0 1 16 6 A 2 2 0 0 0 16 2 H 8 A 2 2 0 0 0 8 6 A 1 1 0 0 1 9 7 Z</Geometry>
+    <Geometry x:Key="LucidePinOff">M 12 17 V 22 M 15 9.34 V 7 A 1 1 0 0 1 16 6 A 2 2 0 0 0 16 2 H 7.89 M 2 2 L 22 22 M 9 9 V 10.76 A 2 2 0 0 1 7.89 12.55 L 6.11 13.45 A 2 2 0 0 0 5 15.24 V 16 A 1 1 0 0 0 6 17 H 17</Geometry>
+    <Geometry x:Key="LucideKeyboard">M 10 8 H 10.01 M 12 12 H 12.01 M 14 8 H 14.01 M 16 12 H 16.01 M 18 8 H 18.01 M 6 8 H 6.01 M 7 16 H 17 M 8 12 H 8.01 M 4 4 H 20 A 2 2 0 0 1 22 6 V 18 A 2 2 0 0 1 20 20 H 4 A 2 2 0 0 1 2 18 V 6 A 2 2 0 0 1 4 4 Z</Geometry>
+
+    <!-- Authored in the Lucide style (24 grid, 2 px round stroke): three bars that fall (the fade when it stops) and three that rise (the fade when an alarm starts). -->
+    <Geometry x:Key="IbtFadeOut">M 5 21 V 3 M 12 21 V 8 M 19 21 V 14</Geometry>
+    <Geometry x:Key="IbtFadeIn">M 5 21 V 14 M 12 21 V 8 M 19 21 V 3</Geometry>
+
 </ResourceDictionary>

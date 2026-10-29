@@ -3,11 +3,12 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="clr-namespace:AlertaIBT.App.Views"
+    xmlns:theme="clr-namespace:AlertaIBT.App.Theme"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:vm="clr-namespace:AlertaIBT.App.ViewModels"
     Title="Alerta-IBT"
     Width="1100"
-    Height="720"
+    Height="860"
     MinWidth="900"
     MinHeight="600"
     Background="{StaticResource IbtBackgroundBrush}"
@@ -225,18 +226,22 @@
                 <Grid Grid.Row="1">
                     <local:HomePage
                         x:Name="HomePage"
+                        theme:Motion.FadeOnShow="True"
                         DataContext="{Binding Home}"
                         Visibility="{Binding DataContext.IsHomeSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
                     <local:CorrectionPage
                         x:Name="CorrectionPage"
+                        theme:Motion.FadeOnShow="True"
                         DataContext="{Binding Correction}"
                         Visibility="{Binding DataContext.IsCorrectionSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
                     <local:SettingsPage
                         x:Name="SettingsPage"
+                        theme:Motion.FadeOnShow="True"
                         DataContext="{Binding Settings}"
                         Visibility="{Binding DataContext.IsSettingsSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
                     <local:SomPage
                         x:Name="SomPage"
+                        theme:Motion.FadeOnShow="True"
                         DataContext="{Binding Som}"
                         Visibility="{Binding DataContext.IsSomSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
                 </Grid>

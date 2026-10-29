@@ -114,6 +114,12 @@ public partial class MainWindow : FluentWindow, IMainWindow
     /// </summary>
     internal void PlaceBeforeShow()
     {
+        // It opens at about 1100 x 860; on a screen that is not that tall it is as tall as the work area (never off the bottom).
+        if (!_placed)
+        {
+            Height = Math.Max(MinHeight, Math.Min(Height, SystemParameters.WorkArea.Height));
+        }
+
         _policy.KeepOffLed(this, neverPlaced: !_placed);
         _placed = true;
     }

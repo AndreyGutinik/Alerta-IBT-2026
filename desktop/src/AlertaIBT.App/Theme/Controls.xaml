@@ -543,14 +543,13 @@
                                 <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center" />
                             </Grid>
                         </ToggleButton>
-                        <ContentPresenter
-                            x:Name="Body"
-                            Margin="0,10,0,0"
-                            Visibility="Collapsed" />
+                        <!-- The body opens and closes smoothly (height + opacity, 180 ms; at once with animations off). -->
+                        <theme:RevealHost x:Name="Body" IsOpen="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}">
+                            <ContentPresenter Margin="0,10,0,0" />
+                        </theme:RevealHost>
                     </StackPanel>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsExpanded" Value="True">
-                            <Setter TargetName="Body" Property="Visibility" Value="Visible" />
                             <Setter TargetName="Chevron" Property="RenderTransform">
                                 <Setter.Value>
                                     <RotateTransform Angle="90" />

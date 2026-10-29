@@ -1,7 +1,8 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="clr-namespace:AlertaIBT.App.Views">
+    xmlns:local="clr-namespace:AlertaIBT.App.Views"
+    xmlns:theme="clr-namespace:AlertaIBT.App.Theme">
 
     <!--
         The cards of the settings-like tabs (Configuracoes, Som): a titled card (SettingsSection) with one SettingRow per setting.
@@ -185,12 +186,12 @@
     <!-- A dark list box like the text boxes (IbtInput): rounded, the chosen text on the left and a chevron on the right. -->
     <Style x:Key="IbtComboBox" TargetType="ComboBox">
         <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
-        <Setter Property="Background" Value="#0D0D10" />
-        <Setter Property="BorderBrush" Value="{StaticResource IbtLineBrush}" />
+        <Setter Property="Background" Value="{StaticResource IbtInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
         <Setter Property="FontSize" Value="12.5" />
-        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="MinHeight" Value="32" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="ItemContainerStyle" Value="{StaticResource IbtComboBoxItem}" />
@@ -401,5 +402,507 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- ==================================================================================================================================
+         DESIGN SYSTEM v2  (the redesigned tabs). Reuse these names; do not copy their values.
+           Tokens (AppTheme.xaml)  IbtSurfaceBrush, IbtSurfaceRaisedBrush, IbtInsetBrush, IbtBorderBrush, IbtTextSecondaryBrush, IbtCardRadius, IbtCardPadding ...
+           Text         IbtPageTitle, IbtCardTitle, IbtRowLabel, IbtSecondaryText
+           Surfaces     IbtSurfaceCard, IbtBlock, IbtDivider, IbtCardSectionStyle (the CardSection control)
+           Icons        IbtRowIcon (18 px, quiet), IbtHeaderIcon (18 px)
+           Buttons      IbtToolButton, IbtDangerToolButton (32 px, icon only), IbtAddTile (dashed plus block)
+           Toggles      IbtIconToggle -> IbtLockToggle, IbtPinToggle, IbtMuteToggle, IbtPowerToggle (32 px, icon only)
+           Inputs       IbtSegmentedFrame + IbtSegItem, IbtNumberBox, IbtDayDot, IbtComboBox (32 px)
+           Status       IbtDotHost (a 20 px hit area for a dot with a tooltip) + IbtStatusDot
+           Layout       theme:AdaptiveGrid (cells that stack when narrow), theme:Motion.FadeOnShow, theme:RevealHost (used by IbtExpander)
+         ================================================================================================================================== -->
+
+    <Style x:Key="IbtPageTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="IbtCardTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="IbtRowLabel" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <Style x:Key="IbtSecondaryText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource IbtTextSecondaryBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- A card: lighter than the page, a thin border, 12 px radius, 24 px inside. -->
+    <Style x:Key="IbtSurfaceCard" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource IbtSurfaceBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource IbtCardRadius}" />
+        <Setter Property="Padding" Value="{StaticResource IbtCardPadding}" />
+    </Style>
+
+    <!-- A block inside a card (an alarm, the player strip): lighter again, thin border, 16 px inside. -->
+    <Style x:Key="IbtBlock" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource IbtSurfaceRaisedBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource IbtBlockRadius}" />
+        <Setter Property="Padding" Value="{StaticResource IbtBlockPadding}" />
+    </Style>
+
+    <Style x:Key="IbtDivider" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{StaticResource IbtDividerBrush}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+
+    <Style x:Key="IbtRowIcon" BasedOn="{StaticResource LucideIcon}" TargetType="Path">
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextElement.Foreground" Value="{StaticResource IbtTextSecondaryBrush}" />
+    </Style>
+
+    <Style x:Key="IbtHeaderIcon" BasedOn="{StaticResource LucideIcon}" TargetType="Path">
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextElement.Foreground" Value="{StaticResource IbtOkBrush}" />
+    </Style>
+
+    <!-- The card of the redesigned tabs: icon + title (+ info) on the left of the header, the controls of the card on the right, the content under it. -->
+    <Style x:Key="IbtCardSectionStyle" TargetType="local:CardSection">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:CardSection">
+                    <Border Style="{StaticResource IbtSurfaceCard}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid MinHeight="32">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Path
+                                    x:Name="HeaderIcon"
+                                    Margin="0,0,10,0"
+                                    Data="{TemplateBinding Icon}"
+                                    Style="{StaticResource IbtHeaderIcon}" />
+                                <StackPanel
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Orientation="Horizontal">
+                                    <TextBlock
+                                        x:Name="HeaderText"
+                                        Style="{StaticResource IbtCardTitle}"
+                                        Text="{TemplateBinding Header}" />
+                                    <Border
+                                        x:Name="InfoIcon"
+                                        AutomationProperties.Name="Dicas"
+                                        Style="{StaticResource SectionInfo}"
+                                        ToolTip="{Binding Info, RelativeSource={RelativeSource TemplatedParent}}">
+                                        <Path
+                                            Width="15"
+                                            Height="15"
+                                            Data="{StaticResource LucideInfo}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Border>
+                                </StackPanel>
+                                <ContentPresenter
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    Content="{TemplateBinding HeaderActions}" />
+                            </Grid>
+                            <ContentPresenter Grid.Row="1" Margin="0,20,0,0" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Icon" Value="{x:Null}">
+                            <Setter TargetName="HeaderIcon" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="Info" Value="{x:Null}">
+                            <Setter TargetName="InfoIcon" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Icon-only buttons, 32 px: a thin border so they read as buttons, a light wash on hover, the green ring on keyboard focus, dimmer when pressed. -->
+    <Style x:Key="IbtToolButton" TargetType="Button">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource IbtTextSecondaryBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="ToolTipService.InitialShowDelay" Value="250" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root">
+                        <Border
+                            x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource IbtControlRadius}" />
+                        <Border
+                            x:Name="Wash"
+                            Background="{StaticResource IbtHoverOverlayBrush}"
+                            CornerRadius="{StaticResource IbtControlRadius}"
+                            Visibility="Collapsed" />
+                        <ContentPresenter
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Wash" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource IbtBorderStrongBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource IbtFocusRingBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.7" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The trash: the same button, red on hover. -->
+    <Style x:Key="IbtDangerToolButton" BasedOn="{StaticResource IbtToolButton}" TargetType="Button">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root">
+                        <Border
+                            x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource IbtControlRadius}" />
+                        <Border
+                            x:Name="Wash"
+                            Background="#1FFF5C5C"
+                            CornerRadius="{StaticResource IbtControlRadius}"
+                            Visibility="Collapsed" />
+                        <ContentPresenter
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Wash" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#80FF5C5C" />
+                            <Setter Property="Foreground" Value="#FF9D9D" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="#CCFF9D9D" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.7" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The dashed plus block that adds an item to a grid of blocks. Put the plus (and, if wanted, a word) in Content. -->
+    <Style x:Key="IbtAddTile" TargetType="Button">
+        <Setter Property="MinHeight" Value="110" />
+        <Setter Property="Foreground" Value="{StaticResource IbtTextSecondaryBrush}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid x:Name="Root">
+                        <Border
+                            x:Name="Wash"
+                            Background="{StaticResource IbtAccentWashBrush}"
+                            CornerRadius="{StaticResource IbtBlockRadius}"
+                            Visibility="Collapsed" />
+                        <Rectangle
+                            x:Name="Dash"
+                            Fill="Transparent"
+                            RadiusX="10"
+                            RadiusY="10"
+                            Stroke="{StaticResource IbtBorderStrongBrush}"
+                            StrokeDashArray="4 4"
+                            StrokeThickness="1" />
+                        <ContentPresenter
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Wash" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="Dash" Property="Stroke" Value="{StaticResource IbtAccentBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource IbtOkBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Dash" Property="Stroke" Value="{StaticResource IbtFocusRingBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.7" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        An icon-only toggle, 32 px. The drawing comes from theme:IconToggle.OffGeometry / OnGeometry (set by the four styles below).
+        On = a green wash and a light green icon; off = quiet.
+    -->
+    <Style x:Key="IbtIconToggle" TargetType="ToggleButton">
+        <Setter Property="Width" Value="32" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Foreground" Value="{StaticResource IbtTextSecondaryBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="ToolTipService.InitialShowDelay" Value="250" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid x:Name="Root">
+                        <Border
+                            x:Name="Chrome"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource IbtControlRadius}" />
+                        <Border
+                            x:Name="Wash"
+                            Background="{StaticResource IbtHoverOverlayBrush}"
+                            CornerRadius="{StaticResource IbtControlRadius}"
+                            Visibility="Collapsed" />
+                        <Path
+                            x:Name="Glyph"
+                            Width="16"
+                            Height="16"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Data="{Binding (theme:IconToggle.OffGeometry), RelativeSource={RelativeSource TemplatedParent}}"
+                            Style="{StaticResource LucideIcon}"
+                            TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Glyph" Property="Data" Value="{Binding (theme:IconToggle.OnGeometry), RelativeSource={RelativeSource TemplatedParent}}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Wash" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource IbtFocusRingBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter Property="Background" Value="{StaticResource IbtAccentWashBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource IbtAccentBorderBrush}" />
+                <Setter Property="Foreground" Value="{StaticResource IbtOkBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The default-output lock: the closed lock when on, the open lock when off. -->
+    <Style x:Key="IbtLockToggle" BasedOn="{StaticResource IbtIconToggle}" TargetType="ToggleButton">
+        <Setter Property="theme:IconToggle.OnGeometry" Value="{StaticResource LucideLock}" />
+        <Setter Property="theme:IconToggle.OffGeometry" Value="{StaticResource LucideLockOpen}" />
+    </Style>
+
+    <!-- The Holyrics output: the pin when on, the crossed pin when off. -->
+    <Style x:Key="IbtPinToggle" BasedOn="{StaticResource IbtIconToggle}" TargetType="ToggleButton">
+        <Setter Property="theme:IconToggle.OnGeometry" Value="{StaticResource LucidePin}" />
+        <Setter Property="theme:IconToggle.OffGeometry" Value="{StaticResource LucidePinOff}" />
+    </Style>
+
+    <!-- A master on/off (the alarms, the adjust at start): the power icon, green when on. -->
+    <Style x:Key="IbtPowerToggle" BasedOn="{StaticResource IbtIconToggle}" TargetType="ToggleButton">
+        <Setter Property="theme:IconToggle.OnGeometry" Value="{StaticResource LucidePower}" />
+        <Setter Property="theme:IconToggle.OffGeometry" Value="{StaticResource LucidePower}" />
+    </Style>
+
+    <!-- The mute of a volume row: IsChecked is "muted". A quiet speaker when there is sound; the crossed speaker in amber when it is muted. -->
+    <Style x:Key="IbtMuteToggle" BasedOn="{StaticResource IbtIconToggle}" TargetType="ToggleButton">
+        <Setter Property="theme:IconToggle.OnGeometry" Value="{StaticResource LucideVolumeX}" />
+        <Setter Property="theme:IconToggle.OffGeometry" Value="{StaticResource LucideVolume2}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Style.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter Property="Background" Value="#1AFFD87A" />
+                <Setter Property="BorderBrush" Value="#59FFD87A" />
+                <Setter Property="Foreground" Value="{StaticResource IbtWarnBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Choices in one frame (5 s, 3 s, seco): the frame, and one item per choice (RadioButtons of one group). -->
+    <Style x:Key="IbtSegmentedFrame" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource IbtInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource IbtControlRadius}" />
+        <Setter Property="Padding" Value="1" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="IbtSegItem" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{StaticResource IbtTextSecondaryBrush}" />
+        <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="MinWidth" Value="34" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border
+                        x:Name="Item"
+                        Padding="{TemplateBinding Padding}"
+                        Background="Transparent"
+                        BorderBrush="Transparent"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                        <ContentPresenter
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Item" Property="Background" Value="{StaticResource IbtHoverOverlayBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Item" Property="Background" Value="{StaticResource IbtAccentWashBrush}" />
+                            <Setter TargetName="Item" Property="BorderBrush" Value="{StaticResource IbtAccentBorderBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource IbtOkBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Item" Property="BorderBrush" Value="{StaticResource IbtFocusRingBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A box for a number or a time: 32 px high, centered, one width. -->
+    <Style x:Key="IbtNumberBox" BasedOn="{StaticResource IbtSmallInput}" TargetType="TextBox">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Width" Value="56" />
+        <Setter Property="Padding" Value="4,7" />
+        <Setter Property="Background" Value="{StaticResource IbtInsetBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
+    </Style>
+
+    <!-- A weekday dot (D S T Q Q S S): an outline when off, solid green with a dark letter when on. -->
+    <Style x:Key="IbtDayDot" TargetType="ToggleButton">
+        <Setter Property="Width" Value="26" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="Margin" Value="0,0,4,0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FontFamily" Value="{StaticResource MarbleFont}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource IbtTextSecondaryBrush}" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border
+                        x:Name="Dot"
+                        Background="Transparent"
+                        BorderBrush="{StaticResource IbtBorderStrongBrush}"
+                        BorderThickness="1"
+                        CornerRadius="13">
+                        <ContentPresenter
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Dot" Property="Background" Value="{StaticResource IbtHoverOverlayBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Dot" Property="Background" Value="{StaticResource IbtAccentBrush}" />
+                            <Setter TargetName="Dot" Property="BorderBrush" Value="{StaticResource IbtAccentBrush}" />
+                            <Setter Property="Foreground" Value="#04130B" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Dot" Property="BorderBrush" Value="{StaticResource IbtFocusRingBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- A 20 px hit area around a status dot, so its tooltip is easy to reach. Put an Ellipse (IbtStatusDot) inside and the text in ToolTip. -->
+    <Style x:Key="IbtDotHost" TargetType="Border">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="Help" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="ToolTipService.InitialShowDelay" Value="150" />
+        <Setter Property="ToolTipService.ShowDuration" Value="30000" />
     </Style>
 </ResourceDictionary>
