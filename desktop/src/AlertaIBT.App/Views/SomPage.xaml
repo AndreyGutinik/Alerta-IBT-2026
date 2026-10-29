@@ -300,6 +300,45 @@
             </Setter>
         </Style>
 
+        <!-- Stop: a smaller round OUTLINE button (a ring with a square inside), next to the big filled Play; clearly a button, never a checkbox. -->
+        <Style x:Key="StopOutlineButton" TargetType="Button">
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="Ring"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="#99FFFFFF"
+                            BorderThickness="1.5"
+                            CornerRadius="16">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Ring" Property="Background" Value="#18FFFFFF" />
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="#FFFFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Ring" Property="BorderBrush" Value="#FF1DA35F" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Ring" Property="Opacity" Value="0.7" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Ring" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Shuffle and repeat: quiet, green wash when on. -->
         <Style x:Key="TransportToggle" TargetType="ToggleButton" BasedOn="{StaticResource IbtToggleChip}">
             <Setter Property="Width" Value="34" />
@@ -644,25 +683,9 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Border
-                                HorizontalAlignment="Left"
-                                Style="{StaticResource HeroDim}">
-                                <Button
-                                    x:Name="StopButton"
-                                    AutomationProperties.Name="Parar"
-                                    Command="{Binding Player.StopCommand}"
-                                    Style="{StaticResource TransportButton}"
-                                    ToolTip="Parar (com fade)">
-                                    <Path
-                                        Width="14"
-                                        Height="14"
-                                        Data="{StaticResource LucideSquare}"
-                                        Style="{StaticResource LucideIcon}" />
-                                </Button>
-                            </Border>
                             <StackPanel
-                                x:Name="TransportCenter"
-                                Grid.Column="1"
+                                x:Name="TransportLeft"
+                                HorizontalAlignment="Right"
                                 Orientation="Horizontal"
                                 Style="{StaticResource HeroDim}">
                                 <ToggleButton
@@ -690,9 +713,15 @@
                                         Data="{StaticResource LucideSkipBack}"
                                         Style="{StaticResource LucideIcon}" />
                                 </Button>
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="TransportCenter"
+                                Grid.Column="1"
+                                Orientation="Horizontal"
+                                Style="{StaticResource HeroDim}">
                                 <Button
                                     x:Name="PlayPauseButton"
-                                    Margin="8,0"
+                                    Margin="12,0"
                                     AutomationProperties.Name="{Binding Player.PlayPauseTip}"
                                     Command="{Binding Player.PlayPauseCommand}"
                                     Style="{StaticResource PlayButton}"
@@ -704,6 +733,27 @@
                                         Fill="#04130B"
                                         Style="{StaticResource LucideIcon}"
                                         StrokeThickness="2.2" />
+                                </Button>
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="TransportRight"
+                                Grid.Column="2"
+                                HorizontalAlignment="Left"
+                                Orientation="Horizontal"
+                                Style="{StaticResource HeroDim}">
+                                <Button
+                                    x:Name="StopButton"
+                                    Margin="0,0,6,0"
+                                    AutomationProperties.Name="Parar"
+                                    Command="{Binding Player.StopCommand}"
+                                    Style="{StaticResource StopOutlineButton}"
+                                    ToolTip="Parar (com fade)">
+                                    <Path
+                                        Width="11"
+                                        Height="11"
+                                        Data="{StaticResource LucideSquare}"
+                                        Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                                        Style="{StaticResource LucideIcon}" />
                                 </Button>
                                 <Button
                                     x:Name="NextButton"
@@ -730,43 +780,6 @@
                                         Data="{Binding Player.RepeatIconKey, Converter={StaticResource GeometryKey}}"
                                         Style="{StaticResource LucideIcon}" />
                                 </Button>
-                            </StackPanel>
-                            <StackPanel
-                                x:Name="PlayerVolumeBox"
-                                Grid.Column="2"
-                                HorizontalAlignment="Right"
-                                Orientation="Horizontal"
-                                Style="{StaticResource HeroDim}">
-                                <Button
-                                    x:Name="MuteButton"
-                                    Width="30"
-                                    Height="30"
-                                    AutomationProperties.Name="Mudo"
-                                    Command="{Binding Player.ToggleMuteCommand}"
-                                    Style="{StaticResource TransportButton}"
-                                    ToolTip="{Binding Player.MuteTip}">
-                                    <Path
-                                        Width="16"
-                                        Height="16"
-                                        Data="{Binding Player.VolumeIconKey, Converter={StaticResource GeometryKey}}"
-                                        Style="{StaticResource LucideIcon}" />
-                                </Button>
-                                <Slider
-                                    x:Name="PlayerVolumeSlider"
-                                    Width="72"
-                                    Margin="2,0,0,0"
-                                    VerticalAlignment="Center"
-                                    AutomationProperties.Name="Volume do player"
-                                    IsMoveToPointEnabled="True"
-                                    IsSnapToTickEnabled="True"
-                                    LargeChange="10"
-                                    Maximum="100"
-                                    Minimum="0"
-                                    SmallChange="1"
-                                    Style="{StaticResource IbtSeekSlider}"
-                                    TickFrequency="1"
-                                    ToolTip="Volume do player"
-                                    Value="{Binding Player.Volume, Mode=TwoWay}" />
                             </StackPanel>
                         </Grid>
 
@@ -1085,26 +1098,6 @@
                     Style="{StaticResource IbtCardSectionStyle}">
                     <local:CardSection.HeaderActions>
                         <StackPanel Orientation="Horizontal">
-                            <StackPanel
-                                x:Name="RampRow"
-                                Margin="0,0,12,0"
-                                Background="Transparent"
-                                Orientation="Horizontal"
-                                ToolTip="Suavizar mudança de volume: quanto tempo um volume leva para chegar ao valor novo (vale para todos os volumes e para o mudo). Seco muda na hora.">
-                                <Path
-                                    Margin="0,0,8,0"
-                                    Data="{StaticResource IbtFadeIn}"
-                                    Style="{StaticResource IbtRowIcon}" />
-                                <ComboBox
-                                    x:Name="RampCombo"
-                                    Width="96"
-                                    AutomationProperties.Name="Suavizar mudança de volume"
-                                    DisplayMemberPath="Label"
-                                    ItemsSource="{Binding VolumeRampChoices}"
-                                    SelectedValue="{Binding VolumeRampSeconds, Mode=TwoWay}"
-                                    SelectedValuePath="Seconds"
-                                    Style="{StaticResource IbtComboBox}" />
-                            </StackPanel>
                             <Border
                                 x:Name="AdjustDot"
                                 Margin="0,0,4,0"
@@ -1136,12 +1129,38 @@
                                 ToolTip="{Binding AdjustSwitchTip}" />
                         </StackPanel>
                     </local:CardSection.HeaderActions>
-                    <ItemsControl
-                        x:Name="VolumeList"
-                        Margin="0,0,0,-12"
-                        Focusable="False"
-                        ItemTemplate="{StaticResource VolumeRowTemplate}"
-                        ItemsSource="{Binding VolumeRows}" />
+                    <StackPanel>
+                        <ItemsControl
+                            x:Name="VolumeList"
+                            Margin="0,0,0,-12"
+                            Focusable="False"
+                            ItemTemplate="{StaticResource VolumeRowTemplate}"
+                            ItemsSource="{Binding VolumeRows}" />
+                        <Border
+                            Height="1"
+                            Margin="0,24,0,16"
+                            Style="{StaticResource IbtDivider}" />
+                        <StackPanel
+                            x:Name="RampRow"
+                            HorizontalAlignment="Left"
+                            Background="Transparent"
+                            Orientation="Horizontal"
+                            ToolTip="Suavizar mudança de volume: quanto tempo um volume leva para chegar ao valor novo (vale para todos os volumes e para o mudo). Seco muda na hora.">
+                            <Path
+                                Margin="0,0,8,0"
+                                Data="{StaticResource IbtFadeIn}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <ComboBox
+                                x:Name="RampCombo"
+                                Width="96"
+                                AutomationProperties.Name="Suavizar mudança de volume"
+                                DisplayMemberPath="Label"
+                                ItemsSource="{Binding VolumeRampChoices}"
+                                SelectedValue="{Binding VolumeRampSeconds, Mode=TwoWay}"
+                                SelectedValuePath="Seconds"
+                                Style="{StaticResource IbtComboBox}" />
+                        </StackPanel>
+                    </StackPanel>
                 </local:CardSection>
 
                 <local:CardSection

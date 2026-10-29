@@ -465,22 +465,37 @@ public sealed class SomLayoutTests
             Assert.Equal(56, play.Width, 1);
             Assert.Equal(56, play.Height, 1);
             Assert.Equal(CenterX(transport), CenterX(play), 1.5);
-            var order = new FrameworkElement[] { page.ShuffleToggle, page.PreviousButton, page.PlayPauseButton, page.NextButton, page.RepeatButton };
+            var order = new FrameworkElement[] { page.ShuffleToggle, page.PreviousButton, page.PlayPauseButton, page.StopButton, page.NextButton, page.RepeatButton };
             for (var i = 1; i < order.Length; i++)
             {
                 Assert.True(rig.BoundsOf(order[i]).Left >= rig.BoundsOf(order[i - 1]).Right);
             }
 
-            // The corner: only the switch (the next alarm line lives in the alarms header, never twice); the volume at the right of the transport row.
+            // The corner: only the switch (the next alarm line lives in the alarms header, never twice).
             var corner = rig.BoundsOf(page.HeroCorner);
             Assert.Equal(rig.BoundsOf(page.HeroInfo).Right, corner.Right, 1);
             Assert.True(corner.Top <= title.Top + 4);
             Assert.True(rig.BoundsOf(page.PlayerOnSwitch).Right <= hero.Right);
             Assert.DoesNotContain(rig.Find<TextBlock>(), t => t.Text.StartsWith("Pr\U000000F3ximo despertador", StringComparison.Ordinal));
-            var volume = rig.BoundsOf(page.PlayerVolumeBox);
-            Assert.True(volume.Left >= transport.Right);
-            Assert.Equal(rig.BoundsOf(page.HeroInfo).Right, volume.Right, 1);
-            Assert.True(rig.BoundsOf(page.StopButton).Right <= transport.Left);
+
+            // No volume in the hero any more (the Player row of the volumes card is the only one): the timeline is the only slider of the hero.
+            Assert.Single(rig.Find<Slider>(), c => Shown(c) && IsInside(c, page.PlayerHero));
+            Assert.DoesNotContain(rig.Find<Control>().Where(c => IsInside(c, page.PlayerHero)), c => c.ToolTip is string tip && tip.Contains("Volume do player", StringComparison.Ordinal));
+
+            // Stop: a smaller round outline button right next to Play (a ring, not the big filled disc), centred on the same line, with its automation name.
+            var stop = rig.BoundsOf(page.StopButton);
+            Assert.Equal(32, stop.Width, 1);
+            Assert.Equal(stop.Width, stop.Height, 1);
+            Assert.True(stop.Width < play.Width - 16, "smaller than Play");
+            Assert.Equal(CenterY(play), CenterY(stop), 1.5);
+            Assert.InRange(stop.Left - play.Right, 4, 24); // next to Play
+            Assert.Equal("Parar", System.Windows.Automation.AutomationProperties.GetName(page.StopButton));
+            Assert.Equal("Parar (com fade)", page.StopButton.ToolTip);
+            var ring = (Border)page.StopButton.Template.FindName("Ring", page.StopButton);
+            Assert.Equal(new Thickness(1.5), ring.BorderThickness);
+            Assert.Equal(16, ring.CornerRadius.TopLeft, 1); // round
+            Assert.True(((SolidColorBrush)ring.BorderBrush).Color.A > 0x60, "a visible ring");
+            Assert.Equal(Brushes.Transparent, ring.Background); // outline, not filled
 
             // Nothing is cut: the title may have an ellipsis, but no control of the card leaves it.
             foreach (var control in rig.Find<Control>().Where(c => Shown(c) && IsInside(c, page.PlayerHero)))
@@ -606,19 +621,31 @@ public sealed class SomLayoutTests
         {
             using var rig = new Rig(1100, Mode.Playing);
             var page = rig.Page;
-            Assert.Equal(5.0, (double)page.FadeInCombo.SelectedValue);
+            Assert.Equal(0.0, (double)page.FadeInCombo.SelectedValue);
             Assert.Equal(5.0, (double)page.FadeOutCombo.SelectedValue);
+            Assert.Equal(0.0, (double)page.RampCombo.SelectedValue);
+            Assert.Equal("seco", ((SecondsChoice)page.RampCombo.SelectedItem).Label);
             Assert.Equal(0.0, (double)page.CrossfadeCombo.SelectedValue);
             Assert.Equal("sem mescla", ((SecondsChoice)page.CrossfadeCombo.SelectedItem).Label);
 
             page.FadeOutCombo.SelectedIndex = 1; // 0,5 s
-            page.FadeInCombo.SelectedIndex = 0; // seco
+            page.FadeInCombo.SelectedIndex = 4; // 3 s
             page.CrossfadeCombo.SelectedIndex = 3; // 2 s
+            page.RampCombo.SelectedIndex = 3; // 2 s
 
             var saved = rig.Som.Settings.Settings.Current.Player;
             Assert.Equal(0.5, saved.FadeOutSeconds);
-            Assert.Equal(0, saved.FadeInSeconds);
+            Assert.Equal(3, saved.FadeInSeconds);
             Assert.Equal(2, saved.CrossfadeSeconds);
+            Assert.Equal(2, rig.Som.Settings.Settings.Current.Audio.VolumeRampSeconds);
+
+            // The ramp menu: icon and tooltip only, under the volume rows inside the "Volumes ao iniciar" card (the card keeps its name).
+            Assert.Equal("Volumes ao iniciar", page.VolumesSection.Header);
+            Assert.StartsWith("Suavizar mudança de volume", (string)page.RampRow.ToolTip, StringComparison.Ordinal);
+            Assert.Equal("Suavizar mudança de volume", AutomationProperties.GetName(page.RampCombo));
+            Assert.True(rig.BoundsOf(page.RampRow).Top >= rig.BoundsOf(page.VolumeList).Bottom);
+            Assert.True(IsInside(page.RampCombo, page.VolumesSection));
+            Assert.Empty(page.RampRow.Children.OfType<TextBlock>());
         });
     }
 
@@ -741,7 +768,6 @@ public sealed class SomLayoutTests
             Assert.False(page.PlayPauseButton.IsEnabled);
             Assert.False(page.SeekSlider.IsEnabled);
             Assert.False(page.NextButton.IsEnabled);
-            Assert.False(page.PlayerVolumeSlider.IsEnabled);
             Assert.InRange(page.ArtHost.Opacity, 0.2, 0.6);
             Assert.Equal(Visibility.Visible, page.CoverPlaceholder.Visibility);
             Assert.Equal(StatusLight.Gray, rig.Som.Som.PlayerOutput.Light);
