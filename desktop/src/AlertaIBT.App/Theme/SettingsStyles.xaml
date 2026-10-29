@@ -171,10 +171,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="Item" Property="Background" Value="#14FFFFFF" />
+                            <Setter TargetName="Item" Property="Background" Value="#1FFFFFFF" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Item" Property="Background" Value="#211DA35F" />
+                            <Setter TargetName="Item" Property="Background" Value="#331DA35F" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -194,6 +194,7 @@
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="ItemContainerStyle" Value="{StaticResource IbtComboBoxItem}" />
+        <Setter Property="MaxDropDownHeight" Value="246" /> <!-- 8 rows of 29 (+ the frame), then it scrolls -->
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
         <Setter Property="Template">
             <Setter.Value>
@@ -205,8 +206,15 @@
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="8" />
+                        <!--
+                            The whole box is the button. It must STRETCH on purpose: the WPF-UI style that reaches this button through the implicit
+                            ToggleButton style aligns it to the left, and a template that is only a Border then measures 0 x 0: nothing was there to click.
+                        -->
                         <ToggleButton
                             x:Name="DropButton"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            ClickMode="Press"
                             Focusable="False"
                             IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                             <ToggleButton.Template>
