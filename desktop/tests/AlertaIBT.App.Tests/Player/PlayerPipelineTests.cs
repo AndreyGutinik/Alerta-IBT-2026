@@ -106,7 +106,7 @@ public sealed class PlayerPipelineTests : IDisposable
     public void A_pause_fades_the_real_samples_out_smoothly_and_then_pauses(int seconds)
     {
         using var rig = new RealChainRig(Tone());
-        rig.Change(p => p with { StopFadeSeconds = seconds });
+        rig.Change(p => p with { FadeOutSeconds = seconds });
         rig.Player.Play();
         rig.Output.RmsWindows(0.5, 0.5);
 
@@ -126,7 +126,7 @@ public sealed class PlayerPipelineTests : IDisposable
     public void A_stop_fades_out_the_same_way_and_stops()
     {
         using var rig = new RealChainRig(Tone());
-        rig.Change(p => p with { StopFadeSeconds = 3 });
+        rig.Change(p => p with { FadeOutSeconds = 3 });
         rig.Player.Play();
         rig.Output.RmsWindows(0.5, 0.5);
 
@@ -141,7 +141,7 @@ public sealed class PlayerPipelineTests : IDisposable
     public void A_dry_stop_is_silent_within_a_few_milliseconds()
     {
         using var rig = new RealChainRig(Tone());
-        rig.Change(p => p with { StopFadeSeconds = 0 });
+        rig.Change(p => p with { FadeOutSeconds = 0 });
         rig.Player.Play();
         rig.Output.RmsWindows(0.5, 0.5);
 
@@ -159,7 +159,7 @@ public sealed class PlayerPipelineTests : IDisposable
     public void The_alarm_start_fades_in_from_silence_to_the_target_level()
     {
         using var rig = new RealChainRig(Tone());
-        rig.Change(p => p with { AlarmFadeSeconds = 5 });
+        rig.Change(p => p with { FadeInSeconds = 5 });
 
         var start = rig.Player.StartFromAlarm("Igreja");
         Assert.Equal(AlarmStartOutcome.Started, start.Outcome);
@@ -177,7 +177,7 @@ public sealed class PlayerPipelineTests : IDisposable
     public void A_dry_alarm_start_is_a_10_ms_ramp_not_a_click()
     {
         using var rig = new RealChainRig(Tone());
-        rig.Change(p => p with { AlarmFadeSeconds = 0 });
+        rig.Change(p => p with { FadeInSeconds = 0 });
 
         rig.Player.StartFromAlarm("Igreja");
         var first = rig.Output.Pull(RealChainRig.Rate / 100);
@@ -210,7 +210,7 @@ public sealed class PlayerPipelineTests : IDisposable
         Assert.Equal(0.0, muted, 4);
         Assert.InRange(back, FullRms * 0.98, FullRms * 1.02);
 
-        rig.Change(p => p with { Volume = 50, StopFadeSeconds = 3 });
+        rig.Change(p => p with { Volume = 50, FadeOutSeconds = 3 });
         rig.Output.RmsWindows(0.2, 0.2);
         rig.Player.Pause();
         var windows = rig.Output.RmsWindows(3, 0.25);
@@ -263,7 +263,7 @@ public sealed class PlayerPipelineTests : IDisposable
     public void A_seek_during_a_fade_out_leaves_the_fade_running()
     {
         using var rig = new RealChainRig(Tone());
-        rig.Change(p => p with { StopFadeSeconds = 3 });
+        rig.Change(p => p with { FadeOutSeconds = 3 });
         rig.Player.Play();
         rig.Output.RmsWindows(0.5, 0.5);
         rig.Player.Pause();
@@ -281,7 +281,7 @@ public sealed class PlayerPipelineTests : IDisposable
     public void A_seek_while_paused_resumes_that_track_from_the_new_place_through_the_real_decoder()
     {
         using var rig = new RealChainRig(Tone(before: 0.2, after: 0.6, stepAt: 10));
-        rig.Change(p => p with { StopFadeSeconds = 0 });
+        rig.Change(p => p with { FadeOutSeconds = 0 });
         rig.Player.Play();
         rig.Output.RmsWindows(0.5, 0.5);
         rig.Player.Pause();

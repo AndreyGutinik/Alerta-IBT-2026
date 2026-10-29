@@ -106,6 +106,9 @@ internal sealed class FakePlayerBackend : IPlayerBackend
 
     public float Level { get; set; } = 0.5f;
 
+    /// <summary>The level of a file when it is not the default one (to tell tracks apart by ear, in a test).</summary>
+    public Func<string, float>? LevelFor { get; set; }
+
     public Exception? OutputError { get; set; }
 
     public HashSet<string> BadFiles { get; } = [];
@@ -140,7 +143,7 @@ internal sealed class FakePlayerBackend : IPlayerBackend
             throw new IOException("corrupt file");
         }
 
-        var track = new FakeTrack(path, sampleRate, channels, TrackFrames, Level);
+        var track = new FakeTrack(path, sampleRate, channels, TrackFrames, LevelFor?.Invoke(path) ?? Level);
         Tracks.Add(track);
         return track;
     }
@@ -207,7 +210,7 @@ internal sealed class PlayerRig : IDisposable
             action => action());
         Log = new CapturingLogger();
         Player = new MusicPlayer(Settings, Library, Backend, Audio, new FakeMetadata(), Clock, Log, action => action(), new Random(seed));
-        Settings.Update(s => s with { Player = s.Player with { Playlists = [new PlaylistEntry("Igreja", Folder)], CurrentPlaylist = "Igreja" } });
+        Settings.Update(s => s with { Player = s.Player with { Playlists = [new PlaylistEntry("Igreja", Folder)], CurrentPlaylist = "Igreja", FadeInSeconds = 0 } });
         Audio.Devices.Clear();
         Audio.Devices.Add(new AudioDevice(Speakers, "Alto-falantes (Realtek)"));
         Audio.DefaultMultimedia = Speakers;

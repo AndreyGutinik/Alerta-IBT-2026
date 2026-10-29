@@ -32,7 +32,7 @@ public sealed class MusicPlayerTests : IDisposable
         Assert.Equal("Artist", status.Track!.Artist);
         Assert.Equal(TimeSpan.FromSeconds(10), status.Duration);
         Assert.Single(Backend.Outputs);
-        Assert.Single(Backend.Tracks);
+        Assert.Equal(2, Backend.Tracks.Count); // the one playing and the next one, decoded ahead for a gapless change
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public sealed class MusicPlayerTests : IDisposable
 
         Assert.True(Player.Play().Success);
 
-        Assert.Single(Backend.Tracks);
+        Assert.Equal(2, Backend.Tracks.Count); // the one playing and the next one, decoded ahead for a gapless change
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public sealed class MusicPlayerTests : IDisposable
     [Fact]
     public void A_dry_stop_still_ramps_for_10_ms_and_stops()
     {
-        _rig.Change(p => p with { StopFadeSeconds = 0 });
+        _rig.Change(p => p with { FadeOutSeconds = 0 });
         Player.Play();
         Backend.Output.PumpSeconds(0.5);
 
@@ -123,7 +123,7 @@ public sealed class MusicPlayerTests : IDisposable
     [Fact]
     public void A_3_second_setting_makes_a_3_second_fade()
     {
-        _rig.Change(p => p with { StopFadeSeconds = 3 });
+        _rig.Change(p => p with { FadeOutSeconds = 3 });
         Player.Play();
         Backend.Output.PumpSeconds(0.5);
 
@@ -141,7 +141,7 @@ public sealed class MusicPlayerTests : IDisposable
         Player.Play();
         var first = Player.GetStatus().Track!.Path;
         Backend.Output.PumpSeconds(1);
-        _rig.Change(p => p with { StopFadeSeconds = 0 });
+        _rig.Change(p => p with { FadeOutSeconds = 0 });
         Player.Pause();
         Backend.Output.PumpSeconds(0.1);
 
@@ -174,7 +174,7 @@ public sealed class MusicPlayerTests : IDisposable
     [Fact]
     public void A_paused_player_can_be_stopped_and_stopping_twice_is_fine()
     {
-        _rig.Change(p => p with { StopFadeSeconds = 0 });
+        _rig.Change(p => p with { FadeOutSeconds = 0 });
         Player.Play();
         Player.Pause();
         Backend.Output.PumpSeconds(0.1);
@@ -462,7 +462,7 @@ public sealed class MusicPlayerTests : IDisposable
     [Fact]
     public void An_alarm_start_uses_shuffle_repeat_all_and_the_alarm_fade_in()
     {
-        _rig.Change(p => p with { Shuffle = false, Repeat = "off", AlarmFadeSeconds = 5 });
+        _rig.Change(p => p with { Shuffle = false, Repeat = "off", FadeInSeconds = 5 });
 
         var start = Player.StartFromAlarm("Igreja");
 
@@ -485,7 +485,7 @@ public sealed class MusicPlayerTests : IDisposable
 
         Assert.Equal(AlarmStartOutcome.AlreadyPlaying, start.Outcome);
         Assert.Equal(path, Player.GetStatus().Track!.Path);
-        Assert.Single(Backend.Tracks);
+        Assert.Equal(2, Backend.Tracks.Count); // the one playing and the next one, decoded ahead for a gapless change
     }
 
     [Fact]
@@ -538,7 +538,7 @@ public sealed class MusicPlayerTests : IDisposable
     [Fact]
     public void A_paused_player_keeps_the_track_and_position_and_a_seek_moves_the_resume_point()
     {
-        _rig.Change(p => p with { StopFadeSeconds = 0 });
+        _rig.Change(p => p with { FadeOutSeconds = 0 });
         Player.Play();
         var path = Player.GetStatus().Track!.Path;
         Backend.Output.PumpSeconds(2);
@@ -566,7 +566,7 @@ public sealed class MusicPlayerTests : IDisposable
     [Fact]
     public void Play_after_a_pause_without_a_seek_still_starts_the_next_track()
     {
-        _rig.Change(p => p with { StopFadeSeconds = 0 });
+        _rig.Change(p => p with { FadeOutSeconds = 0 });
         Player.Play();
         var path = Player.GetStatus().Track!.Path;
         Backend.Output.PumpSeconds(1);

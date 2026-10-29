@@ -17,10 +17,18 @@ internal sealed class RealChainRig : IDisposable
     private readonly PlaylistLibrary _library;
 
     public RealChainRig(string realFile, int deviceRate = Rate, int deviceChannels = 2)
+        : this([realFile], "one", deviceRate, deviceChannels)
+    {
+    }
+
+    /// <summary>A playlist of several real files (in this order, shuffle off), each played by the real decoder; <paramref name="repeat"/> is the repeat mode.</summary>
+    public RealChainRig(IReadOnlyList<string> realFiles, string repeat, int deviceRate = Rate, int deviceChannels = 2)
     {
         Settings = new SettingsRig();
-        Backend = new RealChainBackend(realFile, deviceRate, deviceChannels);
-        _library = new PlaylistLibrary(new SingleFileSystem(), _ => null, Settings.Clock, action => action());
+        var paths = realFiles.Select((_, i) => $"/music/track-{i + 1:00}.flac").ToList();
+        Paths = paths;
+        Backend = new RealChainBackend(paths.Zip(realFiles).ToDictionary(p => p.First, p => p.Second), deviceRate, deviceChannels);
+        _library = new PlaylistLibrary(new ListFileSystem(paths), _ => null, Settings.Clock, action => action());
         Settings.Settings.Update(s => s with
         {
             Player = s.Player with
@@ -28,14 +36,17 @@ internal sealed class RealChainRig : IDisposable
                 Playlists = [new PlaylistEntry("Igreja", "/music")],
                 CurrentPlaylist = "Igreja",
                 Shuffle = false,
-                Repeat = "one",
+                Repeat = repeat,
                 Volume = 100,
                 StartMuted = false,
+                FadeInSeconds = 0,
             },
         });
         Player = new MusicPlayer(Settings.Settings, _library, Backend, new FakeAudio(), new FakeMetadata(), Settings.Clock, null, action => action(), new Random(1));
         Player.Start();
     }
+
+    public IReadOnlyList<string> Paths { get; }
 
     public SettingsRig Settings { get; }
 
@@ -54,15 +65,15 @@ internal sealed class RealChainRig : IDisposable
         Settings.Dispose();
     }
 
-    private sealed class SingleFileSystem : IMediaFileSystem
+    private sealed class ListFileSystem(IReadOnlyList<string> files) : IMediaFileSystem
     {
         public bool DirectoryExists(string folder) => true;
 
-        public IEnumerable<string> EnumerateFiles(string folder) => [FakePath];
+        public IEnumerable<string> EnumerateFiles(string folder) => files;
     }
 }
 
-internal sealed class RealChainBackend(string realFile, int deviceRate, int deviceChannels) : IPlayerBackend
+internal sealed class RealChainBackend(Dictionary<string, string> realFiles, int deviceRate, int deviceChannels) : IPlayerBackend
 {
     private readonly NAudioPlayerBackend _real = new();
 
@@ -75,7 +86,13 @@ internal sealed class RealChainBackend(string realFile, int deviceRate, int devi
         return output;
     }
 
-    public IPcmTrack OpenTrack(string path, int sampleRate, int channels) => _real.OpenTrack(realFile, sampleRate, channels);
+    public List<string> Opened { get; } = [];
+
+    public IPcmTrack OpenTrack(string path, int sampleRate, int channels)
+    {
+        Opened.Add(path);
+        return _real.OpenTrack(realFiles[path], sampleRate, channels);
+    }
 }
 
 /// <summary>The "sound card": what it pulls is what would be heard.</summary>

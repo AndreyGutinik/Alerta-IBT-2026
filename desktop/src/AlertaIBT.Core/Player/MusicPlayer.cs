@@ -85,6 +85,13 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     private TimeSpan _pausedAt;
     private TimeSpan _pausedDuration;
     private bool _pausedSeeked;
+    private IPcmTrack? _preloaded;
+    private string? _preloadedPath;
+    private string? _preloading;
+    private string? _preloadFailed;
+    private int _trackToken;
+    private int _preloadToken;
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<IPcmTrack, string> _preloadedPaths = new();
 
     /// <param name="settings">The settings (the player section).</param>
     /// <param name="library">The playlists.</param>
@@ -149,7 +156,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     }
 
     /// <inheritdoc />
-    public PlayerResult Play() => Locked(() => PlayLocked(fadeInSeconds: 0));
+    public PlayerResult Play() => Locked(() => PlayLocked(Options.FadeInSeconds));
 
     /// <summary>
     /// The alarm start: selects <paramref name="playlistName"/>, sets shuffle on and repeat all (saved, so the screen shows it), and starts the next
@@ -188,7 +195,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         var result = Locked(() =>
         {
             ApplyOptions(Options);
-            return PlayLocked(Options.AlarmFadeSeconds);
+            return PlayLocked(Options.FadeInSeconds);
         });
         return result.Success ? new AlarmStart(AlarmStartOutcome.Started, null) : new AlarmStart(AlarmStartOutcome.Failed, result.Error);
     }
@@ -346,7 +353,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
 
     // ---- commands (the lock is held) ----
 
-    private PlayerResult PlayLocked(int fadeInSeconds)
+    private PlayerResult PlayLocked(double fadeInSeconds)
     {
         if (!Options.Enabled)
         {
@@ -364,6 +371,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
             _generation++;
             _fading = false;
             _session?.Mixer.FadeTo(1f, FadeEnvelope.FramesFor(ResumeFade.TotalSeconds, _session.Mixer.SampleRate));
+            EnsurePreloadLocked();
             return PlayerResult.Ok;
         }
 
@@ -429,7 +437,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         _fading = true;
         _changed = true;
         var session = _session;
-        var frames = FadeEnvelope.FramesFor(Options.StopFadeSeconds, session.Mixer.SampleRate);
+        var frames = FadeEnvelope.FramesFor(Options.FadeOutSeconds, session.Mixer.SampleRate);
         session.Mixer.FadeTo(0f, frames, () => Locked(() => FinishFadeOutLocked(generation, session, target)));
         return PlayerResult.Ok;
     }
@@ -463,6 +471,8 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         _fading = true;
         _changed = true;
         var session = _session!;
+        session.Mixer.ClearNext(); // no crossfade can begin while the skip fades out
+        ForgetPreloadLocked();
         session.Mixer.FadeTo(
             0f,
             FadeEnvelope.FramesFor(SkipFade.TotalSeconds, session.Mixer.SampleRate),
@@ -504,6 +514,137 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         });
     }
 
+    // The next track took over inside the mixer (gapless, or the first sample of a crossfade): the queue, the title and the cover follow it now.
+    private void OnTrackAdvanced(Session session, IPcmTrack track)
+    {
+        Locked(() =>
+        {
+            if (_disposed || !ReferenceEquals(session, _session) || _state != PlayerState.Playing || !ReferenceEquals(session.Mixer.Track, track) || !_preloadedPaths.TryGetValue(track, out var path))
+            {
+                return PlayerResult.Ok; // a newer command replaced the sound meanwhile
+            }
+
+            _queue.AdvanceTo(path);
+            _current = _metadata.Read(path);
+            _preloaded = null;
+            _preloadedPath = null;
+            _preloading = null;
+            _trackToken++;
+            _pausedSeeked = false;
+            _lastError = null;
+            _changed = true;
+            _logger.LogInformation("Tocando: {File}", _current.FileName);
+            EnsurePreloadLocked();
+            return PlayerResult.Ok;
+        });
+    }
+
+    // Makes sure the track the end of this one will bring is decoded ahead of time in the mixer (so the change has no gap), or that none is waiting
+    // when the music should stop there. The decoding runs off the lock.
+    private void EnsurePreloadLocked()
+    {
+        if (_disposed || _state != PlayerState.Playing || _fading || _session is not { } session || !Options.Enabled)
+        {
+            return;
+        }
+
+        if (_choice is { } choice && !string.Equals(session.RequestedId, choice.Device?.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            // The wished output is another one now: the next track must open on it when this one ends, so nothing is carried over inside this session.
+            if (_preloaded is not null)
+            {
+                session.Mixer.ClearNext();
+                ForgetPreloadLocked();
+            }
+
+            return;
+        }
+
+        var wanted = _queue.PeekAuto();
+        if (wanted is null)
+        {
+            if (_preloaded is not null)
+            {
+                session.Mixer.ClearNext();
+                ForgetPreloadLocked();
+            }
+
+            return;
+        }
+
+        if (string.Equals(wanted, _preloadedPath, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(wanted, _preloading, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(wanted, _preloadFailed, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (_preloaded is not null)
+        {
+            session.Mixer.ClearNext(); // the queue changed its mind (shuffle or repeat were switched)
+            _preloaded = null;
+            _preloadedPath = null;
+        }
+
+        _preloading = wanted;
+        var token = _trackToken;
+        var preload = ++_preloadToken;
+        _post(() => PreloadNext(session, token, preload, wanted));
+    }
+
+    private void ForgetPreloadLocked()
+    {
+        _preloaded = null;
+        _preloadedPath = null;
+        _preloading = null;
+        _preloadFailed = null;
+        _trackToken++;
+        _preloadToken++;
+    }
+
+    // Decodes `path` outside the lock and, when nothing changed meanwhile, hands it to the mixer as the next track.
+    private void PreloadNext(Session session, int token, int preload, string path)
+    {
+        IPcmTrack? pcm = null;
+        try
+        {
+            pcm = _backend.OpenTrack(path, session.Mixer.SampleRate, session.Mixer.Channels);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nao foi possivel abrir {File} adiantado; o player tenta de novo quando a faixa acabar", Path.GetFileName(path));
+        }
+
+        Locked(() =>
+        {
+            if (preload != _preloadToken)
+            {
+                return PlayerResult.Ok;
+            }
+
+            _preloading = null;
+            if (pcm is null)
+            {
+                _preloadFailed = path;
+                return PlayerResult.Ok;
+            }
+
+            if (!_disposed && token == _trackToken && ReferenceEquals(session, _session) && _state == PlayerState.Playing && !_fading
+                && string.Equals(_queue.PeekAuto(), path, StringComparison.OrdinalIgnoreCase))
+            {
+                _preloadedPaths.AddOrUpdate(pcm, path);
+                session.Mixer.SetNext(pcm);
+                _preloaded = pcm;
+                _preloadedPath = path;
+                pcm = null;
+            }
+
+            return PlayerResult.Ok;
+        });
+
+        pcm?.Dispose();
+    }
+
     private void OnOutputFailed(Session session, Exception? error)
     {
         Locked(() =>
@@ -526,7 +667,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     // ---- opening ----
 
     // Opens `path` (skipping the files that cannot be read) and starts it, with the fade-in wanted.
-    private PlayerResult OpenAndPlayLocked(string? path, int fadeInSeconds, bool skipFade = false, TimeSpan? startAt = null)
+    private PlayerResult OpenAndPlayLocked(string? path, double fadeInSeconds, bool skipFade = false, TimeSpan? startAt = null)
     {
         Session session;
         var choice = ResolveOutputLocked();
@@ -575,6 +716,8 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
                 _lastError = null;
                 _changed = true;
                 _logger.LogInformation("Tocando: {File}", info.FileName);
+                ForgetPreloadLocked();
+                EnsurePreloadLocked();
                 return PlayerResult.Ok;
             }
             catch (Exception ex)
@@ -614,7 +757,9 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         var session = new Session(output, mixer ?? throw new InvalidOperationException("The output did not ask for a source."), wantedId);
         var options = Options;
         mixer.SetVolume(options.Volume / 100f, options.StartMuted, immediate: true);
+        mixer.SetCrossfade(options.CrossfadeSeconds);
         mixer.TrackEnded += () => OnTrackEnded(session);
+        mixer.TrackAdvanced += track => OnTrackAdvanced(session, track);
         output.Failed += error => OnOutputFailed(session, error);
         _session = session;
         return session;
@@ -639,6 +784,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         }
 
         session.Mixer.SetTrack(null);
+        ForgetPreloadLocked();
     }
 
     // The player has no output now: try again every few seconds until one opens.
@@ -703,6 +849,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         {
             _choice = choice;
             _changed = true;
+            EnsurePreloadLocked();
         }
     }
 
@@ -766,6 +913,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         _queue.Shuffle = options.Shuffle;
         _queue.Repeat = PlayerRepeatText.Parse(options.Repeat);
         _session?.Mixer.SetVolume(options.Volume / 100f, options.StartMuted);
+        _session?.Mixer.SetCrossfade(options.CrossfadeSeconds);
 
         if (!string.Equals(_playlist, options.CurrentPlaylist, StringComparison.Ordinal))
         {
@@ -789,6 +937,8 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
             _fading = false;
             _changed = true;
         }
+
+        EnsurePreloadLocked();
     }
 
     private void SyncQueueLocked()
