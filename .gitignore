@@ -19,3 +19,6 @@ artifacts/
 
 # Firebase CLI hosting cache
 .firebase/
+
+# SDK proprietario do NDI (nao versionar)
+NDI-SDK/
