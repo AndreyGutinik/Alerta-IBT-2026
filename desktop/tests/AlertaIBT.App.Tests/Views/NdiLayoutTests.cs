@@ -24,6 +24,8 @@ public sealed class NdiLayoutTests
 
     public static TheoryData<double> WindowWidths => new(Widths);
 
+    private static double CenterY(Rect r) => r.Top + (r.Height / 2);
+
     private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
     {
         var count = VisualTreeHelper.GetChildrenCount(parent);
@@ -210,22 +212,99 @@ public sealed class NdiLayoutTests
     }
 
     [Fact]
-    public void Top_to_bottom_the_order_is_pictures_then_cameras_then_telao_and_settings_then_the_trademark()
+    public void Top_to_bottom_the_order_is_the_telao_bar_then_the_pictures_then_cameras_then_settings_then_the_trademark()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(1100, setup: ThreeCameras);
 
+            var bar = rig.BoundsOf(rig.Named<Border>("TelaoBar"));
             var stage = rig.BoundsOf(rig.Named<Border>("Stage"));
             var cameras = rig.BoundsOf(rig.Named<CardSection>("CamerasCard"));
-            var bottom = rig.BoundsOf(rig.Named<AdaptiveGrid>("BottomRow"));
+            var settings = rig.BoundsOf(rig.Named<CardSection>("SettingsCard"));
             var trademark = rig.BoundsOf(rig.Named<TextBlock>("TrademarkText"));
 
+            Assert.True(bar.Bottom <= stage.Top);
             Assert.True(stage.Bottom <= cameras.Top);
-            Assert.True(cameras.Bottom <= bottom.Top);
-            Assert.True(bottom.Bottom <= trademark.Top);
+            Assert.True(cameras.Bottom <= settings.Top);
+            Assert.True(settings.Bottom <= trademark.Top);
             Assert.Equal("NDI(R) is a registered trademark of Vizrt NDI AB".Replace("(R)", "\U000000AE"), rig.Named<TextBlock>("TrademarkText").Text);
             Assert.Equal("ndi.video", rig.Named<Button>("SiteLink").Content);
+            Assert.DoesNotContain(rig.Find<CardSection>(), c => Equals(c.Header, "Tel\U000000E3o")); // the old Telao card is gone: it is a bar now
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void The_telao_bar_is_one_line_with_the_title_left_the_chips_in_the_middle_and_the_switch_right(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width, setup: ThreeCameras);
+            var bar = rig.BoundsOf(rig.Named<Border>("TelaoBar"));
+            var title = rig.BoundsOf(rig.Named<StackPanel>("TelaoTitle"));
+            var chips = rig.BoundsOf(rig.Named<StackPanel>("TelaoChips"));
+            var layer = rig.BoundsOf(rig.Named<ToggleButton>("LayerSwitch"));
+            var stage = rig.BoundsOf(rig.Named<Border>("Stage"));
+            var cameras = rig.BoundsOf(rig.Named<CardSection>("CamerasCard"));
+
+            // one line: a single row of controls, all vertically centred in the bar
+            Assert.InRange(bar.Height, 56, 80);
+            Assert.Equal(CenterY(bar), CenterY(title), 1.5);
+            Assert.Equal(CenterY(bar), CenterY(chips), 1.5);
+            Assert.Equal(CenterY(bar), CenterY(layer), 1.5);
+            var chipBounds = new[] { "SignalChip", "FpsChip", "ResolutionChip", "DroppedChip" }.Select(n => rig.BoundsOf(rig.Named<Border>(n))).ToList();
+            Assert.All(chipBounds, c => Assert.Equal(chipBounds[0].Top, c.Top, 1)); // never wrapped
+            for (var i = 1; i < chipBounds.Count; i++)
+            {
+                Assert.True(chipBounds[i].Left >= chipBounds[i - 1].Right);
+            }
+
+            // left to right: title, chips, switch, with nothing cut or overlapping, the whole bar as wide as the cards under it
+            Assert.True(title.Right <= chips.Left && chips.Right <= layer.Left, "title < chips < switch");
+            Assert.True(title.Left >= bar.Left + 12 && layer.Right <= bar.Right - 12);
+            Assert.Equal(stage.Left, bar.Left, 1);
+            Assert.Equal(stage.Right, bar.Right, 1);
+            Assert.Equal(cameras.Left, bar.Left, 1);
+            Assert.Equal(cameras.Right, bar.Right, 1);
+            Assert.Contains(rig.Named<StackPanel>("TelaoTitle").Descendants<TextBlock>(), t => t.Text == "Tel\U000000E3o");
+            Assert.Equal("C\U000000E2mera no tel\U000000E3o", AutomationProperties.GetName(rig.Named<ToggleButton>("LayerSwitch")));
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void The_settings_card_is_full_width_one_column_with_monitor_test_bars_hide_and_shortcuts_in_that_order(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width, setup: ThreeCameras);
+            var card = rig.BoundsOf(rig.Named<CardSection>("SettingsCard"));
+            var cameras = rig.BoundsOf(rig.Named<CardSection>("CamerasCard"));
+            Assert.Equal(cameras.Left, card.Left, 1);
+            Assert.Equal(cameras.Right, card.Right, 1);
+
+            var rows = new FrameworkElement[]
+            {
+                rig.Named<ComboBox>("MonitorCombo"),
+                rig.Named<ToggleButton>("TestPatternSwitch"),
+                rig.Named<ToggleButton>("HideSwitch"),
+                rig.Named<ToggleButton>("ShortcutsSwitch"),
+            };
+            var bounds = rows.Select(rig.BoundsOf).ToList();
+            for (var i = 1; i < bounds.Count; i++)
+            {
+                Assert.True(bounds[i].Top >= bounds[i - 1].Bottom, "single column, top to bottom");
+            }
+
+            // the switches line up on the right edge (the lock is the monitor row's own, left of nothing but the edge)
+            var edge = rig.BoundsOf(rig.Named<ToggleButton>("MonitorLock")).Right;
+            Assert.Equal(edge, bounds[1].Right, 1.5);
+            Assert.Equal(edge, bounds[2].Right, 1.5);
+            Assert.Equal(edge, bounds[3].Right, 1.5);
+            Assert.All(bounds, b => Assert.True(b.Right <= card.Right && b.Left >= card.Left));
+            Assert.Contains(rig.Named<CardSection>("SettingsCard").Descendants<TextBlock>(), t => t.Text == "Barras de teste");
+            Assert.DoesNotContain(rig.Find<CardSection>(), c => Equals(c.Header, "Tel\U000000E3o"));
         });
     }
 
@@ -270,7 +349,10 @@ public sealed class NdiLayoutTests
             }
 
             // the blocks in the cards are lighter again
-            var block = Descendants(rig.Named<CardSection>("TelaoCard")).OfType<Border>().First(b => Equals(b.Style, Application.Current.FindResource("IbtBlock")));
+            var bar = rig.Named<Border>("TelaoBar");
+            Assert.True(Luminance((SolidColorBrush)bar.Background) > page);
+            Assert.Equal(new Thickness(1), bar.BorderThickness);
+            var block = Descendants(rig.Named<CardSection>("SettingsCard")).OfType<Border>().First(b => Equals(b.Style, Application.Current.FindResource("IbtBlock")));
             Assert.True(Luminance((SolidColorBrush)block.Background) > Luminance((SolidColorBrush)stage.Background));
         });
     }
@@ -457,7 +539,7 @@ public sealed class NdiLayoutTests
     }
 
     [Fact]
-    public void The_telao_card_has_the_big_switch_off_the_chips_and_the_test_bars_and_the_settings_card_the_rest()
+    public void The_telao_bar_has_the_switch_off_and_the_chips_and_the_settings_card_the_test_bars_and_the_rest()
     {
         WpfTestHost.Run(() =>
         {
@@ -467,7 +549,7 @@ public sealed class NdiLayoutTests
             var layer = rig.Named<ToggleButton>("LayerSwitch");
             Assert.False(layer.IsChecked);
             Assert.True(layer.LayoutTransform is ScaleTransform { ScaleX: > 1.2 });
-            Assert.True(rig.BoundsOf(layer).Height >= 32);
+            Assert.True(rig.BoundsOf(layer).Height >= 24);
             foreach (var chip in new[] { "SignalChip", "FpsChip", "ResolutionChip", "DroppedChip" })
             {
                 var border = rig.Named<Border>(chip);
@@ -484,9 +566,6 @@ public sealed class NdiLayoutTests
             Assert.Equal("\\\\.\\DISPLAY3", rig.Named<ComboBox>("MonitorCombo").SelectedValue);
             Assert.Contains("Holyrics", (string)rig.Named<ToggleButton>("ShortcutsSwitch").ToolTip);
             Assert.Equal(Visibility.Collapsed, rig.Named<StackPanel>("ShortcutWarning").Visibility);
-
-            // the cards are in the same row at 1100
-            Assert.Equal(rig.BoundsOf(rig.Named<CardSection>("TelaoCard")).Top, rig.BoundsOf(rig.Named<CardSection>("SettingsCard")).Top, 1);
         });
     }
 

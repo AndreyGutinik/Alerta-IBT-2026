@@ -541,9 +541,129 @@
                     </Style>
                 </StackPanel.Style>
 
-                <!-- ===== (1) Previa | Cortar | No ar ===== -->
+                <!-- ===== (1) The Telao bar: one line, title left, status chips in the middle, the on/off switch right ===== -->
+                <Border
+                    x:Name="TelaoBar"
+                    Padding="16,0"
+                    Style="{StaticResource IbtSurfaceCard}">
+                    <Grid MinHeight="64">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel
+                            x:Name="TelaoTitle"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal"
+                            ToolTip="A câmera aparece no LED, por baixo do Holyrics e da barra de avisos. Ao abrir o app ela está sempre desligada.">
+                            <Path
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource LucideMonitorPlay}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBlock
+                                VerticalAlignment="Center"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                Foreground="{StaticResource IbtTextBrush}"
+                                Text="Telão" />
+                        </StackPanel>
+                        <StackPanel
+                            x:Name="TelaoChips"
+                            Grid.Column="1"
+                            Margin="16,0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Orientation="Horizontal">
+                                <Border
+                                x:Name="SignalChip"
+                                AutomationProperties.Name="Sinal"
+                                Margin="0,0,8,0"
+                                Style="{StaticResource NdiChip}"
+                                ToolTip="{Binding SignalTip}">
+                                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                    <Ellipse
+                                        x:Name="SignalDot"
+                                        Width="8"
+                                        Height="8"
+                                        Margin="0,0,8,0"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock VerticalAlignment="Center" Text="{Binding SignalText}" />
+                                </StackPanel>
+                                <Border.Resources>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#6F6A63" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Signal}" Value="Live">
+                                                <Setter Property="Fill" Value="#4FD88E" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Signal}" Value="Frozen">
+                                                <Setter Property="Fill" Value="#FFD87A" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Signal}" Value="NoSignal">
+                                                <Setter Property="Fill" Value="#FF5C5C" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Signal}" Value="NoCamera">
+                                                <Setter Property="Fill" Value="#FFD87A" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Resources>
+                            </Border>
+                            <Border
+                                x:Name="FpsChip"
+                                AutomationProperties.Name="Quadros por segundo"
+                                Margin="0,0,8,0"
+                                Style="{StaticResource NdiChip}"
+                                ToolTip="Quadros por segundo da câmera que está no ar">
+                                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                    <Path Data="{StaticResource LucideGauge}" Style="{StaticResource NdiChipIcon}" />
+                                    <TextBlock VerticalAlignment="Center" Text="{Binding FpsText}" />
+                                </StackPanel>
+                            </Border>
+                            <Border
+                                x:Name="ResolutionChip"
+                                AutomationProperties.Name="Resolução da fonte"
+                                Margin="0,0,8,0"
+                                Style="{StaticResource NdiChip}"
+                                ToolTip="Resolução da imagem que chega da câmera">
+                                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                    <Path Data="{StaticResource LucideMonitor}" Style="{StaticResource NdiChipIcon}" />
+                                    <TextBlock VerticalAlignment="Center" Text="{Binding ResolutionText}" />
+                                </StackPanel>
+                            </Border>
+                            <Border
+                                x:Name="DroppedChip"
+                                AutomationProperties.Name="Quadros perdidos"
+                                Margin="0,0,8,0"
+                                Style="{StaticResource NdiChip}"
+                                ToolTip="Quadros perdidos pela câmera que está no ar (o app não deu conta ou a rede falhou)">
+                                <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                    <Path Data="{StaticResource LucideTriangleAlert}" Style="{StaticResource NdiChipIcon}" />
+                                    <TextBlock VerticalAlignment="Center" Text="{Binding DroppedText}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <ToggleButton
+                            x:Name="LayerSwitch"
+                            Grid.Column="2"
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="Câmera no telão"
+                            IsChecked="{Binding LayerOn, Mode=TwoWay}"
+                            Style="{StaticResource IbtSwitch}"
+                            ToolTip="Câmera no telão: liga e desliga a câmera no LED. Sempre começa desligada quando o app abre.">
+                            <ToggleButton.LayoutTransform>
+                                <ScaleTransform ScaleX="1.4" ScaleY="1.4" />
+                            </ToggleButton.LayoutTransform>
+                        </ToggleButton>
+                    </Grid>
+                </Border>
+
+                <!-- ===== (2) Previa | Cortar | No ar ===== -->
                 <Border
                     x:Name="Stage"
+                    Margin="0,16,0,0"
                     Padding="16"
                     Style="{StaticResource IbtSurfaceCard}">
                     <Grid>
@@ -624,7 +744,7 @@
                     </Grid>
                 </Border>
 
-                <!-- ===== (2) The cameras ===== -->
+                <!-- ===== (3) The cameras ===== -->
                 <local:CardSection
                     x:Name="CamerasCard"
                     Margin="0,16,0,0"
@@ -724,265 +844,154 @@
                     </Grid>
                 </local:CardSection>
 
-                <!-- ===== (3) The telao and its settings ===== -->
-                <theme:AdaptiveGrid
-                    x:Name="BottomRow"
-                    Margin="0,16,0,0"
-                    Gap="16"
-                    MaxColumns="2"
-                    MinColumnWidth="400">
-                    <local:CardSection
-                        x:Name="TelaoCard"
-                        Header="Telão"
-                        Icon="{StaticResource LucideMonitorPlay}"
-                        Info="A câmera aparece no LED, por baixo do Holyrics e da barra de avisos. Ao abrir o app ela está sempre desligada."
-                        Style="{StaticResource IbtCardSectionStyle}">
+                <!-- ===== (4) Settings: one full-width card, one column ===== -->
+            <local:CardSection
+                x:Name="SettingsCard"
+                Margin="0,16,0,0"
+                Header="Ajustes"
+                Icon="{StaticResource LucideSlidersHorizontal}"
+                Style="{StaticResource IbtCardSectionStyle}">
+                <StackPanel>
+                    <Border Style="{StaticResource IbtBlock}">
+                        <Grid MinHeight="32">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Path
+                                Margin="0,0,12,0"
+                                Data="{StaticResource LucideMonitor}"
+                                Style="{StaticResource IbtRowIcon}"
+                                ToolTip="Monitor onde a câmera aparece" />
+                            <ComboBox
+                                x:Name="MonitorCombo"
+                                Grid.Column="1"
+                                AutomationProperties.Name="Monitor da câmera"
+                                DisplayMemberPath="Display"
+                                IsEnabled="{Binding MonitorUnlocked}"
+                                ItemsSource="{Binding Monitors}"
+                                SelectedValue="{Binding SelectedMonitor, Mode=TwoWay}"
+                                SelectedValuePath="DeviceName"
+                                Style="{StaticResource IbtComboBox}" />
+                            <ToggleButton
+                                x:Name="MonitorLock"
+                                Grid.Column="2"
+                                Margin="8,0,0,0"
+                                AutomationProperties.Name="Travar no monitor do LED"
+                                IsChecked="{Binding MonitorLocked, Mode=TwoWay}"
+                                Style="{StaticResource IbtLockToggle}"
+                                ToolTip="Travado: a câmera vai para o monitor do LED (2560 x 768). Destravar deixa escolher outro monitor." />
+                        </Grid>
+                    </Border>
+
+                    <Border Margin="0,8,0,0" Style="{StaticResource IbtBlock}">
+                        <Grid MinHeight="32">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Path
+                                Margin="0,0,12,0"
+                                Data="{StaticResource IbtTestBars}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Style="{StaticResource IbtRowLabel}"
+                                Text="Barras de teste"
+                                TextTrimming="CharacterEllipsis"
+                                ToolTip="Mostra barras de cores sobre todo o LED, mesmo com a câmera desligada. Serve para conferir se a letra do Holyrics e a barra de avisos ficam por cima." />
+                            <ToggleButton
+                                x:Name="TestPatternSwitch"
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="Barras de teste"
+                                IsChecked="{Binding TestPattern, Mode=TwoWay}"
+                                Style="{StaticResource IbtSwitch}"
+                                ToolTip="Mostra barras de cores sobre todo o LED, mesmo com a câmera desligada. Serve para conferir se a letra do Holyrics e a barra de avisos ficam por cima." />
+                        </Grid>
+                    </Border>
+
+                    <Border Margin="0,8,0,0" Style="{StaticResource IbtBlock}">
+                        <Grid MinHeight="32">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Path
+                                Margin="0,0,12,0"
+                                Data="{StaticResource LucideEyeOff}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Style="{StaticResource IbtRowLabel}"
+                                Text="Esconder da live (OBS/NDI)"
+                                TextTrimming="CharacterEllipsis"
+                                ToolTip="Ligado: a câmera some das capturas de tela, então o OBS e o NDI da live não a veem (só o LED mostra). Desligado: o OBS pode capturar o telão com a câmera." />
+                            <ToggleButton
+                                x:Name="HideSwitch"
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="Esconder da live"
+                                IsChecked="{Binding HideFromCapture, Mode=TwoWay}"
+                                Style="{StaticResource IbtSwitch}"
+                                ToolTip="Ligado: a câmera some das capturas de tela, então o OBS e o NDI da live não a veem (só o LED mostra). Desligado: o OBS pode capturar o telão com a câmera." />
+                        </Grid>
+                    </Border>
+
+                    <Border Margin="0,8,0,0" Style="{StaticResource IbtBlock}">
                         <StackPanel>
-                            <Border Style="{StaticResource IbtBlock}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <ToggleButton
-                                        x:Name="LayerSwitch"
-                                        Margin="6,0,18,0"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.Name="Câmera no telão"
-                                        IsChecked="{Binding LayerOn, Mode=TwoWay}"
-                                        Style="{StaticResource IbtSwitch}"
-                                        ToolTip="Liga e desliga a câmera no telão. Sempre começa desligada quando o app abre.">
-                                        <ToggleButton.LayoutTransform>
-                                            <ScaleTransform ScaleX="1.6" ScaleY="1.6" />
-                                        </ToggleButton.LayoutTransform>
-                                    </ToggleButton>
-                                    <TextBlock
-                                        Grid.Column="1"
-                                        VerticalAlignment="Center"
-                                        FontSize="16"
-                                        FontWeight="SemiBold"
-                                        Foreground="{StaticResource IbtTextBrush}"
-                                        Text="Câmera no telão"
-                                        TextTrimming="CharacterEllipsis" />
-                                </Grid>
-                            </Border>
-
-                            <WrapPanel Margin="0,16,0,0">
-                                <Border
-                                    x:Name="SignalChip"
-                                    AutomationProperties.Name="Sinal"
-                                    Style="{StaticResource NdiChip}"
-                                    ToolTip="{Binding SignalTip}">
-                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                                        <Ellipse
-                                            x:Name="SignalDot"
-                                            Width="8"
-                                            Height="8"
-                                            Margin="0,0,8,0"
-                                            VerticalAlignment="Center" />
-                                        <TextBlock VerticalAlignment="Center" Text="{Binding SignalText}" />
-                                    </StackPanel>
-                                    <Border.Resources>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="#6F6A63" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Signal}" Value="Live">
-                                                    <Setter Property="Fill" Value="#4FD88E" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Signal}" Value="Frozen">
-                                                    <Setter Property="Fill" Value="#FFD87A" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Signal}" Value="NoSignal">
-                                                    <Setter Property="Fill" Value="#FF5C5C" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Signal}" Value="NoCamera">
-                                                    <Setter Property="Fill" Value="#FFD87A" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Resources>
-                                </Border>
-                                <Border
-                                    x:Name="FpsChip"
-                                    AutomationProperties.Name="Quadros por segundo"
-                                    Style="{StaticResource NdiChip}"
-                                    ToolTip="Quadros por segundo da câmera que está no ar">
-                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                                        <Path Data="{StaticResource LucideGauge}" Style="{StaticResource NdiChipIcon}" />
-                                        <TextBlock VerticalAlignment="Center" Text="{Binding FpsText}" />
-                                    </StackPanel>
-                                </Border>
-                                <Border
-                                    x:Name="ResolutionChip"
-                                    AutomationProperties.Name="Resolução da fonte"
-                                    Style="{StaticResource NdiChip}"
-                                    ToolTip="Resolução da imagem que chega da câmera">
-                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                                        <Path Data="{StaticResource LucideMonitor}" Style="{StaticResource NdiChipIcon}" />
-                                        <TextBlock VerticalAlignment="Center" Text="{Binding ResolutionText}" />
-                                    </StackPanel>
-                                </Border>
-                                <Border
-                                    x:Name="DroppedChip"
-                                    AutomationProperties.Name="Quadros perdidos"
-                                    Style="{StaticResource NdiChip}"
-                                    ToolTip="Quadros perdidos pela câmera que está no ar (o app não deu conta ou a rede falhou)">
-                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
-                                        <Path Data="{StaticResource LucideTriangleAlert}" Style="{StaticResource NdiChipIcon}" />
-                                        <TextBlock VerticalAlignment="Center" Text="{Binding DroppedText}" />
-                                    </StackPanel>
-                                </Border>
-                            </WrapPanel>
-
-                            <Border Margin="0,8,0,0" Style="{StaticResource IbtBlock}">
-                                <Grid MinHeight="32">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <Path
-                                        Margin="0,0,12,0"
-                                        Data="{StaticResource IbtTestBars}"
-                                        Style="{StaticResource IbtRowIcon}" />
-                                    <TextBlock
-                                        Grid.Column="1"
-                                        Style="{StaticResource IbtRowLabel}"
-                                        Text="Barras de teste"
-                                        TextTrimming="CharacterEllipsis"
-                                        ToolTip="Mostra barras de cores sobre todo o LED, mesmo com a câmera desligada. Serve para conferir se a letra do Holyrics e a barra de avisos ficam por cima." />
-                                    <ToggleButton
-                                        x:Name="TestPatternSwitch"
-                                        Grid.Column="2"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.Name="Barras de teste"
-                                        IsChecked="{Binding TestPattern, Mode=TwoWay}"
-                                        Style="{StaticResource IbtSwitch}"
-                                        ToolTip="Mostra barras de cores sobre todo o LED, mesmo com a câmera desligada. Serve para conferir se a letra do Holyrics e a barra de avisos ficam por cima." />
-                                </Grid>
-                            </Border>
+                            <Grid MinHeight="32">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Path
+                                    Margin="0,0,12,0"
+                                    Data="{StaticResource LucideKeyboard}"
+                                    Style="{StaticResource IbtRowIcon}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Style="{StaticResource IbtRowLabel}"
+                                    Text="Atalhos F1-F4 e Ctrl+Espaço"
+                                    TextTrimming="CharacterEllipsis"
+                                    ToolTip="F1 a F4 mandam as câmeras 1 a 4 para a Prévia e Ctrl+Espaço corta. Atenção: F1 a F4 sozinhas valem em qualquer programa enquanto isto estiver ligado e podem bater com atalhos do Holyrics. Desligue se atrapalhar." />
+                                <ToggleButton
+                                    x:Name="ShortcutsSwitch"
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.Name="Atalhos F1 a F4 e Ctrl+Espaço"
+                                    IsChecked="{Binding ShortcutsEnabled, Mode=TwoWay}"
+                                    Style="{StaticResource IbtSwitch}"
+                                    ToolTip="F1 a F4 mandam as câmeras 1 a 4 para a Prévia e Ctrl+Espaço corta. Atenção: F1 a F4 sozinhas valem em qualquer programa enquanto isto estiver ligado e podem bater com atalhos do Holyrics. Desligue se atrapalhar." />
+                            </Grid>
+                            <StackPanel
+                                x:Name="ShortcutWarning"
+                                Margin="0,12,0,0"
+                                Orientation="Horizontal"
+                                Visibility="{Binding HasShortcutWarning, Converter={StaticResource BoolToVisibility}}">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Margin="0,1,10,0"
+                                    VerticalAlignment="Top"
+                                    Data="{StaticResource LucideTriangleAlert}"
+                                    Style="{StaticResource LucideIcon}"
+                                    TextElement.Foreground="{StaticResource IbtWarnBrush}" />
+                                <TextBlock
+                                    x:Name="ShortcutWarningText"
+                                    MaxWidth="360"
+                                    Foreground="{StaticResource IbtWarnBrush}"
+                                    Text="{Binding ShortcutWarning}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
                         </StackPanel>
-                    </local:CardSection>
-
-                    <local:CardSection
-                        x:Name="SettingsCard"
-                        Header="Ajustes"
-                        Icon="{StaticResource LucideSlidersHorizontal}"
-                        Style="{StaticResource IbtCardSectionStyle}">
-                        <StackPanel>
-                            <Border Style="{StaticResource IbtBlock}">
-                                <Grid MinHeight="32">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <Path
-                                        Margin="0,0,12,0"
-                                        Data="{StaticResource LucideMonitor}"
-                                        Style="{StaticResource IbtRowIcon}"
-                                        ToolTip="Monitor onde a câmera aparece" />
-                                    <ComboBox
-                                        x:Name="MonitorCombo"
-                                        Grid.Column="1"
-                                        AutomationProperties.Name="Monitor da câmera"
-                                        DisplayMemberPath="Display"
-                                        IsEnabled="{Binding MonitorUnlocked}"
-                                        ItemsSource="{Binding Monitors}"
-                                        SelectedValue="{Binding SelectedMonitor, Mode=TwoWay}"
-                                        SelectedValuePath="DeviceName"
-                                        Style="{StaticResource IbtComboBox}" />
-                                    <ToggleButton
-                                        x:Name="MonitorLock"
-                                        Grid.Column="2"
-                                        Margin="8,0,0,0"
-                                        AutomationProperties.Name="Travar no monitor do LED"
-                                        IsChecked="{Binding MonitorLocked, Mode=TwoWay}"
-                                        Style="{StaticResource IbtLockToggle}"
-                                        ToolTip="Travado: a câmera vai para o monitor do LED (2560 x 768). Destravar deixa escolher outro monitor." />
-                                </Grid>
-                            </Border>
-
-                            <Border Margin="0,8,0,0" Style="{StaticResource IbtBlock}">
-                                <Grid MinHeight="32">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <Path
-                                        Margin="0,0,12,0"
-                                        Data="{StaticResource LucideEyeOff}"
-                                        Style="{StaticResource IbtRowIcon}" />
-                                    <TextBlock
-                                        Grid.Column="1"
-                                        Style="{StaticResource IbtRowLabel}"
-                                        Text="Esconder da live (OBS/NDI)"
-                                        TextTrimming="CharacterEllipsis"
-                                        ToolTip="Ligado: a câmera some das capturas de tela, então o OBS e o NDI da live não a veem (só o LED mostra). Desligado: o OBS pode capturar o telão com a câmera." />
-                                    <ToggleButton
-                                        x:Name="HideSwitch"
-                                        Grid.Column="2"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.Name="Esconder da live"
-                                        IsChecked="{Binding HideFromCapture, Mode=TwoWay}"
-                                        Style="{StaticResource IbtSwitch}"
-                                        ToolTip="Ligado: a câmera some das capturas de tela, então o OBS e o NDI da live não a veem (só o LED mostra). Desligado: o OBS pode capturar o telão com a câmera." />
-                                </Grid>
-                            </Border>
-
-                            <Border Margin="0,8,0,0" Style="{StaticResource IbtBlock}">
-                                <StackPanel>
-                                    <Grid MinHeight="32">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <Path
-                                            Margin="0,0,12,0"
-                                            Data="{StaticResource LucideKeyboard}"
-                                            Style="{StaticResource IbtRowIcon}" />
-                                        <TextBlock
-                                            Grid.Column="1"
-                                            Style="{StaticResource IbtRowLabel}"
-                                            Text="Atalhos F1-F4 e Ctrl+Espaço"
-                                            TextTrimming="CharacterEllipsis"
-                                            ToolTip="F1 a F4 mandam as câmeras 1 a 4 para a Prévia e Ctrl+Espaço corta. Atenção: F1 a F4 sozinhas valem em qualquer programa enquanto isto estiver ligado e podem bater com atalhos do Holyrics. Desligue se atrapalhar." />
-                                        <ToggleButton
-                                            x:Name="ShortcutsSwitch"
-                                            Grid.Column="2"
-                                            VerticalAlignment="Center"
-                                            AutomationProperties.Name="Atalhos F1 a F4 e Ctrl+Espaço"
-                                            IsChecked="{Binding ShortcutsEnabled, Mode=TwoWay}"
-                                            Style="{StaticResource IbtSwitch}"
-                                            ToolTip="F1 a F4 mandam as câmeras 1 a 4 para a Prévia e Ctrl+Espaço corta. Atenção: F1 a F4 sozinhas valem em qualquer programa enquanto isto estiver ligado e podem bater com atalhos do Holyrics. Desligue se atrapalhar." />
-                                    </Grid>
-                                    <StackPanel
-                                        x:Name="ShortcutWarning"
-                                        Margin="0,12,0,0"
-                                        Orientation="Horizontal"
-                                        Visibility="{Binding HasShortcutWarning, Converter={StaticResource BoolToVisibility}}">
-                                        <Path
-                                            Width="16"
-                                            Height="16"
-                                            Margin="0,1,10,0"
-                                            VerticalAlignment="Top"
-                                            Data="{StaticResource LucideTriangleAlert}"
-                                            Style="{StaticResource LucideIcon}"
-                                            TextElement.Foreground="{StaticResource IbtWarnBrush}" />
-                                        <TextBlock
-                                            x:Name="ShortcutWarningText"
-                                            MaxWidth="360"
-                                            Foreground="{StaticResource IbtWarnBrush}"
-                                            Text="{Binding ShortcutWarning}"
-                                            TextWrapping="Wrap" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </local:CardSection>
-                </theme:AdaptiveGrid>
+                    </Border>
+                </StackPanel>
+            </local:CardSection>
             </StackPanel>
 
             <!-- ===== (4) The line NDI asks for ===== -->
