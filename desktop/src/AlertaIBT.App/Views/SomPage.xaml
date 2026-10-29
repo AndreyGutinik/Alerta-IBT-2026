@@ -802,7 +802,7 @@
                             x:Name="StripHalves"
                             Gap="24"
                             MaxColumns="2"
-                            MinColumnWidth="300">
+                            MinColumnWidth="380">
                             <StackPanel x:Name="PlaylistHalf">
                                 <Grid Height="32">
                                     <Grid.ColumnDefinitions>
@@ -922,15 +922,14 @@
                                 </Grid>
                             </StackPanel>
 
+                            <!-- Three aligned icon rows in one line (fade out, fade in, media keys): the half is at least 380 px wide, so they never wrap; narrower than that the strip stacks. -->
                             <WrapPanel
                                 x:Name="BehaviorHalf"
-                                MaxWidth="328"
                                 HorizontalAlignment="Left"
-                                ItemWidth="164"
-                                Margin="0,0,0,-8">
+                                Margin="0,0,-10,-8">
                                 <StackPanel
                                     x:Name="StopFadeRow"
-                                    Margin="0,0,0,8"
+                                    Margin="0,0,10,8"
                                     Background="Transparent"
                                     Orientation="Horizontal"
                                     ToolTip="Fade ao parar: quanto dura a descida do volume ao pausar ou parar (pelo botão, pela API do Holyrics ou pelas teclas). Seco para na hora, sem estalo.">
@@ -955,7 +954,7 @@
                                 </StackPanel>
                                 <StackPanel
                                     x:Name="AlarmFadeRow"
-                                    Margin="0,0,0,8"
+                                    Margin="0,0,10,8"
                                     Background="Transparent"
                                     Orientation="Horizontal"
                                     ToolTip="Fade ao começar pelo despertador: quanto dura a subida do volume quando um despertador começa a música. Seco começa direto no volume.">
@@ -980,7 +979,7 @@
                                 </StackPanel>
                                 <StackPanel
                                     x:Name="MediaKeysRow"
-                                    Margin="0,0,0,8"
+                                    Margin="0,0,10,8"
                                     Background="Transparent"
                                     Orientation="Horizontal"
                                     ToolTip="Teclas de mídia: as teclas de play/pausa, próxima, anterior e parar do teclado comandam o player. O app só ouve essas teclas; as outras (e o que é digitado) ele não guarda.">

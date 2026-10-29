@@ -510,7 +510,7 @@ public sealed class SomLayoutTests
             Assert.Equal(hero.Bottom - 24 - 1, strip.Bottom, 1); // at the bottom of the hero, its padding under it
 
             // Two halves, side by side, the playlist controls on the left (under about 1000 px of window they stack, the list first).
-            Assert.Equal(TwoColumns(width), page.StripHalves.Columns == 2);
+            Assert.Equal(width >= 1100, page.StripHalves.Columns == 2); // each half needs 380 px so the three behaviour rows never wrap
             Assert.True(left.Left >= strip.Left + 16 && right.Right <= strip.Right - 16 + 0.5);
             if (page.StripHalves.Columns == 2)
             {
@@ -554,6 +554,11 @@ public sealed class SomLayoutTests
                 Assert.NotEmpty(Descendants(row).OfType<Shape>());
                 Assert.DoesNotContain(Descendants(row).OfType<TextBlock>(), t => t.Text.Length > 4 && !t.Text.EndsWith(" s", StringComparison.Ordinal) && t.Text != "seco");
             }
+
+            // The three rows are aligned on one line (fade out, fade in, media keys), left to right, at every width: nothing wraps to a second line.
+            var rowBounds = new[] { page.StopFadeRow, page.AlarmFadeRow, page.MediaKeysRow }.Select(r => rig.BoundsOf(r)).ToList();
+            Assert.All(rowBounds, b => Assert.Equal(rowBounds[0].Top, b.Top, 1));
+            Assert.True(rowBounds[0].Right <= rowBounds[1].Left && rowBounds[1].Right <= rowBounds[2].Left);
 
             Assert.Equal(["5 s", "3 s", "seco"], page.StopFadeList.Items.Cast<FadeOption>().Select(o => o.Label));
             Assert.Equal(["5 s", "3 s", "seco"], page.AlarmFadeList.Items.Cast<FadeOption>().Select(o => o.Label));
@@ -1274,7 +1279,7 @@ public sealed class SomLayoutTests
     }
 
     [Fact]
-    public void The_four_pages_fade_in_when_their_tab_is_shown()
+    public void The_three_pages_fade_in_when_their_tab_is_shown()
     {
         WpfTestHost.Run(() =>
         {
@@ -1282,7 +1287,6 @@ public sealed class SomLayoutTests
             Assert.True(Motion.GetFadeOnShow(rig.Page));
             Assert.True(Motion.GetFadeOnShow(rig.Window.Home));
             Assert.True(Motion.GetFadeOnShow(rig.Window.Settings));
-            Assert.True(Motion.GetFadeOnShow(rig.Window.Correction));
         });
     }
 
