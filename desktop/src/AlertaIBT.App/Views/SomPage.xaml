@@ -1130,19 +1130,10 @@
                         </StackPanel>
                     </local:CardSection.HeaderActions>
                     <StackPanel>
-                        <ItemsControl
-                            x:Name="VolumeList"
-                            Margin="0,0,0,-12"
-                            Focusable="False"
-                            ItemTemplate="{StaticResource VolumeRowTemplate}"
-                            ItemsSource="{Binding VolumeRows}" />
-                        <Border
-                            Height="1"
-                            Margin="0,24,0,16"
-                            Style="{StaticResource IbtDivider}" />
                         <StackPanel
                             x:Name="RampRow"
                             HorizontalAlignment="Left"
+                            Margin="0,0,0,16"
                             Background="Transparent"
                             Orientation="Horizontal"
                             ToolTip="Suavizar mudança de volume: quanto tempo um volume leva para chegar ao valor novo (vale para todos os volumes e para o mudo). Seco muda na hora.">
@@ -1160,6 +1151,16 @@
                                 SelectedValuePath="Seconds"
                                 Style="{StaticResource IbtComboBox}" />
                         </StackPanel>
+                        <Border
+                            Height="1"
+                            Margin="0,0,0,24"
+                            Style="{StaticResource IbtDivider}" />
+                        <ItemsControl
+                            x:Name="VolumeList"
+                            Margin="0,0,0,-12"
+                            Focusable="False"
+                            ItemTemplate="{StaticResource VolumeRowTemplate}"
+                            ItemsSource="{Binding VolumeRows}" />
                     </StackPanel>
                 </local:CardSection>
 

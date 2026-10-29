@@ -639,11 +639,11 @@ public sealed class SomLayoutTests
             Assert.Equal(2, saved.CrossfadeSeconds);
             Assert.Equal(2, rig.Som.Settings.Settings.Current.Audio.VolumeRampSeconds);
 
-            // The ramp menu: icon and tooltip only, under the volume rows inside the "Volumes ao iniciar" card (the card keeps its name).
+            // The ramp menu: icon and tooltip only, above the volume rows inside the "Volumes ao iniciar" card (the card keeps its name).
             Assert.Equal("Volumes ao iniciar", page.VolumesSection.Header);
             Assert.StartsWith("Suavizar mudança de volume", (string)page.RampRow.ToolTip, StringComparison.Ordinal);
             Assert.Equal("Suavizar mudança de volume", AutomationProperties.GetName(page.RampCombo));
-            Assert.True(rig.BoundsOf(page.RampRow).Top >= rig.BoundsOf(page.VolumeList).Bottom);
+            Assert.True(rig.BoundsOf(page.RampRow).Bottom <= rig.BoundsOf(page.VolumeList).Top);
             Assert.True(IsInside(page.RampCombo, page.VolumesSection));
             Assert.Empty(page.RampRow.Children.OfType<TextBlock>());
         });

@@ -43,8 +43,8 @@ public sealed class RealMouseComboBoxTests
             using var rig = new RealInputRig();
             var combos = Combos(rig);
 
-            // Lista de musicas, fade-in, fade-out, mescla, the three outputs and the Lista of each of the two alarms.
-            Assert.Equal(9, combos.Count);
+            // Lista de musicas, fade-in, fade-out, mescla, suavizar volume, the three outputs and the Lista of each of the two alarms.
+            Assert.Equal(10, combos.Count);
             Assert.All(combos, combo => Assert.True(combo.Items.Count > 0, combo.GetType().Name + " " + combo.Name));
         });
     }
@@ -79,7 +79,7 @@ public sealed class RealMouseComboBoxTests
                 rig.Click(rig.CenterOf(target));
                 RealInputRig.Pump();
                 Assert.False(combo.IsDropDownOpen, "should close after a choice: " + name);
-                Assert.Same(wanted, combo.SelectedItem);
+                Assert.True(ReferenceEquals(wanted, combo.SelectedItem), "should choose the clicked item: " + name + " wanted " + wanted + " got " + combo.SelectedItem);
             }
         });
     }
