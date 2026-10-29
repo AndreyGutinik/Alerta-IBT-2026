@@ -121,9 +121,10 @@ public sealed class SeekSlider : Slider
     {
         if (_dragging && Track is { } track)
         {
-            var seconds = ValueAt(track, e);
+            // The seek is asked for BEFORE the capture is let go: releasing it raises LostMouseCapture at once, and a drag still marked as held
+            // there would be taken for a cancelled one (the thumb went back and the music never jumped).
+            EndDrag(ValueAt(track, e));
             ReleaseMouseCapture();
-            EndDrag(seconds);
             e.Handled = true;
             return;
         }
@@ -157,10 +158,21 @@ public sealed class SeekSlider : Slider
 
     private Track? Track => Template?.FindName("PART_Track", this) as Track;
 
+    // The place under the mouse, worked out from the track alone: the thumb's centre is at (value - minimum) / range of the room the thumb has
+    // (the track minus the thumb's own width). Track.ValueFromPoint is relative to where the thumb was last laid out, which drifts when the
+    // value changes between two layout passes (a burst of moves), so it is not used.
     private double ValueAt(Track track, MouseEventArgs e)
     {
-        var value = track.ValueFromPoint(e.GetPosition(track));
-        return double.IsFinite(value) ? Math.Clamp(value, Minimum, Maximum) : Value;
+        var x = e.GetPosition(track).X;
+        var thumb = track.Thumb?.ActualWidth ?? 0;
+        var room = track.ActualWidth - thumb;
+        if (room <= 0 || !double.IsFinite(x))
+        {
+            return Value;
+        }
+
+        var fraction = Math.Clamp((x - (thumb / 2)) / room, 0, 1);
+        return Math.Clamp(Minimum + (fraction * (Maximum - Minimum)), Minimum, Maximum);
     }
 }
 

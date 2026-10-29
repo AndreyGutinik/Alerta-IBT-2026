@@ -12,16 +12,38 @@ internal static class WpfTestHost
 {
     private static readonly Lazy<Dispatcher> Host = new(Start);
 
+    // One test body at a time: a body that pumps the dispatcher (a nested frame, for the layout and input of a shown window) would otherwise also
+    // run the bodies that other test classes (running in parallel) have queued, in the middle of its own steps.
+    private static readonly object Gate = new();
+
     public static Dispatcher Dispatcher => Host.Value;
 
     /// <summary>Runs <paramref name="body"/> on the WPF thread and returns its result; exceptions are rethrown to the caller.</summary>
-    public static T Run<T>(Func<T> body) => Dispatcher.Invoke(body);
+    public static T Run<T>(Func<T> body)
+    {
+        lock (Gate)
+        {
+            return Dispatcher.Invoke(body);
+        }
+    }
 
     /// <summary>Runs <paramref name="body"/> on the WPF thread.</summary>
-    public static void Run(Action body) => Dispatcher.Invoke(body);
+    public static void Run(Action body)
+    {
+        lock (Gate)
+        {
+            Dispatcher.Invoke(body);
+        }
+    }
 
     /// <summary>Runs an async <paramref name="body"/> on the WPF thread and waits for it while the dispatcher keeps pumping.</summary>
-    public static T RunAsync<T>(Func<Task<T>> body) => Dispatcher.InvokeAsync(body).Task.Unwrap().GetAwaiter().GetResult();
+    public static T RunAsync<T>(Func<Task<T>> body)
+    {
+        lock (Gate)
+        {
+            return Dispatcher.InvokeAsync(body).Task.Unwrap().GetAwaiter().GetResult();
+        }
+    }
 
     private static Dispatcher Start()
     {
