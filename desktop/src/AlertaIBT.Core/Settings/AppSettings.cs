@@ -235,6 +235,7 @@ public sealed record AudioSettings
         && HolyricsDeviceId == other.HolyricsDeviceId
         && HolyricsDeviceName == other.HolyricsDeviceName
         && HolyricsMatch.SequenceEqual(other.HolyricsMatch)
+        && VolumeRampSeconds == other.VolumeRampSeconds
         && Apps.SequenceEqual(other.Apps);
 
     /// <inheritdoc />
@@ -251,6 +252,15 @@ public sealed record AudioSettings
 
     /// <summary>The programs the screen does not list (their settings are kept; the player took the place of the Spotify row).</summary>
     public static readonly IReadOnlyList<string> HiddenApps = ["Spotify"];
+
+    /// <summary>The choices of "Suavizar mudanca de volume", in seconds: 0 (dry, instant), 0.5, 1, 2 and 3.</summary>
+    public static readonly IReadOnlyList<double> VolumeRampChoices = [0, 0.5, 1, 2, 3];
+
+    /// <summary>
+    /// How long a change of any volume (or mute) takes to reach its target, in seconds: one of <see cref="VolumeRampChoices"/>. 0, the default, is dry:
+    /// the change is applied the moment it is made.
+    /// </summary>
+    public double VolumeRampSeconds { get; init; }
 
     /// <summary>Whether the volumes are set when the PC starts (and when a program opens within 30 minutes). On by default.</summary>
     public bool Enabled { get; init; } = true;

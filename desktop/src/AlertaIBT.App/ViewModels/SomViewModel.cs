@@ -91,8 +91,16 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         MasterRow = new VolumeRow(
             () => Audio.MasterVolume,
             () => Audio.MasterMuted,
-            volume => QueueAudio("audio.masterVolume", a => a with { MasterVolume = volume }),
-            muted => QueueAudio("audio.masterMuted", a => a with { MasterMuted = muted }))
+            volume =>
+            {
+                _audio.SetLive(AudioController.LiveMaster, volume, MasterRow!.Muted);
+                QueueAudio("audio.masterVolume", a => a with { MasterVolume = volume });
+            },
+            muted =>
+            {
+                _audio.SetLive(AudioController.LiveMaster, (int)Math.Round(MasterRow!.Volume), muted);
+                QueueAudio("audio.masterMuted", a => a with { MasterMuted = muted });
+            })
         {
             Label = "Windows",
             IconKey = "LucideMonitor",
@@ -101,28 +109,52 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
         HolyricsRow = new VolumeRow(
             () => HolyricsApp()?.Volume ?? 100,
             () => HolyricsApp()?.Muted ?? false,
-            volume => QueueAudio("audio.holyricsVolume", a => WithHolyrics(a, e => e with { Volume = volume })),
-            muted => QueueAudio("audio.holyricsMuted", a => WithHolyrics(a, e => e with { Muted = muted })))
+            volume =>
+            {
+                _audio.SetLive(AudioController.LiveApp(HolyricsEntryName()), volume, HolyricsRow!.Muted);
+                QueueAudio("audio.holyricsVolume", a => WithHolyrics(a, e => e with { Volume = volume }));
+            },
+            muted =>
+            {
+                _audio.SetLive(AudioController.LiveApp(HolyricsEntryName()), (int)Math.Round(HolyricsRow!.Volume), muted);
+                QueueAudio("audio.holyricsMuted", a => WithHolyrics(a, e => e with { Muted = muted }));
+            })
         {
             Label = "Holyrics",
             IconKey = "LucidePresentation",
-            Tip = "Holyrics: o volume do Holyrics (o som dele vem do javaw). Vale a cada vez que o Holyrics abre.",
+            Tip = "Holyrics: o volume do Holyrics (o som dele vem do javaw). Muda na hora e vale a cada vez que o Holyrics abre.",
         };
         PlayerRow = new VolumeRow(
             () => _settings.Current.Player.Volume,
             () => _settings.Current.Player.StartMuted,
-            volume => _saver.Queue("player.volume", s => s with { Player = s.Player with { Volume = volume } }),
-            muted => _saver.Queue("player.startMuted", s => s with { Player = s.Player with { StartMuted = muted } }))
+            volume =>
+            {
+                Player.ApplyLiveVolume(volume, PlayerRow!.Muted);
+                _saver.Queue("player.volume", s => s with { Player = s.Player with { Volume = volume } });
+            },
+            muted =>
+            {
+                Player.ApplyLiveVolume((int)Math.Round(PlayerRow!.Volume), muted);
+                _saver.Queue("player.startMuted", s => s with { Player = s.Player with { StartMuted = muted } });
+            })
         {
             Label = "Player",
             IconKey = "LucideMusic",
-            Tip = "Player: o volume do player de m\U000000FAsica do app. Mudo deixa o player calado. \U000000C9 o mesmo controle do volume ao lado do play.",
+            Tip = "Player: o volume do player de m\U000000FAsica do app. Mudo deixa o player calado. Muda na hora.",
         };
         SystemSoundsRow = new VolumeRow(
             () => Audio.SystemSoundsVolume,
             () => Audio.SystemSoundsMuted,
-            volume => QueueAudio("audio.systemSoundsVolume", a => a with { SystemSoundsVolume = volume }),
-            muted => QueueAudio("audio.systemSoundsMuted", a => a with { SystemSoundsMuted = muted }))
+            volume =>
+            {
+                _audio.SetLive(AudioController.LiveSystemSounds, volume, SystemSoundsRow!.Muted);
+                QueueAudio("audio.systemSoundsVolume", a => a with { SystemSoundsVolume = volume });
+            },
+            muted =>
+            {
+                _audio.SetLive(AudioController.LiveSystemSounds, (int)Math.Round(SystemSoundsRow!.Volume), muted);
+                QueueAudio("audio.systemSoundsMuted", a => a with { SystemSoundsMuted = muted });
+            })
         {
             Label = "Sons do sistema",
             IconKey = "LucideBell",
@@ -210,6 +242,26 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
 
     /// <summary>Crossfade between tracks: sem mescla, 0,5 s ... 12 s.</summary>
     public IReadOnlyList<SecondsChoice> CrossfadeChoices { get; } = SecondsChoice.ForCrossfade();
+
+    /// <summary>"Suavizar mudanca de volume": seco (instant, the default), 0,5 s, 1 s, 2 s, 3 s. One menu for every volume.</summary>
+    public IReadOnlyList<SecondsChoice> VolumeRampChoices { get; } = SecondsChoice.ForVolumeRamp();
+
+    /// <summary>The chosen ramp in seconds (one of <see cref="AudioSettings.VolumeRampChoices"/>; 0 is instant).</summary>
+    public double VolumeRampSeconds
+    {
+        get => Audio.VolumeRampSeconds;
+        set
+        {
+            if (value == Audio.VolumeRampSeconds)
+            {
+                return;
+            }
+
+            QueueAudio("audio.volumeRamp", a => a with { VolumeRampSeconds = value });
+            _saver.FlushNow(); // the next change of a volume already ramps
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>The four volume rows, in the order of the card: Windows, Holyrics, Player, Sons do sistema.</summary>
     public IReadOnlyList<VolumeRow> VolumeRows { get; }
@@ -455,6 +507,9 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
 
     private static string AutoText(IReadOnlyList<string> words) =>
         $"Autom\U000000E1tico ({new DeviceMatchRule(words).Text})";
+
+    // The name of the Holyrics entry in the settings (the live volume finds its sessions through it).
+    private string HolyricsEntryName() => HolyricsApp()?.Name ?? "Holyrics";
 
     private void QueueAudio(string key, Func<AudioSettings, AudioSettings> edit) =>
         _saver.Queue(key, s => s with { Audio = edit(s.Audio) });

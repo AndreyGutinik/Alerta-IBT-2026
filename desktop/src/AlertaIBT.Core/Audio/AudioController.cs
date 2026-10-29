@@ -78,7 +78,7 @@ public sealed record AudioStatus(
 /// <see cref="IAudioSystem"/> only start a 500 ms debounce and the work is a full, idempotent "look at everything" pass. Log lines hold
 /// only device names, process names and percentages.
 /// </remarks>
-public sealed class AudioController : IDisposable
+public sealed partial class AudioController : IDisposable
 {
     /// <summary>How long after <see cref="Start"/> the volumes are first set (6 s: the audio devices of a booting PC are still arriving).</summary>
     public static readonly TimeSpan StartDelay = TimeSpan.FromSeconds(6);
@@ -132,7 +132,8 @@ public sealed class AudioController : IDisposable
     /// <param name="clock">Drives the delays and dates what happened.</param>
     /// <param name="logger">Receives what happens (device names, process names and percentages only).</param>
     /// <param name="appOutput">The Windows per-app output (for Holyrics); without it the Holyrics routing does nothing.</param>
-    public AudioController(IAudioSystem system, SettingsService settings, TimeProvider? clock = null, ILogger? logger = null, IAppOutputPolicy? appOutput = null)
+    /// <param name="post">Runs a live volume change off the caller's thread (the thread pool by default; inline in tests).</param>
+    public AudioController(IAudioSystem system, SettingsService settings, TimeProvider? clock = null, ILogger? logger = null, IAppOutputPolicy? appOutput = null, Action<Action>? post = null)
     {
         ArgumentNullException.ThrowIfNull(system);
         ArgumentNullException.ThrowIfNull(settings);
@@ -142,6 +143,7 @@ public sealed class AudioController : IDisposable
         _appOutput = appOutput;
         _clock = clock ?? TimeProvider.System;
         _logger = logger ?? NullLogger.Instance;
+        _livePost = post ?? (action => ThreadPool.QueueUserWorkItem(_ => action()));
     }
 
     /// <summary>Raised when <see cref="Status"/> changed. On a timer thread: the listener posts to the UI thread.</summary>
@@ -226,6 +228,7 @@ public sealed class AudioController : IDisposable
     // Any change of the audio world or of a setting: one look, after the events settle.
     private void Kick()
     {
+        InvalidateLiveSessions();
         lock (_gate)
         {
             if (_started && !_disposed)
@@ -338,6 +341,8 @@ public sealed class AudioController : IDisposable
 
         // The output of Holyrics, then the sessions worth watching: new ones only matter while a switch that reacts to them is on.
         var holyrics = ResolveHolyrics(audio, devices);
+        _liveTargetId = target;
+        _liveHolyricsId = holyrics?.Id;
         var watch = new List<string>();
         if (target is not null && (audio.Enabled || audio.HolyricsRoute))
         {

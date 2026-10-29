@@ -54,6 +54,72 @@ public sealed class SomViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Every_volume_row_reaches_the_audio_the_moment_it_changes_before_the_autosave()
+    {
+        _rig.Audio.Sessions.Add(new AudioSessionInfo("holy", "javaw", false, 10));
+        _rig.Audio.Sessions.Add(new AudioSessionInfo("sys", null, true, 0));
+
+        _rig.Som.MasterRow.Volume = 61;
+        _rig.Som.HolyricsRow.Volume = 42;
+        _rig.Som.SystemSoundsRow.Volume = 9;
+
+        Assert.Contains("master:61:False", _rig.Audio.VolumeCalls);
+        Assert.Contains("session:holy:42:False", _rig.Audio.VolumeCalls);
+        Assert.Contains("session:sys:9:False", _rig.Audio.VolumeCalls);
+        Assert.Equal(80, Audio.MasterVolume); // the file still waits for its rest: the sound did not
+        Assert.True(_rig.Settings.Saver.HasPending);
+    }
+
+    [Fact]
+    public void Every_mute_icon_reaches_the_audio_at_once_and_keeps_the_slider_value()
+    {
+        _rig.Audio.Sessions.Add(new AudioSessionInfo("holy", "javaw", false, 10));
+
+        _rig.Som.MasterRow.IsMuted = true;
+        _rig.Som.HolyricsRow.IsMuted = true;
+        _rig.Som.MasterRow.WithSound = true;
+
+        Assert.Contains("master:80:True", _rig.Audio.VolumeCalls);
+        Assert.Contains("session:holy:100:True", _rig.Audio.VolumeCalls);
+        Assert.Equal("master:80:False", _rig.Audio.VolumeCalls.Last(c => c.StartsWith("master", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void The_player_row_is_heard_at_once_and_its_mute_too()
+    {
+        _rig.Player.Play();
+        var source = _rig.Backend.Outputs[^1].Source;
+        float Level(int frames)
+        {
+            var buffer = new float[frames * 2];
+            source.Read(buffer, 0, buffer.Length);
+            return Math.Abs(buffer[^2]);
+        }
+
+        Level(9600);
+        _rig.Som.PlayerRow.Volume = 30;
+        var level = Level(4800); // 100 ms later
+
+        Assert.Equal(100, Player.Volume); // not saved yet
+        Assert.InRange(level, 0.5f * 0.3f - 0.005f, 0.5f * 0.3f + 0.005f);
+
+        _rig.Som.PlayerRow.IsMuted = true;
+        Assert.InRange(Level(4800), 0f, 0.0001f);
+    }
+
+    [Fact]
+    public void The_ramp_menu_offers_the_five_values_defaults_to_dry_and_saves_the_choice()
+    {
+        Assert.Equal(["seco", "0,5 s", "1 s", "2 s", "3 s"], _rig.Som.VolumeRampChoices.Select(o => o.Label));
+        Assert.Equal(0, _rig.Som.VolumeRampSeconds);
+
+        _rig.Som.VolumeRampSeconds = 2;
+
+        Assert.Equal(2, Audio.VolumeRampSeconds);
+        Assert.Equal(2, _rig.Settings.OnDisk().Audio.VolumeRampSeconds);
+    }
+
+    [Fact]
     public void Typing_a_number_moves_the_slider_and_saves_and_garbage_is_never_saved_and_a_big_number_is_held_to_100()
     {
         _rig.Som.MasterRow.Box.Text = "70";
@@ -368,7 +434,7 @@ public sealed class SomViewModelTests : IDisposable
         Assert.Equal(_rig.Som.FadeInChoices.Select(o => o.Seconds), _rig.Som.FadeOutChoices.Select(o => o.Seconds));
         Assert.Equal(["sem mescla", "0,5 s", "1 s", "2 s", "3 s", "4 s", "5 s", "6 s", "7 s", "8 s", "9 s", "10 s", "11 s", "12 s"], _rig.Som.CrossfadeChoices.Select(o => o.Label));
         Assert.Equal(new double[] { 0, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 }, _rig.Som.CrossfadeChoices.Select(o => o.Seconds));
-        Assert.Equal(5, Player.FadeInSeconds);
+        Assert.Equal(0, Player.FadeInSeconds);
         Assert.Equal(5, Player.FadeOutSeconds);
         Assert.Equal(0, Player.CrossfadeSeconds);
 

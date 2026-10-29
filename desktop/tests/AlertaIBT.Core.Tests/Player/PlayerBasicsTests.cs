@@ -71,7 +71,7 @@ public sealed class PlayerBasicsTests
         Assert.True(player.MediaKeys);
         Assert.Equal(["WING", "3-4"], player.OutputMatch);
         Assert.Equal(5, player.FadeOutSeconds);
-        Assert.Equal(5, player.FadeInSeconds);
+        Assert.Equal(0, player.FadeInSeconds);
         Assert.True(player.Shuffle);
         Assert.Equal("all", player.Repeat);
         var playlist = Assert.Single(player.Playlists);
@@ -466,13 +466,48 @@ public sealed class PlayerBasicsTests
     }
 
     [Fact]
-    public void The_defaults_keep_the_old_five_second_fades_and_no_crossfade()
+    public void The_defaults_are_a_dry_fade_in_a_five_second_fade_out_no_crossfade_and_no_volume_ramp()
     {
         var player = new PlayerSettings();
 
-        Assert.Equal(5, player.FadeInSeconds);
+        Assert.Equal(0, player.FadeInSeconds);
         Assert.Equal(5, player.FadeOutSeconds);
         Assert.Equal(0, player.CrossfadeSeconds);
+        Assert.Equal(0, new AudioSettings().VolumeRampSeconds);
         Assert.NotEqual(player, player with { CrossfadeSeconds = 2 });
+    }
+
+    [Fact]
+    public void The_saved_values_of_an_existing_file_do_not_change_only_missing_ones_take_the_new_defaults()
+    {
+        var text = "{\"player\":{\"fadeInSeconds\":5,\"fadeOutSeconds\":3,\"crossfadeSeconds\":4},\"audio\":{\"volumeRampSeconds\":2}}";
+        var loaded = SettingsJson.Load(text).Settings;
+
+        Assert.Equal(5, loaded.Player.FadeInSeconds);
+        Assert.Equal(3, loaded.Player.FadeOutSeconds);
+        Assert.Equal(4, loaded.Player.CrossfadeSeconds);
+        Assert.Equal(2, loaded.Audio.VolumeRampSeconds);
+
+        var missing = SettingsJson.Load("{\"player\":{}}").Settings;
+        Assert.Equal(0, missing.Player.FadeInSeconds);
+        Assert.Equal(0, missing.Audio.VolumeRampSeconds);
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(0.5, 0.5)]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    [InlineData(3, 3)]
+    [InlineData(1.4, 1)]
+    [InlineData(9, 3)]
+    [InlineData(-1, 0)]
+    public void The_volume_ramp_is_kept_to_the_menu_values_and_round_trips(double saved, double expected)
+    {
+        var settings = new AppSettings { Audio = new AudioSettings { VolumeRampSeconds = saved } };
+
+        var reloaded = SettingsJson.Load(SettingsJson.Save(settings)).Settings;
+
+        Assert.Equal(expected, reloaded.Audio.VolumeRampSeconds);
     }
 }

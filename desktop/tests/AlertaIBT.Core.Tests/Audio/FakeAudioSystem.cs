@@ -126,8 +126,12 @@ public sealed class FakeAudioSystem : IAudioSystem
         return !FailSetVolume && Devices.Any(d => d.Id == deviceId);
     }
 
+    /// <summary>How many times the sessions of an output were listed.</summary>
+    public int SessionReads { get; private set; }
+
     public IReadOnlyList<AudioSessionInfo> GetSessions(string deviceId)
     {
+        SessionReads++;
         Check();
         lock (_gate)
         {

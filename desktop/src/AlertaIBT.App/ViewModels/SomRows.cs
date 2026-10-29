@@ -305,6 +305,9 @@ public sealed record SecondsChoice(string Label, double Seconds)
     /// <summary>The rows of the crossfade dropdown: "sem mescla" for 0, then 0,5 s, 1 s, 2 s and so on.</summary>
     public static IReadOnlyList<SecondsChoice> ForCrossfade() => Build(PlayerSettings.CrossfadeChoices, "sem mescla");
 
+    /// <summary>Volume ramp: seco, 0,5 s, 1 s, 2 s, 3 s.</summary>
+    public static IReadOnlyList<SecondsChoice> ForVolumeRamp() => Build(AudioSettings.VolumeRampChoices, "seco");
+
     private static List<SecondsChoice> Build(IReadOnlyList<double> values, string zero) =>
         values.Select(v => new SecondsChoice(v <= 0 ? zero : v.ToString("0.#", System.Globalization.CultureInfo.GetCultureInfo("pt-BR")) + " s", v)).ToList();
 }

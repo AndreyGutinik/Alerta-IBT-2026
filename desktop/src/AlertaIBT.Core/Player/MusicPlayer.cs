@@ -706,6 +706,15 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         });
     }
 
+    /// <summary>
+    /// Applies the player volume to the sound that is playing right now (0 to 100), without waiting for the settings to be saved: it takes a handful of
+    /// microseconds and never the player's lock, so a slider is heard at once. The ramp of "Suavizar mudanca de volume" applies. Safe from any thread.
+    /// </summary>
+    /// <param name="volume">0 to 100.</param>
+    /// <param name="muted">Whether the player is muted.</param>
+    public void ApplyLiveVolume(int volume, bool muted) =>
+        Volatile.Read(ref _session)?.Mixer.SetVolume(Math.Clamp(volume, 0, 100) / 100f, muted, rampSeconds: _settings.Current.Audio.VolumeRampSeconds);
+
     private void OnOutputFailed(Session session, Exception? error)
     {
         Locked(() =>
@@ -975,7 +984,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
 
         _queue.Shuffle = options.Shuffle;
         _queue.Repeat = PlayerRepeatText.Parse(options.Repeat);
-        _session?.Mixer.SetVolume(options.Volume / 100f, options.StartMuted);
+        _session?.Mixer.SetVolume(options.Volume / 100f, options.StartMuted, rampSeconds: _settings.Current.Audio.VolumeRampSeconds);
         _session?.Mixer.SetCrossfade(options.CrossfadeSeconds);
         if (options.CrossfadeSeconds > 0 && !(crossfadeBefore > 0) && _session is { } running && running.Mixer.Track is { } playing && _current is { } now)
         {

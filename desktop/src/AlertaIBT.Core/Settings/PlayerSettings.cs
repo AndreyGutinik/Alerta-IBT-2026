@@ -126,8 +126,8 @@ public sealed record PlayerSettings
     /// <summary>"Teclas de midia controlam o player": the keyboard's Play/Pause, Next, Previous and Stop keys drive the player. On by default.</summary>
     public bool MediaKeys { get; init; } = true;
 
-    /// <summary>The fade-in, in seconds, of play and of an alarm start (one of <see cref="FadeChoices"/>; 0 is dry). 5 by default. Older files kept the alarm's value here.</summary>
-    public double FadeInSeconds { get; init; } = 5;
+    /// <summary>The fade-in, in seconds, of play and of an alarm start (one of <see cref="FadeChoices"/>; 0 is dry). 0 (dry) by default. Older files kept the alarm's value here.</summary>
+    public double FadeInSeconds { get; init; }
 
     /// <summary>The fade-out, in seconds, of pause and stop (one of <see cref="FadeChoices"/>; 0 is dry). 5 by default.</summary>
     public double FadeOutSeconds { get; init; } = 5;

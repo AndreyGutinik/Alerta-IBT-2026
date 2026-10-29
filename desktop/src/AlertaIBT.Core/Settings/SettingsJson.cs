@@ -146,6 +146,7 @@ public static partial class SettingsJson
                     HolyricsDeviceId = ReadString(audio, "holyricsDeviceId"),
                     HolyricsDeviceName = ReadString(audio, "holyricsDeviceName"),
                     HolyricsMatch = ReadStrings(audio, "holyricsMatch") ?? defaults.Audio.HolyricsMatch,
+                    VolumeRampSeconds = ReadDouble(audio, "volumeRampSeconds") ?? defaults.Audio.VolumeRampSeconds,
                 },
                 Player = new PlayerSettings
                 {
@@ -265,6 +266,7 @@ public static partial class SettingsJson
                 ["holyricsDeviceId"] = n.Audio.HolyricsDeviceId,
                 ["holyricsDeviceName"] = n.Audio.HolyricsDeviceName,
                 ["holyricsMatch"] = new JsonArray(n.Audio.HolyricsMatch.Select(word => (JsonNode)JsonValue.Create(word)!).ToArray()),
+                ["volumeRampSeconds"] = n.Audio.VolumeRampSeconds,
             },
             ["player"] = new JsonObject
             {
@@ -413,6 +415,7 @@ public static partial class SettingsJson
                 HolyricsDeviceId = NullIfBlank(audio.HolyricsDeviceId),
                 HolyricsDeviceName = NullIfBlank(audio.HolyricsDeviceName),
                 HolyricsMatch = NormalizeWords(audio.HolyricsMatch) ?? AudioSettings.DefaultHolyricsWords,
+                VolumeRampSeconds = PlayerSettings.Nearest(AudioSettings.VolumeRampChoices, audio.VolumeRampSeconds),
             },
             Player = NormalizePlayer(player),
             Ndi = NormalizeNdi(ndi),

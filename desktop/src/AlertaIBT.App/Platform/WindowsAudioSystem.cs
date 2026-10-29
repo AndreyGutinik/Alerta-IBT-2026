@@ -16,6 +16,9 @@ public sealed class WindowsAudioSystem : IAudioSystem
     private MMDeviceEnumerator? _enumerator;
     private MMDeviceNotificationClient? _notifications;
     private readonly List<(MMDevice Device, AudioSessionManager Manager)> _watched = [];
+    private readonly Dictionary<string, (MMDevice Device, AudioEndpointVolume Volume)> _endpoints = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, AudioSessionControl> _sessionControls = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, MMDevice> _sessionDevices = new(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
 
     /// <inheritdoc />
@@ -103,18 +106,29 @@ public sealed class WindowsAudioSystem : IAudioSystem
     {
         lock (_gate)
         {
-            try
+            // The endpoint volume of a device is kept between calls (activating it costs a few milliseconds); a stale one is replaced once.
+            for (var attempt = 0; attempt < 2; attempt++)
             {
-                using var device = Enumerator().GetDevice(deviceId);
-                var volume = device.AudioEndpointVolume;
-                volume.MasterVolumeLevelScalar = Scalar(percent);
-                volume.Mute = muted;
-                return true;
+                try
+                {
+                    if (!_endpoints.TryGetValue(deviceId, out var cached))
+                    {
+                        var device = Enumerator().GetDevice(deviceId);
+                        cached = (device, device.AudioEndpointVolume);
+                        _endpoints[deviceId] = cached;
+                    }
+
+                    cached.Volume.MasterVolumeLevelScalar = Scalar(percent);
+                    cached.Volume.Mute = muted;
+                    return true;
+                }
+                catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
+                {
+                    DropEndpoint(deviceId);
+                }
             }
-            catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
-            {
-                return false;
-            }
+
+            return false;
         }
     }
 
@@ -126,7 +140,19 @@ public sealed class WindowsAudioSystem : IAudioSystem
             var result = new List<AudioSessionInfo>();
             try
             {
-                using var device = Enumerator().GetDevice(deviceId);
+                // The device and its session controls stay alive in the cache so a volume change later needs no enumeration.
+                var device = Enumerator().GetDevice(deviceId);
+                if (_sessionDevices.Remove(deviceId, out var previous))
+                {
+                    previous.Dispose();
+                }
+
+                _sessionDevices[deviceId] = device;
+                foreach (var stale in _sessionControls.Keys.Where(k => k.StartsWith(deviceId + "|", StringComparison.OrdinalIgnoreCase)).ToList())
+                {
+                    _sessionControls.Remove(stale);
+                }
+
                 var manager = device.AudioSessionManager;
                 manager.RefreshSessions();
                 var sessions = manager.Sessions;
@@ -135,7 +161,9 @@ public sealed class WindowsAudioSystem : IAudioSystem
                     var session = sessions[i];
                     var system = session.IsSystemSoundsSession;
                     var processId = system ? 0 : (int)session.GetProcessID;
-                    result.Add(new AudioSessionInfo(session.GetSessionInstanceIdentifier, system ? null : ProcessName(session.GetProcessID), system, processId));
+                    var key = session.GetSessionInstanceIdentifier;
+                    _sessionControls[deviceId + "|" + key] = session;
+                    result.Add(new AudioSessionInfo(key, system ? null : ProcessName(session.GetProcessID), system, processId));
                 }
             }
             catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
@@ -152,6 +180,21 @@ public sealed class WindowsAudioSystem : IAudioSystem
     {
         lock (_gate)
         {
+            // The control found by the last enumeration is used as it is; only when it is gone (the program closed) is the device looked at again.
+            if (_sessionControls.TryGetValue(deviceId + "|" + sessionKey, out var cached))
+            {
+                try
+                {
+                    cached.SimpleAudioVolume.Volume = Scalar(percent);
+                    cached.SimpleAudioVolume.Mute = muted;
+                    return true;
+                }
+                catch (Exception ex) when (ex is COMException or InvalidOperationException or ArgumentException)
+                {
+                    _sessionControls.Remove(deviceId + "|" + sessionKey);
+                }
+            }
+
             try
             {
                 using var device = Enumerator().GetDevice(deviceId);
@@ -221,6 +264,7 @@ public sealed class WindowsAudioSystem : IAudioSystem
 
             _disposed = true;
             StopWatching();
+            ForgetCaches();
             if (_notifications is not null)
             {
                 _notifications.DeviceStateChanged -= OnDevicesChanged;
@@ -314,7 +358,53 @@ public sealed class WindowsAudioSystem : IAudioSystem
 
     private void OnSessionCreated(object? sender, AudioSessionControl newSession) => Raise(SessionCreated);
 
-    private void OnDevicesChanged(object? sender, EventArgs e) => Raise(DevicesChanged);
+    private void DropEndpoint(string deviceId)
+    {
+        if (_endpoints.Remove(deviceId, out var old))
+        {
+            try
+            {
+                old.Device.Dispose();
+            }
+            catch (Exception ex) when (ex is COMException or InvalidOperationException)
+            {
+                // Already gone.
+            }
+        }
+    }
+
+    // The outputs changed: what was kept about devices and sessions may be stale.
+    private void ForgetCaches()
+    {
+        lock (_gate)
+        {
+            foreach (var id in _endpoints.Keys.ToList())
+            {
+                DropEndpoint(id);
+            }
+
+            _sessionControls.Clear();
+            foreach (var device in _sessionDevices.Values)
+            {
+                try
+                {
+                    device.Dispose();
+                }
+                catch (Exception ex) when (ex is COMException or InvalidOperationException)
+                {
+                    // Already gone.
+                }
+            }
+
+            _sessionDevices.Clear();
+        }
+    }
+
+    private void OnDevicesChanged(object? sender, EventArgs e)
+    {
+        ForgetCaches();
+        Raise(DevicesChanged);
+    }
 
     private void OnDefaultChanged(object? sender, DefaultDeviceChangedEventArgs e)
     {

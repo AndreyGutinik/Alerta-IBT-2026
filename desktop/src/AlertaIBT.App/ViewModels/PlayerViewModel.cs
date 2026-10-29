@@ -333,6 +333,9 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         set => Write(value, _options.Enabled, p => p with { Enabled = value });
     }
 
+    /// <summary>Applies a volume to the sound that plays now, at once, before the setting is saved (the "Volumes" card rows).</summary>
+    public void ApplyLiveVolume(int volume, bool muted) => _player.ApplyLiveVolume(volume, muted);
+
     /// <summary>The player's own volume, 0 to 100 (the "Volumes" card row that replaced Spotify).</summary>
     public int Volume
     {

@@ -22,7 +22,7 @@ internal sealed class SomRig : IDisposable
         Alarms = new AlarmScheduler(Settings.Settings, Player, Settings.Clock);
         Player.Start();
         PlayerView = new PlayerViewModel(Settings.Settings, Player, Alarms, Audio, action => action(), action => action(), Settings.Clock, covers: covers);
-        Controller = new AudioController(Audio, Settings.Settings, Settings.Clock, null, AppOutput);
+        Controller = new AudioController(Audio, Settings.Settings, Settings.Clock, null, AppOutput, action => action());
         Som = new SomViewModel(
             Settings.Settings,
             Settings.Saver,

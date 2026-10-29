@@ -89,11 +89,25 @@ internal sealed class FakeAudio : IAudioSystem
 
     public bool SetDefaultRenderDevice(string deviceId) => true;
 
-    public bool SetMasterVolume(string deviceId, int percent, bool muted) => true;
+    /// <summary>Every volume write, in order: <c>master:80:False</c> or <c>session:key:50:True</c>.</summary>
+    public List<string> VolumeCalls { get; } = [];
 
-    public IReadOnlyList<AudioSessionInfo> GetSessions(string deviceId) => [];
+    /// <summary>The sessions of every output.</summary>
+    public List<AudioSessionInfo> Sessions { get; } = [];
 
-    public bool SetSessionVolume(string deviceId, string sessionKey, int percent, bool muted) => true;
+    public bool SetMasterVolume(string deviceId, int percent, bool muted)
+    {
+        VolumeCalls.Add($"master:{percent}:{muted}");
+        return true;
+    }
+
+    public IReadOnlyList<AudioSessionInfo> GetSessions(string deviceId) => [.. Sessions];
+
+    public bool SetSessionVolume(string deviceId, string sessionKey, int percent, bool muted)
+    {
+        VolumeCalls.Add($"session:{sessionKey}:{percent}:{muted}");
+        return true;
+    }
 
     public void WatchSessions(IReadOnlyList<string> deviceIds)
     {

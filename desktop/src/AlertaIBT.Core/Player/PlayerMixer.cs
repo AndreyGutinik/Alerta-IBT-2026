@@ -76,6 +76,9 @@ public sealed class PlayerMixer : IPcmSource
     private Action? _fadeDone;
     private float _volume = 1f;
     private float _volumeTarget = 1f;
+    private float _rampFrom;
+    private long _rampTotal;
+    private long _rampDone;
     private TimeSpan? _pendingSeek;
 
     /// <param name="sampleRate">The output's frames per second.</param>
@@ -232,18 +235,38 @@ public sealed class PlayerMixer : IPcmSource
         DisposeAll(old);
     }
 
-    /// <summary>Sets the player volume (0 to 1, linear) and the mute; the change is smoothed.</summary>
+    /// <summary>Sets the player volume (0 to 1, linear) and the mute; the change is smoothed (30 ms, or over <paramref name="rampSeconds"/> with the same curve as the Windows volumes).</summary>
     /// <param name="volume">0 to 1.</param>
-    /// <param name="muted">Whether it is muted.</param>
+    /// <param name="muted">Whether it is muted (a ramp fades it too).</param>
     /// <param name="immediate">Jump to it without the smoothing (a new output that has not made a sound yet).</param>
-    public void SetVolume(float volume, bool muted, bool immediate = false)
+    /// <param name="rampSeconds">0 for the short click-free smoothing; more for the "Suavizar mudanca de volume" ramp. A new target retargets a running ramp from where it is.</param>
+    public void SetVolume(float volume, bool muted, bool immediate = false, double rampSeconds = 0)
     {
         lock (_gate)
         {
-            _volumeTarget = muted ? 0f : Math.Clamp(volume, 0f, 1f);
+            var target = muted ? 0f : Math.Clamp(volume, 0f, 1f);
             if (immediate)
             {
-                _volume = _volumeTarget;
+                _volumeTarget = _volume = target;
+                _rampTotal = 0;
+                return;
+            }
+
+            if (target == _volumeTarget)
+            {
+                return; // the same wish again (the settings echo): a running ramp keeps going
+            }
+
+            _volumeTarget = target;
+            if (rampSeconds > 0)
+            {
+                _rampFrom = _volume;
+                _rampTotal = Math.Max(1, (long)(rampSeconds * SampleRate));
+                _rampDone = 0;
+            }
+            else
+            {
+                _rampTotal = 0;
             }
         }
     }
@@ -669,7 +692,17 @@ public sealed class PlayerMixer : IPcmSource
         var end = offset + count;
         for (var i = offset; i + channels <= end; i += channels)
         {
-            if (_volume != _volumeTarget)
+            if (_rampTotal > 0)
+            {
+                var t = (double)_rampDone / _rampTotal;
+                _volume = _rampFrom + ((_volumeTarget - _rampFrom) * (float)(t * t * (3 - (2 * t))));
+                if (++_rampDone >= _rampTotal)
+                {
+                    _rampTotal = 0;
+                    _volume = _volumeTarget;
+                }
+            }
+            else if (_volume != _volumeTarget)
             {
                 var delta = _volumeTarget - _volume;
                 _volume = Math.Abs(delta) <= _volumeStep ? _volumeTarget : _volume + Math.Sign(delta) * _volumeStep;

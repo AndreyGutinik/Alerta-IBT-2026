@@ -1081,10 +1081,30 @@
                     x:Name="VolumesSection"
                     Header="Volumes ao iniciar"
                     Icon="{StaticResource LucideVolume2}"
-                    Info="Os volumes que o app põe quando o PC liga e quando um programa abre o som. Desligado, o app não mexe em nenhum volume (só em Aplicar agora)."
+                    Info="Os volumes do app: mexer num controle vale na hora. O app também põe estes volumes quando o PC liga e quando um programa abre o som. Desligado, o app não mexe em volume ao iniciar (só em Aplicar agora)."
                     Style="{StaticResource IbtCardSectionStyle}">
                     <local:CardSection.HeaderActions>
                         <StackPanel Orientation="Horizontal">
+                            <StackPanel
+                                x:Name="RampRow"
+                                Margin="0,0,12,0"
+                                Background="Transparent"
+                                Orientation="Horizontal"
+                                ToolTip="Suavizar mudança de volume: quanto tempo um volume leva para chegar ao valor novo (vale para todos os volumes e para o mudo). Seco muda na hora.">
+                                <Path
+                                    Margin="0,0,8,0"
+                                    Data="{StaticResource IbtFadeIn}"
+                                    Style="{StaticResource IbtRowIcon}" />
+                                <ComboBox
+                                    x:Name="RampCombo"
+                                    Width="96"
+                                    AutomationProperties.Name="Suavizar mudança de volume"
+                                    DisplayMemberPath="Label"
+                                    ItemsSource="{Binding VolumeRampChoices}"
+                                    SelectedValue="{Binding VolumeRampSeconds, Mode=TwoWay}"
+                                    SelectedValuePath="Seconds"
+                                    Style="{StaticResource IbtComboBox}" />
+                            </StackPanel>
                             <Border
                                 x:Name="AdjustDot"
                                 Margin="0,0,4,0"
