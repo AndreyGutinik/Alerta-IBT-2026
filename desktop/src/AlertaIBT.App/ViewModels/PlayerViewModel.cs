@@ -405,6 +405,45 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         set => Write(value, _options.CrossfadeSeconds, p => p with { CrossfadeSeconds = value });
     }
 
+    /// <summary>Whether a crossfade is set (the curve choice only means something then).</summary>
+    public bool HasCrossfade => _options.CrossfadeSeconds > 0;
+
+    /// <summary>The shape of the crossfade ("Linear", "Volume constante" or "Intermediaria"); read at the start of each one.</summary>
+    public CrossfadeCurve CrossfadeCurve
+    {
+        get => _options.CrossfadeCurve;
+        set => Write(value, _options.CrossfadeCurve, p => p with { CrossfadeCurve = value });
+    }
+
+    /// <summary>Whether the curve is the straight line (the default).</summary>
+    public bool IsCurveLinear
+    {
+        get => CrossfadeCurve == CrossfadeCurve.Linear;
+        set => PickCurve(value, CrossfadeCurve.Linear);
+    }
+
+    /// <summary>Whether the curve is constant power (cosine and sine).</summary>
+    public bool IsCurveConstantPower
+    {
+        get => CrossfadeCurve == CrossfadeCurve.ConstantPower;
+        set => PickCurve(value, CrossfadeCurve.ConstantPower);
+    }
+
+    /// <summary>Whether the curve is the blend of the two.</summary>
+    public bool IsCurveIntermediate
+    {
+        get => CrossfadeCurve == CrossfadeCurve.Intermediate;
+        set => PickCurve(value, CrossfadeCurve.Intermediate);
+    }
+
+    private void PickCurve(bool selected, CrossfadeCurve curve)
+    {
+        if (selected)
+        {
+            CrossfadeCurve = curve;
+        }
+    }
+
     /// <summary>The selected playlist (by name).</summary>
     public string CurrentPlaylist
     {
@@ -837,7 +876,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     private static readonly string[] SettingProperties =
     [
         nameof(IsEnabled), nameof(PlayerOn), nameof(Volume), nameof(StartMuted), nameof(VolumeIconKey), nameof(MuteTip), nameof(HeroTitle), nameof(HeroSubtitle), nameof(Shuffle), nameof(Repeat), nameof(RepeatText), nameof(RepeatIconKey),
-        nameof(MediaKeys), nameof(AlarmsEnabled), nameof(FadeOutSeconds), nameof(FadeInSeconds), nameof(CrossfadeSeconds), nameof(CurrentPlaylist), nameof(Playlists),
+        nameof(MediaKeys), nameof(AlarmsEnabled), nameof(FadeOutSeconds), nameof(FadeInSeconds), nameof(CrossfadeSeconds), nameof(HasCrossfade), nameof(CrossfadeCurve), nameof(IsCurveLinear), nameof(IsCurveConstantPower), nameof(IsCurveIntermediate), nameof(CurrentPlaylist), nameof(Playlists),
         nameof(Alarms), nameof(OutputRuleText), nameof(OutputDeviceName), nameof(CanSeek),
     ];
 }

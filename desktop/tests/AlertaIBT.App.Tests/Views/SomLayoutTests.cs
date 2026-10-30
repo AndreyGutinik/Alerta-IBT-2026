@@ -81,7 +81,9 @@ public sealed class SomLayoutTests
             bool art = true,
             int alarms = 2,
             bool longNames = false,
-            bool alarmsOff = false)
+            bool alarmsOff = false,
+            double crossfade = 0,
+            CrossfadeCurve curve = CrossfadeCurve.Linear)
         {
             var playlists = longNames
                 ? new[]
@@ -122,6 +124,8 @@ public sealed class SomLayoutTests
                     Enabled = mode != Mode.Off,
                     AlarmsEnabled = !alarmsOff,
                     FadeOutSeconds = mode == Mode.Paused ? 0 : 5,
+                    CrossfadeSeconds = crossfade,
+                    CrossfadeCurve = curve,
                 },
                 System = new SystemSettings { AlertsEnabled = !alertsOff },
             };
@@ -508,6 +512,28 @@ public sealed class SomLayoutTests
 
     [Theory]
     [MemberData(nameof(WindowWidths))]
+    public void The_curve_selector_is_live_with_a_crossfade_and_each_button_picks_its_curve(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width, Mode.Playing, crossfade: 8, curve: CrossfadeCurve.Intermediate);
+            var page = rig.Page;
+            Assert.True(page.CurveFrame.IsEnabled);
+            Assert.True(page.CurveIntermediateOption.IsChecked);
+            Assert.False(page.CurveLinearOption.IsChecked);
+            page.CurveConstantOption.IsChecked = true;
+            Assert.Equal(CrossfadeCurve.ConstantPower, rig.Som.PlayerView.CrossfadeCurve);
+            page.CurveLinearOption.IsChecked = true;
+            Assert.Equal(CrossfadeCurve.Linear, rig.Som.PlayerView.CrossfadeCurve);
+            Assert.True(page.CurveLinearOption.IsChecked);
+            Assert.False(page.CurveConstantOption.IsChecked);
+            rig.Page.CrossfadeCombo.SelectedValue = 0.0;
+            Assert.False(page.CurveFrame.IsEnabled);
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
     public void The_playlist_strip_is_inside_the_hero_at_its_bottom_the_list_and_the_folder_side_by_side_when_they_fit_and_the_behaviour_line_under_them(double width)
     {
         WpfTestHost.Run(() =>
@@ -572,23 +598,51 @@ public sealed class SomLayoutTests
             // Under them, in their own line: fade-in, fade-out, crossfade and the media keys, each an icon and its control, no written label.
             Assert.True(behavior.Top >= Math.Max(left.Bottom, folderHalf.Bottom) + 16 - 0.5, "the behaviour line is under the playlist controls, not beside them");
             Assert.True(behavior.Left >= strip.Left + 16 - 0.5 && behavior.Right <= strip.Right - 16 + 0.5);
-            var rows = new FrameworkElement[] { page.FadeInRow, page.FadeOutRow, page.CrossfadeRow, page.MediaKeysRow };
+            var rows = new FrameworkElement[] { page.FadeInRow, page.FadeOutRow, page.CrossfadeRow, page.CurveFrame, page.MediaKeysRow };
             var dropdowns = new[] { page.FadeInCombo, page.FadeOutCombo, page.CrossfadeCombo };
             foreach (var row in rows)
             {
                 var bounds = rig.BoundsOf(row);
                 Assert.True(bounds.Left >= behavior.Left - 0.5 && bounds.Right <= behavior.Right + 0.5, row.Name);
-                Assert.False(string.IsNullOrWhiteSpace(row.ToolTip as string), row.Name);
                 Assert.NotEmpty(Descendants(row).OfType<Shape>());
+                if (row != page.CurveFrame)
+                {
+                    Assert.False(string.IsNullOrWhiteSpace(row.ToolTip as string), row.Name);
+                }
             }
 
-            // All four on ONE line, left to right in this order, at every width: nothing wraps to a second line, and the three dropdowns are aligned.
+            // The two fades, the crossfade time and the three curve buttons on ONE line, left to right in this order, at every width (the curve buttons never
+            // wrap); the media-keys switch follows on the same line, or wraps under them when the line is too long (900 px).
             var rowBounds = rows.Select(r => rig.BoundsOf(r)).ToList();
-            Assert.All(rowBounds, b => Assert.Equal(rowBounds[0].Top, b.Top, 1));
-            for (var i = 1; i < rowBounds.Count; i++)
+            var line = rowBounds.Take(4).ToList();
+            Assert.All(line, b => Assert.Equal(line[0].Top + ((line[0].Height - b.Height) / 2), b.Top, 1)); // centered on one line
+            for (var i = 1; i < line.Count; i++)
             {
-                Assert.True(rowBounds[i - 1].Right <= rowBounds[i].Left, $"row {i} overlaps the one before");
+                Assert.True(line[i - 1].Right <= line[i].Left, $"row {i} overlaps the one before");
             }
+
+            if (width >= 1000)
+            {
+                Assert.Equal(CenterY(rig.BoundsOf(page.CrossfadeCombo)), CenterY(rowBounds[4]), 1);
+                Assert.True(line[3].Right <= rowBounds[4].Left);
+                Assert.Equal(strip.Right - 16, rowBounds[4].Right, 1.5); // the line sits at the right side of the strip
+            }
+            else
+            {
+                Assert.True(rowBounds[4].Left >= line[0].Left && rowBounds[4].Top >= line[0].Bottom - 0.5 || rowBounds[4].Left >= line[3].Right, "the media-keys switch is beside the line or under it");
+            }
+
+            // The curve selector: three icon-only buttons in one frame, 32 px high, next to the crossfade dropdown, dimmed with no crossfade.
+            var curveOptions = new[] { page.CurveLinearOption, page.CurveConstantOption, page.CurveIntermediateOption };
+            var frame = rowBounds[3];
+            Assert.Equal(32, frame.Height, 1);
+            Assert.True(frame.Left - rig.BoundsOf(page.CrossfadeCombo).Right <= 12, "the curve buttons sit right next to the crossfade dropdown");
+            Assert.All(curveOptions, o => Assert.True(rig.BoundsOf(o).Left >= frame.Left && rig.BoundsOf(o).Right <= frame.Right + 0.5));
+            Assert.Equal(["Linear", "Volume constante", "Intermediária"], curveOptions.Select(o => AutomationProperties.GetName(o)));
+            Assert.All(curveOptions, o => Assert.False(string.IsNullOrWhiteSpace(o.ToolTip as string)));
+            Assert.All(curveOptions, o => Assert.Empty(Descendants(o).OfType<TextBlock>()));
+            Assert.True(page.CurveLinearOption.IsChecked == true, "Linear is the default");
+            Assert.False(page.CurveFrame.IsEnabled, "no crossfade: the curve selector is dimmed");
 
             var combos = dropdowns.Select(c => rig.BoundsOf(c)).ToList();
             Assert.All(combos, b => Assert.Equal(32, b.Height, 1));
@@ -596,7 +650,11 @@ public sealed class SomLayoutTests
             Assert.Equal(combos[0].Width, combos[1].Width, 1); // the two fades are alike, the crossfade one is wider for "sem mescla"
             Assert.InRange(combos[0].Width, 90, 104);
             Assert.InRange(combos[2].Width, 120, 136);
-            Assert.Equal(CenterY(combos[0]), CenterY(rig.BoundsOf(page.MediaKeysSwitch)), 1);
+            if (width >= 1000)
+            {
+                Assert.Equal(CenterY(combos[0]), CenterY(rig.BoundsOf(page.MediaKeysSwitch)), 1);
+            }
+
 
             // What the dropdowns offer, the names and the tooltips.
             Assert.Equal(["seco", "0,5 s", "1 s", "2 s", "3 s", "4 s", "5 s", "6 s", "7 s", "8 s", "9 s", "10 s"], page.FadeInCombo.Items.Cast<SecondsChoice>().Select(o => o.Label));
@@ -1408,6 +1466,11 @@ public sealed class SomLayoutTests
                 using (var three = new Rig(width, Mode.Playing, alarms: 3, alarmsOff: true))
                 {
                     three.Snapshot($"som-{width}-3-despertadores");
+                }
+
+                using (var mix = new Rig(width, Mode.Playing, crossfade: 8, curve: CrossfadeCurve.Intermediate))
+                {
+                    mix.Snapshot($"som-{width}-mescla-intermediaria");
                 }
 
                 using (var longNames = new Rig(width, Mode.Playing, unplugged: true, alarms: 3, longNames: true))

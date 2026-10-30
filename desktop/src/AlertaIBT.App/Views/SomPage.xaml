@@ -938,13 +938,14 @@
                             Height="1"
                             Margin="0,16,0,16"
                             Style="{StaticResource IbtDivider}" />
-                        <StackPanel
+                        <WrapPanel
                             x:Name="BehaviorHalf"
-                            HorizontalAlignment="Left"
+                            Margin="0,-4"
+                            HorizontalAlignment="Right"
                             Orientation="Horizontal">
                             <StackPanel
                                 x:Name="FadeInRow"
-                                Margin="0,0,16,0"
+                                Margin="0,4,16,4"
                                 Background="Transparent"
                                 Orientation="Horizontal"
                                 ToolTip="Fade-in (play e despertador): quanto dura a subida do volume quando a música começa, ao tocar ou quando um despertador começa. Seco começa direto no volume.">
@@ -964,7 +965,7 @@
                             </StackPanel>
                             <StackPanel
                                 x:Name="FadeOutRow"
-                                Margin="0,0,16,0"
+                                Margin="0,4,16,4"
                                 Background="Transparent"
                                 Orientation="Horizontal"
                                 ToolTip="Fade-out (pausar e parar): quanto dura a descida do volume ao pausar ou parar (pelo botão, pela API do Holyrics ou pelas teclas). Seco para na hora, sem estalo.">
@@ -984,7 +985,7 @@
                             </StackPanel>
                             <StackPanel
                                 x:Name="CrossfadeRow"
-                                Margin="0,0,16,0"
+                                Margin="0,4,0,4"
                                 Background="Transparent"
                                 Orientation="Horizontal"
                                 ToolTip="Mescla entre músicas: a próxima música começa antes da atual acabar e as duas se misturam, como no Spotify. Só vale quando uma música termina sozinha (não nos botões de próxima e anterior). Sem mescla, uma música segue a outra sem pausa.">
@@ -1002,8 +1003,56 @@
                                     SelectedValuePath="Seconds"
                                     Style="{StaticResource IbtComboBox}" />
                             </StackPanel>
+                            <Border
+                                x:Name="CurveFrame"
+                                Margin="8,4,16,4"
+                                IsEnabled="{Binding Player.HasCrossfade}"
+                                Style="{StaticResource IbtSegmentedFrame}">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton
+                                        x:Name="CurveLinearOption"
+                                        AutomationProperties.Name="Linear"
+                                        GroupName="CrossfadeCurve"
+                                        IsChecked="{Binding Player.IsCurveLinear, Mode=TwoWay}"
+                                        Style="{StaticResource IbtSegItem}"
+                                        ToolTip="Linear: a que sai desce em linha reta e a que entra sobe em linha reta. A que sai já cai desde o começo; no meio o som afunda uns 3 dB.">
+                                        <Path
+                                            Width="16"
+                                            Height="16"
+                                            Data="{StaticResource IbtCurveLinear}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </RadioButton>
+                                    <RadioButton
+                                        x:Name="CurveConstantOption"
+                                        AutomationProperties.Name="Volume constante"
+                                        GroupName="CrossfadeCurve"
+                                        IsChecked="{Binding Player.IsCurveConstantPower, Mode=TwoWay}"
+                                        Style="{StaticResource IbtSegItem}"
+                                        ToolTip="Volume constante: o volume total fica parelho do começo ao fim. As pontas são planas: a que sai quase não baixa no início e a que entra já aparece.">
+                                        <Path
+                                            Width="16"
+                                            Height="16"
+                                            Data="{StaticResource IbtCurveConstantPower}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </RadioButton>
+                                    <RadioButton
+                                        x:Name="CurveIntermediateOption"
+                                        AutomationProperties.Name="Intermediária"
+                                        GroupName="CrossfadeCurve"
+                                        IsChecked="{Binding Player.IsCurveIntermediate, Mode=TwoWay}"
+                                        Style="{StaticResource IbtSegItem}"
+                                        ToolTip="Intermediária: meio a meio entre as duas. A que sai cai claramente desde o começo e o meio afunda só uns 1,4 dB. Vale na próxima mescla.">
+                                        <Path
+                                            Width="16"
+                                            Height="16"
+                                            Data="{StaticResource IbtCurveIntermediate}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </RadioButton>
+                                </StackPanel>
+                            </Border>
                             <StackPanel
                                 x:Name="MediaKeysRow"
+                                Margin="0,4"
                                 Background="Transparent"
                                 Orientation="Horizontal"
                                 ToolTip="Teclas de mídia: as teclas de play/pausa, próxima, anterior e parar do teclado comandam o player. O app só ouve essas teclas; as outras (e o que é digitado) ele não guarda.">
@@ -1019,7 +1068,7 @@
                                     Style="{StaticResource IbtSwitch}"
                                     ToolTip="Teclas de mídia: ligado, as teclas de play/pausa, próxima, anterior e parar do teclado comandam o player" />
                             </StackPanel>
-                        </StackPanel>
+                        </WrapPanel>
                         </StackPanel>
                     </Border>
                 </Grid>
