@@ -114,8 +114,10 @@ public sealed partial class AudioController : IDisposable
     private ITimer? _debounceTimer;
     private ITimer? _startTimer;
     private DateTimeOffset? _lastAppliedAt;
-    private bool _started;
-    private bool _disposed;
+    // _started, _disposed and _passing are read WITHOUT the lock by the entry points that run on the UI thread (a settings change, a device event): a
+    // look (Reconcile) holds the lock while it talks to Windows, and a stuck Windows audio service must never hold up the screen.
+    private volatile bool _started;
+    private volatile bool _disposed;
     private bool _startDue;
     private bool _masterPending = true;
     private bool _gaveUp;
@@ -126,14 +128,15 @@ public sealed partial class AudioController : IDisposable
     private readonly HashSet<int> _justRouted = [];
     private ITimer? _verifyTimer;
     private string _outputKey = string.Empty;
-    private bool _passing;
+    private volatile bool _passing;
+    private readonly object _keyGate = new();
     private bool _holyricsReportedAbsent;
     private string _lastSeen = string.Empty;
     private IReadOnlyList<AudioDevice> _devices = [];
     private DefaultDevices? _defaults;
     private AudioDevice? _chosen;
     private bool _wasAbsent = true;
-    private AudioStatus _status = AudioStatus.Empty;
+    private AudioStatus _status = AudioStatus.Empty; // written under the lock, read without it (Volatile)
 
     /// <param name="system">The Windows audio.</param>
     /// <param name="settings">The settings (the chosen output is saved there when it is found).</param>
@@ -162,10 +165,7 @@ public sealed partial class AudioController : IDisposable
     {
         get
         {
-            lock (_gate)
-            {
-                return _status;
-            }
+            return Volatile.Read(ref _status);
         }
     }
 
@@ -182,22 +182,26 @@ public sealed partial class AudioController : IDisposable
                 return;
             }
 
-            _started = true;
             _debounceTimer = _clock.CreateTimer(_ => Reconcile(applyNow: false), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            _started = true;
             _startTimer = _clock.CreateTimer(_ => OnStartDue(), null, StartDelay, Timeout.InfiniteTimeSpan);
             _system.DevicesChanged += Kick;
             _system.DefaultDeviceChanged += Kick;
             _system.SessionCreated += Kick;
             _settings.Changed += OnSettingsChanged;
             var audio = _settings.Current.Audio;
-            _outputKey = string.Join(
-                '|',
-                audio.LockOutput,
-                audio.OutputDeviceId,
-                string.Join('+', audio.OutputMatch),
-                audio.HolyricsRoute,
-                audio.HolyricsDeviceId,
-                string.Join('+', audio.HolyricsMatch));
+            lock (_keyGate)
+            {
+                _outputKey = string.Join(
+                    '|',
+                    audio.LockOutput,
+                    audio.OutputDeviceId,
+                    string.Join('+', audio.OutputMatch),
+                    audio.HolyricsRoute,
+                    audio.HolyricsDeviceId,
+                    string.Join('+', audio.HolyricsMatch));
+            }
+
             _debounceTimer.Change(Debounce, Timeout.InfiniteTimeSpan);
         }
     }
@@ -247,11 +251,16 @@ public sealed partial class AudioController : IDisposable
     private void Kick()
     {
         InvalidateLiveSessions();
-        lock (_gate)
+        if (_started && !_disposed)
         {
-            if (_started && !_disposed)
+            // The timer is thread-safe; no lock here (a look in progress holds it while it waits for Windows).
+            try
             {
                 _debounceTimer?.Change(Debounce, Timeout.InfiniteTimeSpan);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposed at the same moment: nothing to schedule.
             }
         }
     }
@@ -271,7 +280,7 @@ public sealed partial class AudioController : IDisposable
             audio.HolyricsDeviceId,
             string.Join('+', audio.HolyricsMatch));
         bool changed;
-        lock (_gate)
+        lock (_keyGate)
         {
             changed = _started && !_disposed && !_passing && key != _outputKey && _outputKey.Length > 0;
             _outputKey = key;
@@ -326,7 +335,7 @@ public sealed partial class AudioController : IDisposable
             var status = BuildStatus();
             if (!EqualStatus(status, _status))
             {
-                _status = status;
+                Volatile.Write(ref _status, status);
                 changed = status;
             }
         }

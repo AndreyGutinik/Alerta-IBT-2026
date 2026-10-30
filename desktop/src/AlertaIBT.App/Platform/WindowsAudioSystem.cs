@@ -255,6 +255,8 @@ public sealed class WindowsAudioSystem : IAudioSystem
     /// <inheritdoc />
     public void Dispose()
     {
+        MMDeviceNotificationClient? notifications;
+        MMDeviceEnumerator? enumerator;
         lock (_gate)
         {
             if (_disposed)
@@ -265,18 +267,30 @@ public sealed class WindowsAudioSystem : IAudioSystem
             _disposed = true;
             StopWatching();
             ForgetCaches();
-            if (_notifications is not null)
+            notifications = _notifications;
+            enumerator = _enumerator;
+            _notifications = null;
+            _enumerator = null;
+        }
+
+        // Outside the lock: removing the notification client waits for a callback that is running, and that callback takes the lock (ForgetCaches),
+        // so doing it inside would freeze the exit whenever a device event arrives at that moment.
+        try
+        {
+            if (notifications is not null)
             {
-                _notifications.DeviceStateChanged -= OnDevicesChanged;
-                _notifications.DeviceAdded -= OnDevicesChanged;
-                _notifications.DeviceRemoved -= OnDevicesChanged;
-                _notifications.DefaultDeviceChanged -= OnDefaultChanged;
-                _notifications.Dispose();
-                _notifications = null;
+                notifications.DeviceStateChanged -= OnDevicesChanged;
+                notifications.DeviceAdded -= OnDevicesChanged;
+                notifications.DeviceRemoved -= OnDevicesChanged;
+                notifications.DefaultDeviceChanged -= OnDefaultChanged;
+                notifications.Dispose();
             }
 
-            _enumerator?.Dispose();
-            _enumerator = null;
+            enumerator?.Dispose();
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException)
+        {
+            // The audio service is gone: nothing is left to unregister.
         }
     }
 

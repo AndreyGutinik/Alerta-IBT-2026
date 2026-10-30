@@ -944,7 +944,31 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(NextAlarmText));
     });
 
-    private void OnDevicesChanged() => _post(ReloadOutputDevices);
+    // A device came or went: the list is read off the UI thread (a stuck audio service would freeze the screen) and handed over when ready.
+    private void OnDevicesChanged() => _run(() =>
+    {
+        IReadOnlyList<AudioDevice> devices;
+        try
+        {
+            devices = _audio?.ActiveRenderDevices() ?? [];
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nao foi possivel listar as saidas de audio");
+            devices = [];
+        }
+
+        _post(() =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _outputDevices = devices;
+            OnPropertyChanged(nameof(OutputDevices));
+        });
+    });
 
     // The position moves while it plays; nothing else is refreshed by the timer.
     private void RefreshPosition()

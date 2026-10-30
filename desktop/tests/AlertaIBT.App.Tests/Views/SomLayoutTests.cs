@@ -145,6 +145,7 @@ public sealed class SomLayoutTests
 
             _som.Audio.Devices.Add(new AudioDevice("id-3", "Alto-falantes (WING-USB Out 3-4)"));
             _som.PlayerView.ReloadOutputDevices();
+            _som.Player.Refresh(); // Windows would tell the player about the new devices (the fake raises no event); a plain setting change no longer asks Windows
             _som.BootAudio();
             if (mode is Mode.Playing or Mode.Paused)
             {

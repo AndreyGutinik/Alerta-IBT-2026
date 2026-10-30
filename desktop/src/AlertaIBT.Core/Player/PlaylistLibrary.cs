@@ -71,15 +71,27 @@ public sealed class PhysicalMediaFileSystem : IMediaFileSystem
                 IncludeSubdirectories = true,
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
             };
-            _watcher.Created += (_, _) => Changed?.Invoke();
-            _watcher.Deleted += (_, _) => Changed?.Invoke();
-            _watcher.Renamed += (_, _) => Changed?.Invoke();
+            _watcher.Created += (_, e) => Raise(e.Name);
+            _watcher.Deleted += (_, e) => Raise(e.Name);
+            _watcher.Renamed += (_, e) => Raise(e.Name);
             _watcher.EnableRaisingEvents = true;
         }
 
         public event Action? Changed;
 
         public void Dispose() => _watcher.Dispose();
+
+        // The temporary copy and the backup that the tag writer makes beside a FLAC (every few seconds while it works) are not music: they must
+        // not wake a rescan of the whole folder.
+        private void Raise(string? name)
+        {
+            if (name is not null && (name.EndsWith(".ibt-tmp", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".ibt-bak", StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            Changed?.Invoke();
+        }
     }
 }
 

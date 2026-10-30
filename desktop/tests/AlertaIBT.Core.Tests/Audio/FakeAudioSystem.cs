@@ -33,6 +33,9 @@ public sealed class FakeAudioSystem : IAudioSystem
 
     public bool ThrowOnRead { get; set; }
 
+    /// <summary>Runs inside every read (devices, defaults, sessions): a test blocks here to play a stalled Windows audio service.</summary>
+    public Action? OnRead { get; set; }
+
     public bool FailSetDefault { get; set; }
 
     public bool FailSetVolume { get; set; }
@@ -158,6 +161,7 @@ public sealed class FakeAudioSystem : IAudioSystem
 
     private void Check()
     {
+        OnRead?.Invoke();
         if (ThrowOnRead)
         {
             throw new InvalidOperationException("audio service is not running");
