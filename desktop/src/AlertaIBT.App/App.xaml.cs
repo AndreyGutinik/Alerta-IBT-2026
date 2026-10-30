@@ -101,6 +101,7 @@ public partial class App : Application
             // installed when the app is idle, restarting with these same arguments); the old-app warning waits for the dispatcher
             // to be idle.
             _host.Services.GetRequiredService<UpdateService>().Start(e.Args);
+            _host.Services.GetRequiredService<AlertaIBT.Core.Backup.AutoBackupService>().Start(); // the automatic copy of the settings, when it is on
             var host = _host;
             Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() => WarnAboutOldApp(host, paths)));
         }

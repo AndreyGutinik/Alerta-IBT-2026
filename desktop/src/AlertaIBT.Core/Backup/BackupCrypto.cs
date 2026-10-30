@@ -86,9 +86,9 @@ public static class BackupCrypto
         return file;
     }
 
-    /// <summary>Decrypts a file made by <see cref="Encrypt"/>.</summary>
-    /// <exception cref="BackupException">Not a backup, a newer version, cut short, or the tag did not verify (wrong password, damaged or changed).</exception>
-    public static byte[] Decrypt(ReadOnlySpan<byte> file, string password)
+    /// <summary>Checks the magic, the size and the version of <paramref name="file"/> without any password work.</summary>
+    /// <exception cref="BackupException">Not a backup, cut short, or from a newer version.</exception>
+    public static void CheckHeader(ReadOnlySpan<byte> file)
     {
         if (file.Length < MagicSize)
         {
@@ -114,6 +114,13 @@ public static class BackupCrypto
         {
             throw new BackupException(BackupError.NotABackup);
         }
+    }
+
+    /// <summary>Decrypts a file made by <see cref="Encrypt"/>.</summary>
+    /// <exception cref="BackupException">Not a backup, a newer version, cut short, or the tag did not verify (wrong password, damaged or changed).</exception>
+    public static byte[] Decrypt(ReadOnlySpan<byte> file, string password)
+    {
+        CheckHeader(file);
 
         var iterations = BinaryPrimitives.ReadUInt32BigEndian(file.Slice(MagicSize + 1, 4));
         if (iterations < Iterations || iterations > MaxIterations)

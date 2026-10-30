@@ -138,7 +138,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         Func<Task> showBar,
         Action<Action>? post = null,
         ILogger? logger = null,
-        IUpdateStatus? updates = null)
+        IUpdateStatus? updates = null,
+        BackupViewModel? backup = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(protector);
@@ -155,6 +156,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _showBar = showBar;
         _post = post ?? (action => action());
         _logger = logger ?? NullLogger.Instance;
+        Backup = backup;
 
         FontSize = new IntegerField(
             BarSettings.MinFontSize,
@@ -231,6 +233,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             RefreshUpdate();
         }
     }
+
+    /// <summary>The Backup card (export, restore and the automatic copy); null shows no card.</summary>
+    public BackupViewModel? Backup { get; }
 
     /// <summary>The separate font size; blank is automatic (64% of the height).</summary>
     public IntegerField FontSize { get; }
@@ -435,6 +440,22 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         HotkeyProblem = status.Registered
             ? null
             : status.Short is { Length: > 0 } reason ? $"{reason}. Escolha outro no campo acima." : status.Message;
+    }
+
+    /// <summary>
+    /// Reads every control from the settings again, without saving anything: a restored backup changed them behind the controls. The preview
+    /// follows too, and the locked secret boxes show whether a secret is stored.
+    /// </summary>
+    public void ReloadFromSettings()
+    {
+        var settings = _settings.Current;
+        _bar = settings.Bar;
+        PreviewBar = _bar;
+        LoadFrom(settings);
+        Token.Committed();
+        SitePassword.Committed();
+        ChatIdHint = null;
+        OnPropertyChanged(nameof(ChatIdEnabled));
     }
 
     /// <inheritdoc />

@@ -8,6 +8,7 @@ using AlertaIBT.App.Services;
 using AlertaIBT.App.Tray;
 using AlertaIBT.App.ViewModels;
 using AlertaIBT.App.Views;
+using AlertaIBT.Core.Backup;
 using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Diagnostics;
@@ -293,6 +294,25 @@ public static class AppHost
             text => Clipboard.SetText(text),
             PickLogExportPath,
             provider.GetRequiredService<ILogger<DiagnosticsViewModel>>()));
+        services.AddSingleton(provider => new AutoBackupService(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<ISecretProtector>(),
+            logger: provider.GetRequiredService<ILogger<AutoBackupService>>()));
+        services.AddSingleton<IBackupUi>(provider => new BackupUi(provider.GetRequiredService<AppWindowPolicy>()));
+        services.AddSingleton(provider => new BackupViewModel(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<ISecretProtector>(),
+            provider.GetRequiredService<AutoBackupService>(),
+            provider.GetRequiredService<Autosaver>(),
+            provider.GetRequiredService<IBackupUi>(),
+            () =>
+            {
+                // A restored backup changed the settings behind the controls: both tabs read them again.
+                provider.GetRequiredService<SettingsViewModel>().ReloadFromSettings();
+                provider.GetRequiredService<CorrectionViewModel>().Reload();
+            },
+            PostToUi,
+            logger: provider.GetRequiredService<ILogger<BackupViewModel>>()));
         services.AddSingleton(provider => new SettingsViewModel(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<ISecretProtector>(),
@@ -302,7 +322,8 @@ public static class AppHost
             provider.GetRequiredService<OverlayController>().PreviewAsync,
             PostToUi,
             provider.GetRequiredService<ILogger<SettingsViewModel>>(),
-            provider.GetRequiredService<IUpdateStatus>()));
+            provider.GetRequiredService<IUpdateStatus>(),
+            provider.GetRequiredService<BackupViewModel>()));
         services.AddSingleton(provider => new SomViewModel(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<Autosaver>(),

@@ -109,6 +109,28 @@ public sealed partial class CorrectionViewModel : ObservableObject, IDisposable
         RefreshGemini();
     }
 
+    /// <summary>Reads everything of the correction from the settings again (a restored backup changed it behind the controls) without saving anything.</summary>
+    public void Reload()
+    {
+        var correction = _settings.Current.Correction;
+        _quiet = true;
+        try
+        {
+            Enabled = correction.Enabled;
+            UseGemini = !string.Equals(correction.Mode, "offline", StringComparison.Ordinal);
+            Model = correction.GeminiModel;
+            RulesText = correction.FixedRules;
+            ModelHint = null;
+        }
+        finally
+        {
+            _quiet = false;
+        }
+
+        ShowRulesNote(correction.FixedRules);
+        GeminiKey.Committed();
+    }
+
     /// <summary>The Gemini key field: locked with dots once stored, "Trocar" to type a new one.</summary>
     public SecretFieldViewModel GeminiKey { get; }
 
