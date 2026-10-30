@@ -1,4 +1,5 @@
 using AlertaIBT.Core.Audio;
+using AlertaIBT.Core.Loudness;
 
 namespace AlertaIBT.Core.Player;
 
@@ -97,7 +98,8 @@ public sealed record PlayerStatus(
     PlayerRepeat Repeat,
     OutputStatus Output,
     string? LastError,
-    int TrackIndex = 0)
+    int TrackIndex = 0,
+    NormalizationInfo? Normalization = null)
 {
     /// <summary>Whether sound is (or is about to be) coming out.</summary>
     public bool IsPlaying => State == PlayerState.Playing;

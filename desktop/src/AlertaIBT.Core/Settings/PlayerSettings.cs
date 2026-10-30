@@ -138,6 +138,15 @@ public sealed record PlayerSettings
     /// <summary>The shape of the crossfade; read at the start of each one. <see cref="CrossfadeCurve.Linear"/> by default (also for files with no value).</summary>
     public CrossfadeCurve CrossfadeCurve { get; init; } = CrossfadeCurve.Linear;
 
+    /// <summary>"Igualar volume": every track is played at the same loudness (a gain per track from its measured loudness). On by default, also for files with no value.</summary>
+    public bool NormalizeEnabled { get; init; } = true;
+
+    /// <summary>The loudness the tracks are brought to, LUFS (one of <see cref="Loudness.NormalizationGain.TargetChoices"/>). -16 by default.</summary>
+    public double NormalizeTargetLufs { get; init; } = Loudness.NormalizationGain.DefaultTargetLufs;
+
+    /// <summary>"Gravar etiquetas nos arquivos": after a FLAC is measured its ReplayGain tags are written into it (text tags only, the audio is never changed). On by default.</summary>
+    public bool WriteLoudnessTags { get; init; } = true;
+
     /// <summary>The name of the selected playlist.</summary>
     public string CurrentPlaylist { get; init; } = DefaultPlaylistName;
 
@@ -183,6 +192,9 @@ public sealed record PlayerSettings
         && FadeOutSeconds == other.FadeOutSeconds
         && CrossfadeSeconds == other.CrossfadeSeconds
         && CrossfadeCurve == other.CrossfadeCurve
+        && NormalizeEnabled == other.NormalizeEnabled
+        && NormalizeTargetLufs == other.NormalizeTargetLufs
+        && WriteLoudnessTags == other.WriteLoudnessTags
         && CurrentPlaylist == other.CurrentPlaylist
         && Playlists.SequenceEqual(other.Playlists)
         && AlarmsEnabled == other.AlarmsEnabled

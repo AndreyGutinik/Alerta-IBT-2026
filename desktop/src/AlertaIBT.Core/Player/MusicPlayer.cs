@@ -1,4 +1,5 @@
 using AlertaIBT.Core.Audio;
+using AlertaIBT.Core.Loudness;
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -36,6 +37,22 @@ public interface IPlayerBackend
     /// cached per file. <c>null</c> (the default) means "unknown": the header lengths are used. May take tens of milliseconds: never on the audio thread.
     /// </summary>
     TrackProfile? Analyze(string path, int sampleRate, int channels) => null;
+
+    /// <summary>
+    /// Opens a file for measuring its loudness: decoded to float at the file's OWN sample rate and channel count (no resampling, no channel mapping).
+    /// <c>null</c> (the default) means the backend cannot do it. Dispose the result.
+    /// </summary>
+    NativePcm? OpenNative(string path) => null;
+}
+
+/// <summary>A file decoded as it is: the samples with the rate and the channels of the file.</summary>
+/// <param name="Track">The decoded samples.</param>
+/// <param name="SampleRate">Frames per second of the file.</param>
+/// <param name="Channels">Samples per frame of the file.</param>
+public sealed record NativePcm(IPcmTrack Track, int SampleRate, int Channels) : IDisposable
+{
+    /// <summary>Releases the decoder.</summary>
+    public void Dispose() => Track.Dispose();
 }
 
 /// <summary>
@@ -106,6 +123,9 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     private int _trackToken;
     private int _preloadToken;
     private readonly System.Runtime.CompilerServices.ConditionalWeakTable<IPcmTrack, string> _preloadedPaths = new();
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<IPcmTrack, TrackNorm> _norms = new();
+    private readonly ILoudnessProvider? _loudness;
+    private NormalizationInfo? _currentNorm;
 
     /// <param name="settings">The settings (the player section).</param>
     /// <param name="library">The playlists.</param>
@@ -116,6 +136,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     /// <param name="logger">Receives what happens (names and counts only).</param>
     /// <param name="post">Runs work that must not happen on the audio or a Windows callback thread; the thread pool by default, inline in tests.</param>
     /// <param name="random">The draw of the shuffle; a seeded one in tests.</param>
+    /// <param name="loudness">The measured loudness of the files (for "Igualar volume"); <c>null</c> plays every track at 0 dB.</param>
     public MusicPlayer(
         SettingsService settings,
         PlaylistLibrary library,
@@ -125,7 +146,8 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         TimeProvider? clock = null,
         ILogger? logger = null,
         Action<Action>? post = null,
-        Random? random = null)
+        Random? random = null,
+        ILoudnessProvider? loudness = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(library);
@@ -142,6 +164,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         _logger = logger ?? NullLogger.Instance;
         _post = post ?? (action => ThreadPool.QueueUserWorkItem(_ => action()));
         _queue = new PlaybackQueue(random);
+        _loudness = loudness;
     }
 
     /// <summary>Raised (outside the lock, on any thread) after anything the screen shows changed. The listener posts to the UI thread.</summary>
@@ -160,6 +183,11 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         _library.Changed += OnLibraryChanged;
         _audio.DevicesChanged += OnDevicesChanged;
         _audio.DefaultDeviceChanged += OnDevicesChanged;
+        if (_loudness is not null)
+        {
+            _loudness.Measured += OnMeasured;
+        }
+
         _library.Configure(Options.Playlists);
         Locked(() =>
         {
@@ -319,7 +347,8 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
                 PlayerRepeatText.Parse(options.Repeat),
                 _choice is null ? OutputStatus.Unknown : DescribeOutput(options, _choice),
                 _lastError,
-                IndexOfCurrentLocked());
+                IndexOfCurrentLocked(),
+                CurrentNormalizationLocked());
         }
     }
 
@@ -358,6 +387,11 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
             _library.Changed -= OnLibraryChanged;
             _audio.DevicesChanged -= OnDevicesChanged;
             _audio.DefaultDeviceChanged -= OnDevicesChanged;
+            if (_loudness is not null)
+            {
+                _loudness.Measured -= OnMeasured;
+            }
+
             _retry?.Dispose();
             _retry = null;
             _moveTimer?.Dispose();
@@ -542,6 +576,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
 
             _queue.AdvanceTo(path);
             _current = _metadata.Read(path);
+            RefreshCurrentNormLocked(track);
             _preloaded = null;
             _preloadedPath = null;
             _preloading = null;
@@ -670,7 +705,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
                 && string.Equals(_queue.PeekAuto(), path, StringComparison.OrdinalIgnoreCase))
             {
                 _preloadedPaths.AddOrUpdate(pcm, path);
-                session.Mixer.SetNext(pcm, profile);
+                session.Mixer.SetNext(pcm, profile, Register(pcm, path).Gain.Linear);
                 _preloaded = pcm;
                 _preloadedPath = path;
                 _preloadedSkipped = skipped;
@@ -723,6 +758,96 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     /// <param name="muted">Whether the player is muted.</param>
     public void ApplyLiveVolume(int volume, bool muted) =>
         Volatile.Read(ref _session)?.Mixer.SetVolume(Math.Clamp(volume, 0, 100) / 100f, muted, rampSeconds: _settings.Current.Audio.VolumeRampSeconds);
+
+    // ---- loudness (Igualar volume) ----
+
+    // What a track brought to the mixer: the measurement it had when it started (null: it plays at 0 dB), kept so a change of the target recomputes from it.
+    private sealed class TrackNorm(string path, TrackLoudness? applied, NormalizationGain gain)
+    {
+        public string Path { get; } = path;
+
+        public TrackLoudness? Applied { get; set; } = applied;
+
+        public NormalizationGain Gain { get; set; } = gain;
+    }
+
+    // Looks the track up in the loudness cache (never decoding) and remembers what it got. A track with no measurement plays at 0 dB and is asked for.
+    private TrackNorm Register(IPcmTrack pcm, string path)
+    {
+        var options = Options;
+        TrackLoudness? loudness = null;
+        if (_loudness is not null)
+        {
+            loudness = _loudness.Get(path);
+            if (loudness is null)
+            {
+                _loudness.Request(path);
+            }
+        }
+
+        var norm = new TrackNorm(path, loudness, NormalizationGain.Compute(loudness, options.NormalizeTargetLufs, options.NormalizeEnabled));
+        _norms.AddOrUpdate(pcm, norm);
+        return norm;
+    }
+
+    // The info of the playing track for the screen.
+    private void RefreshCurrentNormLocked(IPcmTrack track)
+    {
+        var options = Options;
+        if (_norms.TryGetValue(track, out var norm))
+        {
+            var latest = _loudness?.Get(norm.Path)?.Lufs;
+            var gain = NormalizationGain.Compute(norm.Applied, options.NormalizeTargetLufs, options.NormalizeEnabled);
+            norm.Gain = gain;
+            _currentNorm = new NormalizationInfo(options.NormalizeEnabled, options.NormalizeTargetLufs, gain.MeasuredLufs, gain.GainDb, gain.Capped, latest);
+        }
+        else
+        {
+            _currentNorm = null;
+        }
+
+        _changed = true;
+    }
+
+    private NormalizationInfo? CurrentNormalizationLocked() => _current is null ? null : _currentNorm;
+
+    // A file got its measurement. A waiting next track that had none is still silent in the mixer: it gets its gain now (it has made no sound yet).
+    // The track that is playing keeps 0 dB until its next turn, so the level never jumps in the middle of a song.
+    private void OnMeasured(string path) => Locked(() =>
+    {
+        if (_disposed || _loudness is null)
+        {
+            return PlayerResult.Ok;
+        }
+
+        if (_preloaded is { } next && string.Equals(_preloadedPath, path, StringComparison.OrdinalIgnoreCase)
+            && _norms.TryGetValue(next, out var norm) && norm.Applied is null && _session is { } session)
+        {
+            var options = Options;
+            norm.Applied = _loudness.Get(path);
+            norm.Gain = NormalizationGain.Compute(norm.Applied, options.NormalizeTargetLufs, options.NormalizeEnabled);
+            session.Mixer.SetTrackGain(next, norm.Gain.Linear, immediate: true);
+        }
+
+        if (_current is { } current && string.Equals(current.Path, path, StringComparison.OrdinalIgnoreCase) && _session?.Mixer.Track is { } playing)
+        {
+            RefreshCurrentNormLocked(playing); // the tooltip can now say the track is measured
+        }
+
+        return PlayerResult.Ok;
+    });
+
+    /// <summary>Whether the player holds a file now (playing, decoded ahead, being decoded, or waiting for an output): its tags must not be written.</summary>
+    public bool IsInUse(string path)
+    {
+        lock (_gate)
+        {
+            return string.Equals(_current?.Path, path, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(_preloadedPath, path, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(_preloading, path, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(_waitingPath, path, StringComparison.OrdinalIgnoreCase);
+        }
+    }
 
     private void OnOutputFailed(Session session, Exception? error)
     {
@@ -778,13 +903,15 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
                 if (_state == PlayerState.Playing && !skipFade)
                 {
                     // A track change inside a running output: the new track starts at full gain.
-                    session.Mixer.SetTrack(pcm);
+                    session.Mixer.SetTrack(pcm, Register(pcm, path).Gain.Linear);
                     session.Mixer.ResetGain();
                 }
                 else
                 {
-                    session.Mixer.StartTrack(pcm, FadeEnvelope.FramesFor(fadeInSeconds > 0 ? fadeInSeconds : skipFade ? SkipFade.TotalSeconds : 0, session.Mixer.SampleRate));
+                    session.Mixer.StartTrack(pcm, FadeEnvelope.FramesFor(fadeInSeconds > 0 ? fadeInSeconds : skipFade ? SkipFade.TotalSeconds : 0, session.Mixer.SampleRate), Register(pcm, path).Gain.Linear);
                 }
+
+                RefreshCurrentNormLocked(pcm);
 
                 _pausedSeeked = false;
                 AnalyzeCurrent(session, pcm, path);
@@ -992,8 +1119,9 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
             return PlayerResult.Fail("sem sa\U000000EDda de \U000000E1udio");
         }
 
-        fresh.Mixer.StartTrack(pcm, FadeEnvelope.FramesFor(OutputMoveFade.TotalSeconds, fresh.Mixer.SampleRate));
+        fresh.Mixer.StartTrack(pcm, FadeEnvelope.FramesFor(OutputMoveFade.TotalSeconds, fresh.Mixer.SampleRate), Register(pcm, current.Path).Gain.Linear);
         _session = fresh;
+        RefreshCurrentNormLocked(pcm);
         AnalyzeCurrent(fresh, pcm, current.Path);
         _lastError = null;
         _changed = true;
@@ -1092,6 +1220,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     private void ApplyOptions(PlayerSettings options)
     {
         var crossfadeBefore = _applied?.CrossfadeSeconds ?? 0;
+        var normalizeChanged = _applied is not null && (_applied.NormalizeEnabled != options.NormalizeEnabled || _applied.NormalizeTargetLufs != options.NormalizeTargetLufs);
         if (!options.Equals(_applied))
         {
             _applied = options;
@@ -1103,6 +1232,16 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         _session?.Mixer.SetVolume(options.Volume / 100f, options.StartMuted, rampSeconds: _settings.Current.Audio.VolumeRampSeconds);
         _session?.Mixer.SetCrossfade(options.CrossfadeSeconds);
         _session?.Mixer.SetCrossfadeCurve(options.CrossfadeCurve);
+        if (normalizeChanged && _session is { } normalizing)
+        {
+            // The target (or the switch) changed while tracks are held: each keeps its own measurement and ramps to its new gain over 300 ms.
+            normalizing.Mixer.SetGains(track => _norms.TryGetValue(track, out var norm) ? NormalizationGain.Compute(norm.Applied, options.NormalizeTargetLufs, options.NormalizeEnabled).Linear : null);
+            if (normalizing.Mixer.Track is { } held)
+            {
+                RefreshCurrentNormLocked(held);
+            }
+        }
+
         if (options.CrossfadeSeconds > 0 && !(crossfadeBefore > 0) && _session is { } running && running.Mixer.Track is { } playing && _current is { } now)
         {
             AnalyzeCurrent(running, playing, now.Path); // the crossfade was just switched on: measure the track that is already playing

@@ -199,7 +199,7 @@ internal sealed class PlayerRig : IDisposable
 
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "alerta-ibt-player-" + Guid.NewGuid().ToString("N"));
 
-    public PlayerRig(int tracks = 5, bool start = true, int seed = 7)
+    public PlayerRig(int tracks = 5, bool start = true, int seed = 7, AlertaIBT.Core.Loudness.ILoudnessProvider? loudness = null)
     {
         Directory.CreateDirectory(_dir);
         Clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 25, 17, 0, 0, TimeSpan.Zero));
@@ -220,7 +220,7 @@ internal sealed class PlayerRig : IDisposable
             Clock,
             action => action());
         Log = new CapturingLogger();
-        Player = new MusicPlayer(Settings, Library, Backend, Audio, new FakeMetadata(), Clock, Log, action => action(), new Random(seed));
+        Player = new MusicPlayer(Settings, Library, Backend, Audio, new FakeMetadata(), Clock, Log, action => action(), new Random(seed), loudness);
         Settings.Update(s => s with { Player = s.Player with { Playlists = [new PlaylistEntry("Igreja", Folder)], CurrentPlaylist = "Igreja", FadeInSeconds = 0 } });
         Audio.Devices.Clear();
         Audio.Devices.Add(new AudioDevice(Speakers, "Alto-falantes (Realtek)"));

@@ -55,6 +55,9 @@ public sealed class PlayerMixer : IPcmSource
     /// <summary>How long the sound ducks to silence before a seek jumps, and rises again after it (so a jump never clicks).</summary>
     public const double SeekRampSeconds = 0.012;
 
+    /// <summary>How long a change of a track normalization gain (the target loudness was changed while it plays) takes to settle.</summary>
+    public const double NormalizeRampSeconds = 0.3;
+
     private readonly object _gate = new();
     private readonly FadeEnvelope _fade = new();
     private readonly FadeEnvelope _duck = new();
@@ -84,6 +87,9 @@ public sealed class PlayerMixer : IPcmSource
     private long _rampTotal;
     private long _rampDone;
     private TimeSpan? _pendingSeek;
+    private GainRamp _trackGain = new(1f);
+    private GainRamp _nextGain = new(1f);
+    private GainRamp _outGain = new(1f);
 
     /// <param name="sampleRate">The output's frames per second.</param>
     /// <param name="channels">The output's channels.</param>
@@ -228,12 +234,14 @@ public sealed class PlayerMixer : IPcmSource
         CrossfadeCurves.Gains(curve, progress);
 
     /// <summary>Puts a track on (the previous one, the waiting next one and any outgoing one are disposed). The gain is not touched: use <see cref="FadeFromSilence"/> for a fade-in.</summary>
-    public void SetTrack(IPcmTrack? track)
+    /// <param name="track">The track, or <c>null</c> for none.</param>
+    /// <param name="gain">The track own normalization gain (a constant multiplication, 1 is none).</param>
+    public void SetTrack(IPcmTrack? track, float gain = 1f)
     {
         List<IPcmTrack> old;
         lock (_gate)
         {
-            old = ReplaceAllLocked(track);
+            old = ReplaceAllLocked(track, gain);
             _duck.Set(1f);
         }
 
@@ -300,7 +308,8 @@ public sealed class PlayerMixer : IPcmSource
     /// </summary>
     /// <param name="track">The decoded next track (already positioned at its effective start when a crossfade is wanted).</param>
     /// <param name="profile">Where its sound really starts and ends (null: the header lengths are used).</param>
-    public void SetNext(IPcmTrack track, TrackProfile? profile = null)
+    /// <param name="gain">The track own normalization gain.</param>
+    public void SetNext(IPcmTrack track, TrackProfile? profile = null, float gain = 1f)
     {
         ArgumentNullException.ThrowIfNull(track);
 
@@ -310,6 +319,7 @@ public sealed class PlayerMixer : IPcmSource
             old = _next;
             _next = track;
             _nextProfile = profile;
+            _nextGain = new GainRamp(gain);
             var length = profile is null ? track.Duration : Max(track.Duration, profile.RealDuration);
             _nextLength = Math.Max(0, ToSamples(length) - ToSamples(track.Position));
         }
@@ -340,6 +350,55 @@ public sealed class PlayerMixer : IPcmSource
         _trackAnchor = ToSamples(Max(TimeSpan.Zero, profile.EffectiveEnd));
     }
 
+    /// <summary>
+    /// Changes the normalization gain of a track that is held (current, waiting next or going out of a crossfade): a smooth ramp of
+    /// <see cref="NormalizeRampSeconds"/> (or at once when <paramref name="immediate"/>, for a track that has not made a sound yet). Ignored for a track the mixer does not hold.
+    /// </summary>
+    public void SetTrackGain(IPcmTrack track, float gain, bool immediate = false)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+
+        lock (_gate)
+        {
+            RampOf(track)?.SetTarget(gain, immediate, RampFrames);
+        }
+    }
+
+    /// <summary>Asks <paramref name="resolve"/> for the gain of each held track (current, next, outgoing) and ramps to it; a track it answers <c>null</c> for keeps its gain. The callback runs under the mixer lock: keep it to a lookup.</summary>
+    public void SetGains(Func<IPcmTrack, float?> resolve, bool immediate = false)
+    {
+        ArgumentNullException.ThrowIfNull(resolve);
+
+        lock (_gate)
+        {
+            foreach (var track in new[] { _track, _next, _outgoing })
+            {
+                if (track is not null && resolve(track) is { } gain)
+                {
+                    RampOf(track)?.SetTarget(gain, immediate, RampFrames);
+                }
+            }
+        }
+    }
+
+    /// <summary>The normalization gain a held track has now (its target), or 1 when the mixer does not hold it. For tests and the screen.</summary>
+    public float TrackGain(IPcmTrack track)
+    {
+        lock (_gate)
+        {
+            return RampOf(track)?.Target ?? 1f;
+        }
+    }
+
+    private int RampFrames => Math.Max(1, (int)(NormalizeRampSeconds * SampleRate));
+
+    // Caller holds the lock.
+    private GainRamp? RampOf(IPcmTrack track) =>
+        ReferenceEquals(track, _track) ? _trackGain
+        : ReferenceEquals(track, _next) ? _nextGain
+        : ReferenceEquals(track, _outgoing) ? _outGain
+        : null;
+
     /// <summary>Drops the track that was waiting (it is disposed). A crossfade that already started is not touched.</summary>
     public void ClearNext()
     {
@@ -349,18 +408,22 @@ public sealed class PlayerMixer : IPcmSource
             old = _next;
             _next = null;
             _nextProfile = null;
+            _nextGain = new GainRamp(1f);
         }
 
         old?.Dispose();
     }
 
     /// <summary>Puts a track on and starts it at silence, ramping up to full over <paramref name="frames"/> frames, in one step: the output can never hear the new track at full gain in between.</summary>
-    public void StartTrack(IPcmTrack track, int frames)
+    /// <param name="track">The track.</param>
+    /// <param name="frames">The length of the fade-in, in frames.</param>
+    /// <param name="gain">The track own normalization gain.</param>
+    public void StartTrack(IPcmTrack track, int frames, float gain = 1f)
     {
         List<IPcmTrack> old;
         lock (_gate)
         {
-            old = ReplaceAllLocked(track);
+            old = ReplaceAllLocked(track, gain);
             _duck.Set(1f);
             _fadeDone = null;
             _fade.Set(0f);
@@ -504,7 +567,7 @@ public sealed class PlayerMixer : IPcmSource
     }
 
     // Caller holds the lock. Replaces the current track and returns every track that was held (to dispose outside the lock).
-    private List<IPcmTrack> ReplaceAllLocked(IPcmTrack? track)
+    private List<IPcmTrack> ReplaceAllLocked(IPcmTrack? track, float gain = 1f)
     {
         var old = new List<IPcmTrack>(3);
         if (_track is not null)
@@ -527,16 +590,19 @@ public sealed class PlayerMixer : IPcmSource
         _outgoing = null;
         _overlapTotal = 0;
         _overlapDone = 0;
-        Attach(track);
+        _nextGain = new GainRamp(1f);
+        _outGain = new GainRamp(1f);
+        Attach(track, null, new GainRamp(gain));
         _endRaised = false;
         _pendingSeek = null;
         return old;
     }
 
     // Caller holds the lock. Makes `track` the current one: where it starts and how long it is, in samples.
-    private void Attach(IPcmTrack? track, TrackProfile? profile = null)
+    private void Attach(IPcmTrack? track, TrackProfile? profile = null, GainRamp? gain = null)
     {
         _track = track;
+        _trackGain = gain ?? new GainRamp(1f);
         _trackRead = 0;
         _trackBase = track is null ? 0 : ToSamples(track.Position);
         _trackLength = track is null ? 0 : ToSamples(track.Duration);
@@ -608,6 +674,7 @@ public sealed class PlayerMixer : IPcmSource
             }
 
             var read = ReadFully(current, buffer, offset + filled, want);
+            _trackGain.Apply(buffer, offset + filled, read, channels);
             _trackRead += read;
             filled += read;
             if (read < want)
@@ -616,9 +683,10 @@ public sealed class PlayerMixer : IPcmSource
                 {
                     // Gapless: the rest of this very buffer already comes from the next track.
                     (dropped ??= []).Add(current);
-                    Attach(_next, _nextProfile);
+                    Attach(_next, _nextProfile, _nextGain);
                     _next = null;
                     _nextProfile = null;
+                    _nextGain = new GainRamp(1f);
                     _endRaised = false;
                     (advanced ??= []).Add(_track!);
                     continue;
@@ -646,9 +714,11 @@ public sealed class PlayerMixer : IPcmSource
         _overlapDone = 0;
         _overlapCurve = _crossfadeCurve;
         _outgoing = _track;
-        Attach(_next, _nextProfile);
+        _outGain = _trackGain;
+        Attach(_next, _nextProfile, _nextGain);
         _next = null;
         _nextProfile = null;
+        _nextGain = new GainRamp(1f);
         _endRaised = false;
         (advanced ??= []).Add(_track!);
     }
@@ -671,12 +741,14 @@ public sealed class PlayerMixer : IPcmSource
         {
             var progress = (double)(first + (i / channels)) / frames;
             var (outGain, inGain) = CrossfadeGains(progress, _overlapCurve);
+            var keepIn = _trackGain.Next();
+            var keepOut = _outGain.Next();
             for (var c = 0; c < channels; c++)
             {
                 var wanted = i + c;
                 var fresh = wanted < inRead ? buffer[offset + wanted] : 0f;
                 var old = wanted < outRead ? _scratch[wanted] : 0f;
-                buffer[offset + wanted] = (fresh * inGain) + (old * outGain);
+                buffer[offset + wanted] = (fresh * inGain * keepIn) + (old * outGain * keepOut);
             }
         }
 
@@ -727,6 +799,62 @@ public sealed class PlayerMixer : IPcmSource
             for (var c = 0; c < channels; c++)
             {
                 buffer[i + c] *= gain;
+            }
+        }
+    }
+
+    // The normalization gain of one track: a constant (or a short ramp when it is retargeted), applied to that track own samples before the mix.
+    private sealed class GainRamp(float value)
+    {
+        private float _step;
+
+        public float Value { get; private set; } = value;
+
+        public float Target { get; private set; } = value;
+
+        public void SetTarget(float target, bool immediate, int frames)
+        {
+            if (immediate || frames <= 0)
+            {
+                Value = Target = target;
+                _step = 0;
+                return;
+            }
+
+            Target = target;
+            _step = (target - Value) / frames;
+        }
+
+        public float Next()
+        {
+            if (Value == Target)
+            {
+                return Value;
+            }
+
+            Value += _step;
+            if (_step == 0 || (_step > 0 && Value >= Target) || (_step < 0 && Value <= Target))
+            {
+                Value = Target;
+            }
+
+            return Value;
+        }
+
+        public void Apply(float[] buffer, int offset, int count, int channels)
+        {
+            if (Value == 1f && Target == 1f)
+            {
+                return;
+            }
+
+            for (var i = offset; i + channels <= offset + count; i += channels)
+            {
+                var gain = Next();
+                for (var c = 0; c < channels; c++)
+                {
+                    buffer[i + c] *= gain;
+                }
             }
         }
     }
