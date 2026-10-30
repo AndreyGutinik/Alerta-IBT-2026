@@ -54,6 +54,27 @@ public sealed class MouseLockController : IDisposable
         _media = media;
         _observer = OnKey;
         _service.LockedChanged += OnLockedChanged;
+        _service.OutOfStepContext = ForegroundProgram;
+    }
+
+    // The program that has the focus now (its exe name only): a clue to who released the confinement.
+    private static string? ForegroundProgram()
+    {
+        var window = NativeMethods.GetForegroundWindow();
+        if (window == IntPtr.Zero || NativeMethods.GetWindowThreadProcessId(window, out var pid) == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById((int)pid);
+            return process.ProcessName;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>The shortcut that toggles the lock, as the text "modifiers+key" (the default of <see cref="MouseLockSettings"/> when the saved one is unusable).</summary>

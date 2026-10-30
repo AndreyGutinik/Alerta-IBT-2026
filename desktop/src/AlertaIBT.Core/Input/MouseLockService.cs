@@ -53,6 +53,9 @@ public sealed class MouseLockService : IDisposable
         _logger = logger;
     }
 
+    /// <summary>Tells (when set) which program had the focus when the confinement was found undone: it goes in the log line, to find out who releases it. Must not throw.</summary>
+    public Func<string?>? OutOfStepContext { get; set; }
+
     /// <summary>Whether the lock is on (the app asked for it and Windows accepted it the last time).</summary>
     public bool IsLocked { get; private set; }
 
@@ -171,7 +174,17 @@ public sealed class MouseLockService : IDisposable
         if (!_outOfStep)
         {
             _outOfStep = true; // one line when it is lost, not one per second while a program keeps resetting it
-            _logger?.LogInformation("Travamento do mouse refeito (o sistema ou um programa o tinha soltado)");
+            string? context = null;
+            try
+            {
+                context = OutOfStepContext?.Invoke();
+            }
+            catch (Exception)
+            {
+                // Only a clue for the log.
+            }
+
+            _logger?.LogInformation("Travamento do mouse refeito (o sistema ou um programa o tinha soltado; programa em primeiro plano: {Foreground})", context ?? "desconhecido");
         }
 
         _applyFailing = false;

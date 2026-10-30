@@ -133,9 +133,47 @@ public sealed class D3dVideoRenderer : IDisposable
         _wake.Dispose();
     }
 
+    // A lost Direct3D device (a driver reset, a monitor unplugged or changed, the GPU asleep) throws from Present or from a draw call: the device is
+    // built again (a few tries in a minute) instead of leaving a frozen picture on the wall until the layer is switched off and on.
     private void Run()
     {
-        try
+        var failures = new Queue<DateTimeOffset>();
+        while (!_stop)
+        {
+            try
+            {
+                RunOnce();
+                return;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                var now = DateTimeOffset.UtcNow;
+                while (failures.Count > 0 && now - failures.Peek() > TimeSpan.FromMinutes(1))
+                {
+                    failures.Dequeue();
+                }
+
+                failures.Enqueue(now);
+                if (failures.Count > 3 || _stop)
+                {
+                    lock (_gate)
+                    {
+                        _error = ex.Message;
+                    }
+
+                    _logger?.LogError(ex, "O renderizador Direct3D do NDI falhou (desisti depois de {Tries} tentativas em 1 minuto)", failures.Count);
+                    return;
+                }
+
+                _logger?.LogWarning(ex, "O renderizador Direct3D do NDI falhou; vou criar o dispositivo de novo (tentativa {Try} de 3)", failures.Count);
+                _dirty = true;
+                Thread.Sleep(1000);
+            }
+        }
+    }
+
+    private void RunOnce()
+    {
         {
             using var gpu = new Gpu(_hwnd, _targetWidth, _targetHeight);
             _appliedWidth = _targetWidth;
@@ -205,15 +243,6 @@ public sealed class D3dVideoRenderer : IDisposable
                     Interlocked.Increment(ref _presented);
                 }
             }
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            lock (_gate)
-            {
-                _error = ex.Message;
-            }
-
-            _logger?.LogError(ex, "O renderizador Direct3D do NDI falhou");
         }
     }
 
