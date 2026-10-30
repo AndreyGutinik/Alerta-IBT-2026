@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows.Media;
 using AlertaIBT.App.Services;
 using AlertaIBT.Core.Audio;
+using AlertaIBT.Core.Loudness;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Settings;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -34,6 +35,8 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     private readonly ILogger _logger;
     private readonly ITimer _timer;
     private readonly ICoverArtLoader? _covers;
+    private readonly LoudnessService? _loudness;
+    private ScanProgress _scan;
     private readonly object _seekGate = new();
     private bool _syncing;
     private bool _disposed;
@@ -60,6 +63,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     /// <param name="clock">Drives the position refresh.</param>
     /// <param name="logger">Receives failures.</param>
     /// <param name="covers">Loads the album art of a track off the UI thread; <c>null</c> shows no art.</param>
+    /// <param name="loudness">The background loudness scan (for the status chip); <c>null</c> shows no chip.</param>
     public PlayerViewModel(
         SettingsService settings,
         MusicPlayer player,
@@ -69,7 +73,8 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         Action<Action>? run = null,
         TimeProvider? clock = null,
         ILogger? logger = null,
-        ICoverArtLoader? covers = null)
+        ICoverArtLoader? covers = null,
+        LoudnessService? loudness = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(player);
@@ -83,6 +88,8 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         _run = run ?? (action => _ = Task.Run(action));
         _logger = logger ?? NullLogger.Instance;
         _covers = covers;
+        _loudness = loudness;
+        _scan = loudness?.Scanner.Progress ?? ScanProgress.Empty;
         _status = player.GetStatus();
         _options = settings.Current.Player;
         _nextAlarmText = alarms.NextAlarmText;
@@ -107,6 +114,11 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         _player.StatusChanged += OnPlayerChanged;
         _settings.Changed += OnSettingsChanged;
         _alarms.NextAlarmChanged += OnAlarmTextChanged;
+        if (_loudness is not null)
+        {
+            _loudness.Scanner.ProgressChanged += OnScanProgress;
+        }
+
         if (_audio is not null)
         {
             _audio.DevicesChanged += OnDevicesChanged;
@@ -370,6 +382,139 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
     /// <summary>The resource key of the repeat icon: the 1 version for "esta musica", the plain one otherwise.</summary>
     public string RepeatIconKey => Repeat == PlayerRepeat.One ? "LucideRepeat1" : "LucideRepeat";
 
+    // ---- loudness ("Igualar volume") ----
+
+    private static readonly CultureInfo Portuguese = CultureInfo.GetCultureInfo("pt-BR");
+
+    /// <summary>One entry of the target menu.</summary>
+    /// <param name="Key"><c>off</c> or the target in LUFS as text (<c>-16</c>).</param>
+    /// <param name="Label">What the menu shows: <c>-16 LUFS</c> or <c>Desligado</c>.</param>
+    public sealed record NormalizeChoice(string Key, string Label);
+
+    /// <summary>The menu of the target: -24, -23, -20, -18, -16, -14, -12 LUFS and "Desligado".</summary>
+    public static IReadOnlyList<NormalizeChoice> NormalizeChoices { get; } =
+    [
+        .. NormalizationGain.TargetChoices.Select(t => new NormalizeChoice(t.ToString("0", CultureInfo.InvariantCulture), t.ToString("0", CultureInfo.InvariantCulture) + " LUFS")),
+        new NormalizeChoice("off", "Desligado"),
+    ];
+
+    /// <summary>Whether the loudness scan exists (the strip is hidden when it does not).</summary>
+    public bool HasLoudness => _loudness is not null;
+
+    /// <summary>"Igualar volume": every track plays at the same loudness.</summary>
+    public bool NormalizeEnabled
+    {
+        get => _options.NormalizeEnabled;
+        set => Write(value, _options.NormalizeEnabled, p => p with { NormalizeEnabled = value });
+    }
+
+    /// <summary>The menu's choice: the target while the equalization is on, <c>off</c> while it is off. Choosing a target turns it on.</summary>
+    public string NormalizeChoiceKey
+    {
+        get => _options.NormalizeEnabled ? _options.NormalizeTargetLufs.ToString("0", CultureInfo.InvariantCulture) : "off";
+        set
+        {
+            if (_syncing || string.IsNullOrEmpty(value) || value == NormalizeChoiceKey)
+            {
+                return;
+            }
+
+            if (value == "off")
+            {
+                Change(p => p with { NormalizeEnabled = false });
+            }
+            else if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var target))
+            {
+                Change(p => p with { NormalizeEnabled = true, NormalizeTargetLufs = target });
+            }
+        }
+    }
+
+    /// <summary>"Gravar etiquetas nos arquivos": after a FLAC is measured, its ReplayGain tags are written into it.</summary>
+    public bool WriteLoudnessTags
+    {
+        get => _options.WriteLoudnessTags;
+        set => Write(value, _options.WriteLoudnessTags, p => p with { WriteLoudnessTags = value });
+    }
+
+    /// <summary>The tooltip of the toggle and the menu: the target, and the measured loudness and the gain of the track that plays (<c>-18,4 LUFS -> +2,4 dB (limitado pelo pico)</c>).</summary>
+    public string NormalizeTip
+    {
+        get
+        {
+            const string arrow = "\U00002192";
+            if (!_options.NormalizeEnabled)
+            {
+                return "Igualar volume: desligado. As m\U000000FAsicas tocam no volume que t\U000000EAm nos arquivos.";
+            }
+
+            var head = string.Create(Portuguese, $"Igualar volume: todas as m\U000000FAsicas no mesmo volume ({_options.NormalizeTargetLufs:0} LUFS), sem mexer nos arquivos.");
+            var info = _status.Normalization;
+            if (info is null || _status.Track is null)
+            {
+                return head;
+            }
+
+            if (info.MeasuredLufs is { } measured)
+            {
+                var gain = info.GainDb.ToString("+0.0;-0.0;0.0", Portuguese);
+                var line = string.Create(Portuguese, $"{measured:0.0} LUFS {arrow} {gain} dB") + (info.Capped ? " (limitado pelo pico)" : string.Empty);
+                return head + "\n" + line;
+            }
+
+            if (info.LatestLufs is { } latest)
+            {
+                return head + "\n" + string.Create(Portuguese, $"{latest:0.0} LUFS (medida agora): esta vez tocou no volume original, vale na pr\U000000F3xima.");
+            }
+
+            return head + "\nEsta m\U000000FAsica ainda n\U000000E3o foi medida: toca no volume original e fica pronta na pr\U000000F3xima vez.";
+        }
+    }
+
+    /// <summary>The text of the chip while the music is measured (<c>medindo 120/237</c>) or the tags are written (<c>etiquetas 12/237</c>); empty when there is nothing to say.</summary>
+    public string ScanChipText
+    {
+        get
+        {
+            if (_scan.Active && _scan.Total > 0)
+            {
+                return $"medindo {_scan.Measured}/{_scan.Total}";
+            }
+
+            if (_options.WriteLoudnessTags && _scan.TagsPending > 0)
+            {
+                return $"etiquetas {_scan.TagsWritten}/{_scan.TagsWritten + _scan.TagsPending}";
+            }
+
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Whether the chip shows.</summary>
+    public bool ScanChipVisible => ScanChipText.Length > 0;
+
+    /// <summary>What the chip means.</summary>
+    public string ScanChipTip => _scan.Active
+        ? "Medindo o volume das m\U000000FAsicas em segundo plano, uma por vez, sem atrapalhar o som. Pausa enquanto voc\U000000EA mexe nas listas. Uma m\U000000FAsica que ainda n\U000000E3o foi medida toca no volume original."
+        : "Gravando as etiquetas de volume (ReplayGain) nos arquivos FLAC, um por vez. S\U000000F3 texto \U000000E9 gravado: o \U000000E1udio n\U000000E3o muda.";
+
+    /// <summary>The tooltip of the switch "Gravar etiquetas nos arquivos".</summary>
+    public string WriteTagsTip =>
+        "Gravar etiquetas nos arquivos: depois de medir uma m\U000000FAsica FLAC, grava nela as etiquetas de volume (ReplayGain), que outros players tamb\U000000E9m leem. S\U000000F3 texto \U000000E9 gravado: o \U000000E1udio, a capa e as outras etiquetas ficam exatamente como est\U000000E3o. Cada arquivo \U000000E9 conferido antes de trocar o original, e um arquivo que est\U000000E1 tocando n\U000000E3o \U000000E9 mexido.";
+
+    private void OnScanProgress(ScanProgress progress) => _post(() =>
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _scan = progress;
+        OnPropertyChanged(nameof(ScanChipText));
+        OnPropertyChanged(nameof(ScanChipVisible));
+        OnPropertyChanged(nameof(ScanChipTip));
+    });
+
     /// <summary>"Teclas de m\U000000EDdia controlam o player".</summary>
     public bool MediaKeys
     {
@@ -567,6 +712,11 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         _player.StatusChanged -= OnPlayerChanged;
         _settings.Changed -= OnSettingsChanged;
         _alarms.NextAlarmChanged -= OnAlarmTextChanged;
+        if (_loudness is not null)
+        {
+            _loudness.Scanner.ProgressChanged -= OnScanProgress;
+        }
+
         if (_audio is not null)
         {
             _audio.DevicesChanged -= OnDevicesChanged;
@@ -870,7 +1020,7 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         nameof(TrackFileName), nameof(QuickTitle), nameof(Position), nameof(Duration), nameof(Progress), nameof(PositionText),
         nameof(PlaylistName), nameof(TrackCount), nameof(TrackCountText), nameof(OutputText), nameof(OutputKind), nameof(LastError), nameof(HasError),
         nameof(PlayPauseIconKey), nameof(PlayPauseTip), nameof(ElapsedText), nameof(DurationText), nameof(SeekMaximum), nameof(SeekValue), nameof(CanSeek),
-        nameof(TrackIndexText), nameof(HeroTitle), nameof(HeroTitleTip), nameof(HeroSubtitle),
+        nameof(TrackIndexText), nameof(HeroTitle), nameof(HeroTitleTip), nameof(HeroSubtitle), nameof(NormalizeTip),
     ];
 
     private static readonly string[] SettingProperties =
@@ -878,5 +1028,6 @@ public sealed class PlayerViewModel : ObservableObject, IDisposable
         nameof(IsEnabled), nameof(PlayerOn), nameof(Volume), nameof(StartMuted), nameof(VolumeIconKey), nameof(MuteTip), nameof(HeroTitle), nameof(HeroSubtitle), nameof(Shuffle), nameof(Repeat), nameof(RepeatText), nameof(RepeatIconKey),
         nameof(MediaKeys), nameof(AlarmsEnabled), nameof(FadeOutSeconds), nameof(FadeInSeconds), nameof(CrossfadeSeconds), nameof(HasCrossfade), nameof(CrossfadeCurve), nameof(IsCurveLinear), nameof(IsCurveConstantPower), nameof(IsCurveIntermediate), nameof(CurrentPlaylist), nameof(Playlists),
         nameof(Alarms), nameof(OutputRuleText), nameof(OutputDeviceName), nameof(CanSeek),
+        nameof(NormalizeEnabled), nameof(NormalizeChoiceKey), nameof(WriteLoudnessTags), nameof(NormalizeTip), nameof(ScanChipText), nameof(ScanChipVisible),
     ];
 }

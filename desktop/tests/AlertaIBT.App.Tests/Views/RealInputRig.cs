@@ -49,7 +49,7 @@ internal sealed class RealInputRig : IDisposable
                 FadeOutSeconds = paused ? 0 : 5,
             },
         };
-        _som = new SomRig(initial);
+        _som = new SomRig(initial, withLoudness: true);
         _som.Audio.Devices.Add(new AudioDevice("id-2", "Alto-falantes (WING-USB Out 1-2)"));
         _som.Audio.Devices.Add(new AudioDevice("id-3", "Alto-falantes (WING-USB Out 3-4)"));
         _som.PlayerView.ReloadOutputDevices();

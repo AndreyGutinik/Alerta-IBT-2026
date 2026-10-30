@@ -7,6 +7,7 @@ using AlertaIBT.App.Services;
 using AlertaIBT.App.Tray;
 using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Input;
+using AlertaIBT.Core.Loudness;
 using AlertaIBT.Core.Ndi;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Services;
@@ -34,6 +35,7 @@ public sealed class AppShell : IDisposable
     private readonly IUpdateStatus _updates;
     private readonly MouseLockController _mouse;
     private readonly MusicPlayer _player;
+    private readonly LoudnessService _loudness;
     private readonly AlarmScheduler _alarms;
     private readonly AudioController _audio;
     private readonly NdiService _ndi;
@@ -67,7 +69,8 @@ public sealed class AppShell : IDisposable
         AudioController audio,
         NdiService ndi,
         NdiTelaoHost ndiHost,
-        Func<MessageWindow, INdiHotkeyRegistry> ndiRegistryFactory)
+        Func<MessageWindow, INdiHotkeyRegistry> ndiRegistryFactory,
+        LoudnessService loudness)
     {
         _logger = logger;
         _settings = settings;
@@ -80,6 +83,7 @@ public sealed class AppShell : IDisposable
         _updates = updates;
         _mouse = mouse;
         _player = player;
+        _loudness = loudness;
         _alarms = alarms;
         _audio = audio;
         _ndi = ndi;
@@ -178,6 +182,7 @@ public sealed class AppShell : IDisposable
 
         // The music player: the playlists are scanned and the output is looked at; nothing plays by itself here.
         _player.Start();
+        _loudness.Start(); // measures the music in the background, below normal priority; the player never waits for it
         _alarms.Start(); // an alarm missed while the app was closed starts now, until its "do not start after" time
 
         // The sound of the PC (volumes, the lock of the output, the output of Holyrics): it reads nothing before its own timers (6 s from now),
@@ -299,6 +304,7 @@ public sealed class AppShell : IDisposable
         _mouse.Dispose();
         _alarms.Dispose();
         _player.Dispose(); // the sound stops at once, before the slow parts
+        _loudness.Dispose(); // cancels the measurement or the tag write in progress and saves the cache
         _audio.Dispose();
         _ndiHotkeys?.Dispose();
         (_ndiRegistry as IDisposable)?.Dispose();

@@ -237,6 +237,9 @@ public sealed partial class SomViewModel : ObservableObject, IDisposable
     /// <summary>Fade-in (play and alarm): seco, 0,5 s ... 10 s.</summary>
     public IReadOnlyList<SecondsChoice> FadeInChoices { get; } = SecondsChoice.ForFade();
 
+    /// <summary>The menu of the target loudness (-24 ... -12 LUFS and Desligado).</summary>
+    public IReadOnlyList<PlayerViewModel.NormalizeChoice> NormalizeChoices => PlayerViewModel.NormalizeChoices;
+
     /// <summary>Fade-out (pause and stop): seco, 0,5 s ... 10 s.</summary>
     public IReadOnlyList<SecondsChoice> FadeOutChoices { get; } = SecondsChoice.ForFade();
 

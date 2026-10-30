@@ -15,6 +15,7 @@ using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Firebase;
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Ndi;
+using AlertaIBT.Core.Loudness;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Screens;
@@ -207,13 +208,26 @@ public static class AppHost
             new PhysicalMediaFileSystem(),
             PhysicalMediaFileSystem.Watch,
             logger: provider.GetRequiredService<ILogger<PlaylistLibrary>>()));
-        services.AddSingleton(provider => new MusicPlayer(
+        // The loudness of the files ("Igualar volume"): measured in the background, cached, tags written into the FLACs; nothing starts before the shell starts it.
+        services.AddSingleton(provider => new LoudnessService(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<PlaylistLibrary>(),
             provider.GetRequiredService<IPlayerBackend>(),
-            provider.GetRequiredService<IAudioSystem>(),
-            provider.GetRequiredService<ITrackMetadataReader>(),
-            logger: provider.GetRequiredService<ILogger<MusicPlayer>>()));
+            logger: provider.GetRequiredService<ILogger<LoudnessService>>()));
+        services.AddSingleton(provider =>
+        {
+            var loudness = provider.GetRequiredService<LoudnessService>();
+            var player = new MusicPlayer(
+                provider.GetRequiredService<SettingsService>(),
+                provider.GetRequiredService<PlaylistLibrary>(),
+                provider.GetRequiredService<IPlayerBackend>(),
+                provider.GetRequiredService<IAudioSystem>(),
+                provider.GetRequiredService<ITrackMetadataReader>(),
+                logger: provider.GetRequiredService<ILogger<MusicPlayer>>(),
+                loudness: loudness.Scanner);
+            loudness.IsInUse = player.IsInUse; // the tags of the file that plays (or waits to play) are never written
+            return player;
+        });
         services.AddSingleton<ICoverArtReader, CoverArtReader>();
         services.AddSingleton<ICoverArtLoader>(provider => new CoverArtService(provider.GetRequiredService<ICoverArtReader>()));
         services.AddSingleton(provider => new PlayerViewModel(
@@ -223,7 +237,8 @@ public static class AppHost
             provider.GetRequiredService<IAudioSystem>(),
             PostToUi,
             logger: provider.GetRequiredService<ILogger<PlayerViewModel>>(),
-            covers: provider.GetRequiredService<ICoverArtLoader>()));
+            covers: provider.GetRequiredService<ICoverArtLoader>(),
+            loudness: provider.GetRequiredService<LoudnessService>()));
         services.AddSingleton(provider => new MediaKeyRouter(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<MusicPlayer>(),

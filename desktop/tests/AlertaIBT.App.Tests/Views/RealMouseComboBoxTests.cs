@@ -43,8 +43,8 @@ public sealed class RealMouseComboBoxTests
             using var rig = new RealInputRig();
             var combos = Combos(rig);
 
-            // Lista de musicas, fade-in, fade-out, mescla, suavizar volume, the three outputs and the Lista of each of the two alarms.
-            Assert.Equal(10, combos.Count);
+            // Lista de musicas, fade-in, fade-out, mescla, suavizar volume, the loudness target, the three outputs and the Lista of each of the two alarms.
+            Assert.Equal(11, combos.Count);
             Assert.All(combos, combo => Assert.True(combo.Items.Count > 0, combo.GetType().Name + " " + combo.Name));
         });
     }

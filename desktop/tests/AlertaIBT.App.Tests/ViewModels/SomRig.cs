@@ -1,6 +1,7 @@
 using AlertaIBT.App.Services;
 using AlertaIBT.App.ViewModels;
 using AlertaIBT.Core.Audio;
+using AlertaIBT.Core.Loudness;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Settings;
 
@@ -14,14 +15,19 @@ internal sealed class SomRig : IDisposable
 {
     private readonly PlaylistLibrary _library;
 
-    public SomRig(AppSettings? initial = null, ICoverArtLoader? covers = null, ITrackMetadataReader? metadata = null)
+    public SomRig(AppSettings? initial = null, ICoverArtLoader? covers = null, ITrackMetadataReader? metadata = null, bool withLoudness = false)
     {
         Settings = new SettingsRig(initial);
         _library = new PlaylistLibrary(new FakeFiles(), _ => null, Settings.Clock, action => action());
-        Player = new MusicPlayer(Settings.Settings, _library, Backend, Audio, metadata ?? new FakeMetadata(), Settings.Clock, null, action => action(), new Random(1));
+        if (withLoudness)
+        {
+            Loudness = new LoudnessService(Settings.Settings, _library, Backend, Path.Combine(Path.GetTempPath(), "ibt-somrig-" + Guid.NewGuid().ToString("N"), "loudness-cache.json"), new FlacLoudnessTagWriter(), Settings.Clock);
+        }
+
+        Player = new MusicPlayer(Settings.Settings, _library, Backend, Audio, metadata ?? new FakeMetadata(), Settings.Clock, null, action => action(), new Random(1), loudness: Loudness?.Scanner);
         Alarms = new AlarmScheduler(Settings.Settings, Player, Settings.Clock);
         Player.Start();
-        PlayerView = new PlayerViewModel(Settings.Settings, Player, Alarms, Audio, action => action(), action => action(), Settings.Clock, covers: covers);
+        PlayerView = new PlayerViewModel(Settings.Settings, Player, Alarms, Audio, action => action(), action => action(), Settings.Clock, covers: covers, loudness: Loudness);
         Controller = new AudioController(Audio, Settings.Settings, Settings.Clock, null, AppOutput, action => action());
         Som = new SomViewModel(
             Settings.Settings,
@@ -44,6 +50,9 @@ internal sealed class SomRig : IDisposable
     }
 
     public SettingsRig Settings { get; }
+
+    /// <summary>The loudness service (only when the rig was made with it); never started, so no thread runs.</summary>
+    public LoudnessService? Loudness { get; }
 
     public FakeAudio Audio { get; } = new();
 
@@ -95,6 +104,7 @@ internal sealed class SomRig : IDisposable
         PlayerView.Dispose();
         Alarms.Dispose();
         Player.Dispose();
+        Loudness?.Dispose();
         _library.Dispose();
         Settings.Dispose();
     }

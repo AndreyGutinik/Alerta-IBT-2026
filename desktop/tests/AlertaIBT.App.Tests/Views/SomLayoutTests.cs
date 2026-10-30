@@ -83,7 +83,9 @@ public sealed class SomLayoutTests
             bool longNames = false,
             bool alarmsOff = false,
             double crossfade = 0,
-            CrossfadeCurve curve = CrossfadeCurve.Linear)
+            CrossfadeCurve curve = CrossfadeCurve.Linear,
+            int scanning = 0,
+            bool tagsOff = false)
         {
             var playlists = longNames
                 ? new[]
@@ -126,10 +128,16 @@ public sealed class SomLayoutTests
                     FadeOutSeconds = mode == Mode.Paused ? 0 : 5,
                     CrossfadeSeconds = crossfade,
                     CrossfadeCurve = curve,
+                    WriteLoudnessTags = !tagsOff,
                 },
                 System = new SystemSettings { AlertsEnabled = !alertsOff },
             };
-            _som = new SomRig(initial, new FakeCover(art), new NameMetadata());
+            _som = new SomRig(initial, new FakeCover(art), new NameMetadata(), withLoudness: true);
+            if (scanning > 0)
+            {
+                // The chip shows while files wait to be measured: this many that do not exist (so none has a measurement) and no thread runs.
+                _som.Loudness!.Scanner.Configure(Enumerable.Range(1, scanning).Select(i => $"C:/no-such-folder/track {i}.flac").ToList());
+            }
             if (!unplugged)
             {
                 _som.Audio.Devices.Add(new AudioDevice("id-2", deviceName));
@@ -1426,6 +1434,90 @@ public sealed class SomLayoutTests
         });
     }
 
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void The_loudness_line_is_one_aligned_row_under_the_behaviour_line_with_the_chip_the_toggle_the_menu_and_the_tag_switch(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width, Mode.Playing, scanning: 237);
+            var page = rig.Page;
+            var strip = rig.BoundsOf(page.PlaylistStrip);
+            var behaviour = rig.BoundsOf(page.BehaviorHalf);
+            var row = rig.BoundsOf(page.LoudnessHalf);
+            var chip = rig.BoundsOf(page.ScanChip);
+            var toggle = rig.BoundsOf(page.NormalizeToggle);
+            var combo = rig.BoundsOf(page.NormalizeCombo);
+            var tags = rig.BoundsOf(page.WriteTagsRow);
+            var tagSwitch = rig.BoundsOf(page.WriteTagsSwitch);
+
+            Assert.True(row.Top >= behaviour.Bottom + 8, "its own line under the behaviour line, with a divider between");
+            Near(32, toggle.Width);
+            Near(32, toggle.Height);
+            Near(32, combo.Height);
+            Assert.True(combo.Width >= 100, $"the target fits ({combo.Width})");
+            Assert.True(chip.Right <= toggle.Left, "chip, then toggle, then menu, then the tag switch");
+            Assert.True(toggle.Right <= combo.Left);
+            Assert.True(combo.Right <= tags.Left);
+            foreach (var part in new[] { chip, toggle, combo, tagSwitch })
+            {
+                Assert.InRange(Math.Abs(CenterY(part) - CenterY(toggle)), 0, 1.5); // one line, aligned
+                Assert.True(part.Left >= strip.Left + 16 && part.Right <= strip.Right - 16 + 1, $"inside the block, nothing cut: part {part.Left:F1}..{part.Right:F1} strip {strip.Left:F1}..{strip.Right:F1}");
+            }
+
+            Assert.InRange(Math.Abs(tags.Right - behaviour.Right), 0, 1.5); // the right edge lines up with the line above
+            Assert.Equal("Igualar volume", AutomationProperties.GetName(page.NormalizeToggle));
+            Assert.Equal("Gravar etiquetas nos arquivos", AutomationProperties.GetName(page.WriteTagsSwitch));
+            Assert.Equal("medindo 0/237", page.ScanChipText.Text);
+            Assert.Equal(rig.Player.NormalizeTip, (string)page.NormalizeToggle.ToolTip);
+            Assert.Equal(rig.Player.NormalizeTip, (string)page.NormalizeCombo.ToolTip);
+            Assert.Equal(rig.Player.WriteTagsTip, (string)page.WriteTagsSwitch.ToolTip);
+            Assert.Equal(8, page.NormalizeCombo.Items.Count);
+            Assert.Equal("-16", page.NormalizeCombo.SelectedValue);
+            Assert.True(page.NormalizeToggle.IsChecked);
+            Assert.True(page.WriteTagsSwitch.IsChecked);
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void The_chip_is_hidden_when_nothing_is_being_measured_and_the_row_still_fits(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width, Mode.Playing);
+            var page = rig.Page;
+
+            Assert.False(Shown(page.ScanChip));
+            var strip = rig.BoundsOf(page.PlaylistStrip);
+            var tags = rig.BoundsOf(page.WriteTagsRow);
+            Assert.True(tags.Right <= strip.Right - 16 + 1, $"tags {tags.Right:F1} strip {strip.Right:F1}");
+            Assert.InRange(Math.Abs(CenterY(rig.BoundsOf(page.NormalizeToggle)) - CenterY(rig.BoundsOf(page.WriteTagsSwitch))), 0, 1.5);
+        });
+    }
+
+    [Fact]
+    public void Choosing_Desligado_in_the_menu_turns_the_equalization_off_and_the_toggle_follows()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100, Mode.Playing);
+            var page = rig.Page;
+
+            page.NormalizeCombo.SelectedValue = "off";
+            rig.Layout(1100);
+
+            Assert.False(rig.Som.Current.Player.NormalizeEnabled);
+            Assert.False(page.NormalizeToggle.IsChecked);
+
+            page.NormalizeToggle.IsChecked = true;
+            page.NormalizeCombo.SelectedValue = "-23";
+
+            Assert.True(rig.Som.Current.Player.NormalizeEnabled);
+            Assert.Equal(-23, rig.Som.Current.Player.NormalizeTargetLufs);
+        });
+    }
+
     [Fact]
     public void Render_the_tab_for_the_owner_to_look_at()
     {
@@ -1471,6 +1563,16 @@ public sealed class SomLayoutTests
                 using (var mix = new Rig(width, Mode.Playing, crossfade: 8, curve: CrossfadeCurve.Intermediate))
                 {
                     mix.Snapshot($"som-{width}-mescla-intermediaria");
+                }
+
+                using (var measuring = new Rig(width, Mode.Playing, scanning: 237))
+                {
+                    measuring.Snapshot($"som-{width}-medindo");
+                }
+
+                using (var mixTags = new Rig(width, Mode.Playing, crossfade: 8, scanning: 120, tagsOff: true))
+                {
+                    mixTags.Snapshot($"som-{width}-medindo-mescla-sem-etiquetas");
                 }
 
                 using (var longNames = new Rig(width, Mode.Playing, unplugged: true, alarms: 3, longNames: true))

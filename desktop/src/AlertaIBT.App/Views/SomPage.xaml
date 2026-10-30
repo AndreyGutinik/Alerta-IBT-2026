@@ -1069,6 +1069,77 @@
                                     ToolTip="Teclas de mídia: ligado, as teclas de play/pausa, próxima, anterior e parar do teclado comandam o player" />
                             </StackPanel>
                         </WrapPanel>
+                        <!--
+                            Loudness, its own line under the behaviour line: the equalization toggle and its target, the scan chip (only while it works) and
+                            the switch that writes the tags into the FLAC files. Icons only, the explanation is in the tooltips.
+                        -->
+                        <StackPanel x:Name="LoudnessBlock" Visibility="{Binding Player.HasLoudness, Converter={StaticResource BoolToVisibility}}">
+                        <Border
+                            Height="1"
+                            Margin="0,16,0,16"
+                            Style="{StaticResource IbtDivider}" />
+                        <WrapPanel
+                            x:Name="LoudnessHalf"
+                            Margin="0,-4"
+                            HorizontalAlignment="Right"
+                            Orientation="Horizontal">
+                            <Border
+                                x:Name="ScanChip"
+                                Margin="0,4,16,4"
+                                VerticalAlignment="Center"
+                                Style="{StaticResource IbtChip}"
+                                ToolTip="{Binding Player.ScanChipTip}"
+                                Visibility="{Binding Player.ScanChipVisible, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock
+                                    x:Name="ScanChipText"
+                                    FontSize="11.5"
+                                    Foreground="{StaticResource IbtTextSecondaryBrush}"
+                                    Text="{Binding Player.ScanChipText}" />
+                            </Border>
+                            <StackPanel
+                                x:Name="NormalizeRow"
+                                Margin="0,4,16,4"
+                                Background="Transparent"
+                                Orientation="Horizontal"
+                                ToolTip="{Binding Player.NormalizeTip}">
+                                <ToggleButton
+                                    x:Name="NormalizeToggle"
+                                    Margin="0,0,8,0"
+                                    AutomationProperties.Name="Igualar volume"
+                                    IsChecked="{Binding Player.NormalizeEnabled, Mode=TwoWay}"
+                                    Style="{StaticResource IbtNormalizeToggle}"
+                                    ToolTip="{Binding Player.NormalizeTip}" />
+                                <ComboBox
+                                    x:Name="NormalizeCombo"
+                                    Width="112"
+                                    AutomationProperties.Name="Volume alvo (LUFS)"
+                                    DisplayMemberPath="Label"
+                                    ItemsSource="{Binding NormalizeChoices}"
+                                    SelectedValue="{Binding Player.NormalizeChoiceKey, Mode=TwoWay}"
+                                    SelectedValuePath="Key"
+                                    Style="{StaticResource IbtComboBox}"
+                                    ToolTip="{Binding Player.NormalizeTip}" />
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="WriteTagsRow"
+                                Margin="0,4"
+                                Background="Transparent"
+                                Orientation="Horizontal"
+                                ToolTip="{Binding Player.WriteTagsTip}">
+                                <Path
+                                    Margin="0,0,8,0"
+                                    Data="{StaticResource LucideTag}"
+                                    Style="{StaticResource IbtRowIcon}" />
+                                <ToggleButton
+                                    x:Name="WriteTagsSwitch"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.Name="Gravar etiquetas nos arquivos"
+                                    IsChecked="{Binding Player.WriteLoudnessTags, Mode=TwoWay}"
+                                    Style="{StaticResource IbtSwitch}"
+                                    ToolTip="{Binding Player.WriteTagsTip}" />
+                            </StackPanel>
+                        </WrapPanel>
+                        </StackPanel>
                         </StackPanel>
                     </Border>
                 </Grid>

@@ -747,6 +747,12 @@
         <Setter Property="theme:IconToggle.OffGeometry" Value="{StaticResource LucidePower}" />
     </Style>
 
+    <!-- "Igualar volume" (Som > player): the level-match icon, green when on. -->
+    <Style x:Key="IbtNormalizeToggle" BasedOn="{StaticResource IbtIconToggle}" TargetType="ToggleButton">
+        <Setter Property="theme:IconToggle.OnGeometry" Value="{StaticResource IbtLevelMatch}" />
+        <Setter Property="theme:IconToggle.OffGeometry" Value="{StaticResource IbtLevelMatch}" />
+    </Style>
+
     <!-- The mute of a volume row: IsChecked is "muted". A quiet speaker when there is sound; the crossed speaker in amber when it is muted. -->
     <Style x:Key="IbtMuteToggle" BasedOn="{StaticResource IbtIconToggle}" TargetType="ToggleButton">
         <Setter Property="theme:IconToggle.OnGeometry" Value="{StaticResource LucideVolumeX}" />

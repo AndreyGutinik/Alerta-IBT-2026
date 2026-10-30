@@ -98,6 +98,23 @@ public sealed class NAudioPlayerBackend : IPlayerBackend
         }
     }
 
+    /// <inheritdoc />
+    public NativePcm? OpenNative(string path)
+    {
+        var reader = new MediaFoundationReader(path, new MediaFoundationReader.MediaFoundationReaderSettings { RequestFloatOutput = true });
+        try
+        {
+            var format = reader.WaveFormat;
+            // The file's own rate and channels: the track reads straight through (no resampler, no channel mapping).
+            return new NativePcm(new MediaFoundationTrack(reader, reader, format.Channels, format.Channels), format.SampleRate, format.Channels);
+        }
+        catch
+        {
+            reader.Dispose();
+            throw;
+        }
+    }
+
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, (long Stamp, TrackProfile Profile)> _profiles = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
