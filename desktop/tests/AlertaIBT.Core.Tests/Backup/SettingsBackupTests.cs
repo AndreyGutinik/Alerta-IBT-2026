@@ -62,6 +62,7 @@ public sealed class SettingsBackupTests
         Assert.Equal("AIzaSyFakeWebKey123", payload.SiteApiKey);
         Assert.Equal("pc@igreja.org", payload.SiteEmail);
         Assert.Equal(SitePassword, payload.SitePassword);
+        Assert.True(payload.SiteEnabled);
         Assert.Equal("corola=Corolla\nhb 20=HB20", payload.FixedRules);
         Assert.False(payload.AlertsEnabled);
         Assert.False(payload.ClearHistoryWeekly);
@@ -187,13 +188,37 @@ public sealed class SettingsBackupTests
         Assert.Equal(before.Bar with { Position = "bottom", Height = 90, Speed = 150 }, after.Bar);
         Assert.Equal(before.Player with { MediaKeys = false }, after.Player);
         Assert.Equal(before.Ndi with { ShortcutsEnabled = false }, after.Ndi);
-        Assert.Equal(before.Site with { DatabaseUrl = payload.SiteDatabaseUrl, ApiKey = payload.SiteApiKey, DeviceEmail = payload.SiteEmail, PasswordProtected = after.Site.PasswordProtected }, after.Site);
+        Assert.Equal(before.Site with { Enabled = true, DatabaseUrl = payload.SiteDatabaseUrl, ApiKey = payload.SiteApiKey, DeviceEmail = payload.SiteEmail, PasswordProtected = after.Site.PasswordProtected }, after.Site);
         Assert.Equal(before.Correction with { GeminiModel = payload.GeminiModel, FixedRules = payload.FixedRules, GeminiKeyProtected = after.Correction.GeminiKeyProtected }, after.Correction);
         Assert.Equal(before.MouseLock with { Hotkey = "Ctrl+Alt+K", TripleCtrl = false }, after.MouseLock);
         Assert.Equal(before.System.AutoUpdate, after.System.AutoUpdate);
         Assert.Equal(before.System.UpdateAttempts, after.System.UpdateAttempts);
         Assert.Equal(before.System.SitePendingClear, after.System.SitePendingClear);
         Assert.Equal(before.System.LastHistoryClearAt, after.System.LastHistoryClearAt);
+    }
+
+    [Fact]
+    public void Site_switch_is_restored_on_and_off_and_a_file_without_it_leaves_the_switch_alone()
+    {
+        var off = new AppSettings { Site = new SiteSettings { Enabled = false } };
+        var on = new AppSettings { Site = new SiteSettings { Enabled = true } };
+
+        Assert.True(SettingsBackup.Apply(off, SettingsBackup.Capture(on, Protector, Now), Protector).Site.Enabled);
+        Assert.False(SettingsBackup.Apply(on, SettingsBackup.Capture(off, Protector, Now), Protector).Site.Enabled);
+
+        var old = SettingsBackup.Capture(on, Protector, Now) with { SiteEnabled = null };
+        Assert.True(SettingsBackup.Apply(on, old, Protector).Site.Enabled);
+        Assert.False(SettingsBackup.Apply(off, old, Protector).Site.Enabled);
+
+        // Through the file: a payload written before the field existed reads back as null.
+        var json = System.Text.Json.JsonSerializer.Serialize(old, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
+        Assert.DoesNotContain("siteEnabled", json, StringComparison.Ordinal);
+        Assert.Null(System.Text.Json.JsonSerializer.Deserialize<BackupPayload>(json, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })!.SiteEnabled);
+
+        // Preview: no change line for a file that does not carry it.
+        var line = SettingsBackup.Preview(off, old, Protector).Single(c => c.Label == "Site ligado");
+        Assert.False(line.Changed);
+        Assert.True(SettingsBackup.Preview(off, SettingsBackup.Capture(on, Protector, Now), Protector).Single(c => c.Label == "Site ligado").Changed);
     }
 
     [Fact]

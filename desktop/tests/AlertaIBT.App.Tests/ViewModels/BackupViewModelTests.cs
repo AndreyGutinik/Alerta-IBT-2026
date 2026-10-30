@@ -68,7 +68,7 @@ public sealed class BackupViewModelTests : IDisposable
             Telegram = other.Telegram with { ChatId = -100999 },
             Bar = other.Bar with { Speed = 60, Height = 40, Position = "top" },
             System = other.System with { Hotkey = "Ctrl+Alt+P", AlertsEnabled = false },
-            Site = other.Site with { DatabaseUrl = "https://outra-rtdb.firebaseio.com", ApiKey = "AIzaSyOutraWebKey123", DeviceEmail = "pc@outra.org" },
+            Site = other.Site with { Enabled = true, DatabaseUrl = "https://outra-rtdb.firebaseio.com", ApiKey = "AIzaSyOutraWebKey123", DeviceEmail = "pc@outra.org" },
             Correction = other.Correction with { FixedRules = "x=y\nz=w", GeminiModel = "gemini-9-pro" },
             Player = other.Player with { MediaKeys = true },
             Audio = other.Audio with { MasterVolume = 5 },
@@ -200,6 +200,7 @@ public sealed class BackupViewModelTests : IDisposable
         Assert.Equal("Ctrl+Alt+P", after.System.Hotkey);
         Assert.False(after.System.AlertsEnabled);
         Assert.Equal("https://outra-rtdb.firebaseio.com", after.Site.DatabaseUrl);
+        Assert.True(after.Site.Enabled);
         Assert.Equal("gemini-9-pro", after.Correction.GeminiModel);
         Assert.True(after.Player.MediaKeys);
 
@@ -210,7 +211,6 @@ public sealed class BackupViewModelTests : IDisposable
         Assert.Equal(before.Ndi, after.Ndi);
         Assert.Equal(before.MouseLock, after.MouseLock);
         Assert.Equal(before.Backup, after.Backup);
-        Assert.Equal(before.Site.Enabled, after.Site.Enabled);
         Assert.Equal(before.System.AutoUpdate, after.System.AutoUpdate);
 
         // Saved at once, with the secrets only protected.

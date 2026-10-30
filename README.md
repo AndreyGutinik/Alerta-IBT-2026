@@ -105,7 +105,7 @@ A pílula do painel diz o estado geral: **Pronta**, **Exibindo**, **Pausada** ou
 
 ## Backup das configurações
 
-Em **Configurações > Backup**: o ícone de baixar exporta um arquivo `.ibtbackup` e o de subir restaura. O arquivo é protegido por uma senha que você escolhe (AES-256-GCM, chave derivada com PBKDF2-SHA256 de 600 mil voltas): sem a senha ninguém abre, e uma alteração no arquivo é detectada. Guarda só token e grupo do Telegram, chave e modelo do Gemini, atalhos, barra (tamanho, velocidade, posição e tela do LED), conexão com o site, regras fixas, "Alertas ligados" e a limpeza semanal; playlists, câmeras, volumes, saídas, player e despertadores ficam de fora. Antes de trocar qualquer coisa o app mostra o que vai mudar (segredos só com 3 letras) e pede a confirmação.
+Em **Configurações > Backup**: o ícone de baixar exporta um arquivo `.ibtbackup` e o de subir restaura. O arquivo é protegido por uma senha que você escolhe (AES-256-GCM, chave derivada com PBKDF2-SHA256 de 600 mil voltas): sem a senha ninguém abre, e uma alteração no arquivo é detectada. Guarda só token e grupo do Telegram, chave e modelo do Gemini, atalhos, barra (tamanho, velocidade, posição e tela do LED), conexão com o site (inclusive o interruptor ligado/desligado), regras fixas, "Alertas ligados" e a limpeza semanal; playlists, câmeras, volumes, saídas, player e despertadores ficam de fora. Antes de trocar qualquer coisa o app mostra o que vai mudar (segredos só com 3 letras) e pede a confirmação.
 
 A **cópia automática** grava um arquivo novo na pasta escolhida 5 segundos depois da última mudança de um desses itens e guarda só as 5 últimas (`ibt-backup-AAAAMMDD-HHmmss.ibtbackup`). A senha dela é pedida uma vez e fica protegida pelo Windows, só neste usuário.
 

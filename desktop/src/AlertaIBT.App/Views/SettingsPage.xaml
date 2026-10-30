@@ -684,7 +684,7 @@
                         DataContext="{Binding Backup}"
                         Header="Backup"
                         Icon="{StaticResource LucideArchive}"
-                        Info="Guarda num arquivo, protegido por senha: Telegram (token e grupo), chave e modelo do Gemini, atalhos, barra (tamanho, velocidade, posição e tela do LED), conexão com o site, regras fixas, Alertas ligados e a limpeza semanal.&#10;Não guarda playlists, câmeras, volumes, saídas, player, despertadores nem a janela.&#10;Sem a senha não dá para abrir o arquivo: guarde-a."
+                        Info="Guarda num arquivo, protegido por senha: Telegram (token e grupo), chave e modelo do Gemini, atalhos, barra (tamanho, velocidade, posição e tela do LED), conexão com o site (e se está ligado), regras fixas, Alertas ligados e a limpeza semanal.&#10;Não guarda playlists, câmeras, volumes, saídas, player, despertadores nem a janela.&#10;Sem a senha não dá para abrir o arquivo: guarde-a."
                         Style="{StaticResource IbtCardSectionStyle}">
                         <local:CardSection.HeaderActions>
                             <StackPanel Orientation="Horizontal">

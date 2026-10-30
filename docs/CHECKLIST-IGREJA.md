@@ -291,7 +291,7 @@ A aba **NDI** manda uma câmera da rede (NDI) para o LED, **por baixo** da letra
 
 ## 21. Backup e restauração das configurações
 
-O backup guarda **só o que é difícil de refazer**: token e grupo do Telegram, chave e modelo do Gemini, atalhos (painel, mouse, Ctrl 3 vezes, atalhos do NDI, teclas de mídia), barra (tamanho, velocidade, posição, tela do LED), conexão com o site (endereço, chave da API, e-mail e senha do PC), regras fixas, "Alertas ligados" e a limpeza semanal. **Não** guarda playlists, câmeras, volumes, saídas, player, despertadores nem a janela. Fica num arquivo `.ibtbackup` criptografado com a senha que você escolher (sem a senha ninguém abre, nem o dono: anote a senha).
+O backup guarda **só o que é difícil de refazer**: token e grupo do Telegram, chave e modelo do Gemini, atalhos (painel, mouse, Ctrl 3 vezes, atalhos do NDI, teclas de mídia), barra (tamanho, velocidade, posição, tela do LED), conexão com o site (endereço, chave da API, e-mail e senha do PC, e o interruptor "Site ligado"), regras fixas, "Alertas ligados" e a limpeza semanal. **Não** guarda playlists, câmeras, volumes, saídas, player, despertadores nem a janela. Fica num arquivo `.ibtbackup` criptografado com a senha que você escolher (sem a senha ninguém abre, nem o dono: anote a senha).
 
 - [ ] **Exportar:** Configurações > Backup > ícone de baixar. Escolher a pasta (sugere `ibt-backup-AAAAMMDD.ibtbackup`), digitar a senha duas vezes (mínimo 8 caracteres; o olho mostra o que foi digitado). Aparece "Backup salvo" em verde.
 - [ ] Abrir o arquivo no Bloco de Notas: tem que ser só lixo ilegível, sem nenhum texto do token ou da chave.

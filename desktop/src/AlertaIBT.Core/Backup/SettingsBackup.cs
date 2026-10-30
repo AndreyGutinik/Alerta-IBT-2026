@@ -72,6 +72,9 @@ public sealed record BackupPayload
     /// <summary>The password of the PC account of the site, in clear, or blank.</summary>
     public string SitePassword { get; init; } = string.Empty;
 
+    /// <summary>The site on/off switch; null in a file made before it joined the backup (restoring such a file leaves the switch as it is).</summary>
+    public bool? SiteEnabled { get; init; }
+
     /// <summary>The fixed correction rules text.</summary>
     public string FixedRules { get; init; } = string.Empty;
 
@@ -110,7 +113,7 @@ public static class SettingsBackup
     [
         "Token do Telegram", "Grupo do Telegram", "Chave do Gemini", "Modelo do Gemini", "Atalho do painel", "Atalho do mouse",
         "Ctrl 3 vezes", "Atalhos do NDI", "Teclas de m\U000000EDdia", "Posi\U000000E7\U000000E3o da barra", "Tamanho da barra", "Velocidade da barra",
-        "Tela do LED", "Endere\U000000E7o do site", "Chave da API do site", "E-mail do PC", "Senha do PC", "Regras fixas",
+        "Tela do LED", "Endere\U000000E7o do site", "Chave da API do site", "E-mail do PC", "Senha do PC", "Site ligado", "Regras fixas",
         "Alertas ligados", "Limpar hist\U000000F3rico toda segunda",
     ];
 
@@ -140,6 +143,7 @@ public static class SettingsBackup
             SiteApiKey = settings.Site.ApiKey,
             SiteEmail = settings.Site.DeviceEmail,
             SitePassword = settings.GetSitePassword(protector) ?? string.Empty,
+            SiteEnabled = settings.Site.Enabled,
             FixedRules = settings.Correction.FixedRules,
             AlertsEnabled = settings.System.AlertsEnabled,
             ClearHistoryWeekly = settings.System.ClearHistoryWeekly,
@@ -242,7 +246,7 @@ public static class SettingsBackup
             Ndi = s.Ndi with { ShortcutsEnabled = payload.NdiShortcuts },
             Player = s.Player with { MediaKeys = payload.MediaKeys },
             Bar = s.Bar with { Position = payload.BarPosition, Height = payload.BarHeight, Speed = payload.BarSpeed },
-            Site = s.Site with { DatabaseUrl = payload.SiteDatabaseUrl, ApiKey = payload.SiteApiKey, DeviceEmail = payload.SiteEmail },
+            Site = s.Site with { DatabaseUrl = payload.SiteDatabaseUrl, ApiKey = payload.SiteApiKey, DeviceEmail = payload.SiteEmail, Enabled = payload.SiteEnabled ?? s.Site.Enabled },
         };
     }
 
@@ -277,9 +281,10 @@ public static class SettingsBackup
             Secret(labels[14], now.SiteApiKey, payload.SiteApiKey),
             Plain(labels[15], Blank(now.SiteEmail), Blank(payload.SiteEmail), now.SiteEmail != payload.SiteEmail),
             Secret(labels[16], now.SitePassword, payload.SitePassword),
-            Plain(labels[17], RuleCount(now.FixedRules), RuleCount(payload.FixedRules), now.FixedRules != payload.FixedRules),
-            Plain(labels[18], OnOff(now.AlertsEnabled), OnOff(payload.AlertsEnabled), now.AlertsEnabled != payload.AlertsEnabled),
-            Plain(labels[19], OnOff(now.ClearHistoryWeekly), OnOff(payload.ClearHistoryWeekly), now.ClearHistoryWeekly != payload.ClearHistoryWeekly),
+            Plain(labels[17], OnOff(now.SiteEnabled == true), OnOff(payload.SiteEnabled ?? now.SiteEnabled == true), payload.SiteEnabled is not null && now.SiteEnabled != payload.SiteEnabled),
+            Plain(labels[18], RuleCount(now.FixedRules), RuleCount(payload.FixedRules), now.FixedRules != payload.FixedRules),
+            Plain(labels[19], OnOff(now.AlertsEnabled), OnOff(payload.AlertsEnabled), now.AlertsEnabled != payload.AlertsEnabled),
+            Plain(labels[20], OnOff(now.ClearHistoryWeekly), OnOff(payload.ClearHistoryWeekly), now.ClearHistoryWeekly != payload.ClearHistoryWeekly),
         ];
     }
 
