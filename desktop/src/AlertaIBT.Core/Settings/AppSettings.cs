@@ -35,6 +35,22 @@ public sealed record AppSettings
 
     /// <summary>The NDI camera on the telao (receive only).</summary>
     public NdiSettings Ndi { get; init; } = new();
+
+    /// <summary>The automatic copy of the critical settings (see <c>AlertaIBT.Core.Backup</c>). It is not part of a backup itself.</summary>
+    public BackupSettings Backup { get; init; } = new();
+}
+
+/// <summary>The automatic backup copy: on or off, the folder it goes to, and the password protected with DPAPI (same Windows user only).</summary>
+public sealed record BackupSettings
+{
+    /// <summary>Whether a new copy is written into <see cref="Folder"/> when an included setting changes.</summary>
+    public bool AutoEnabled { get; init; }
+
+    /// <summary>The folder of the copies; blank when none.</summary>
+    public string Folder { get; init; } = string.Empty;
+
+    /// <summary>The password of the copies, protected with DPAPI (base64); <c>null</c> when none. Never held in clear.</summary>
+    public string? PasswordProtected { get; init; }
 }
 
 /// <summary>How the bar looks and moves.</summary>

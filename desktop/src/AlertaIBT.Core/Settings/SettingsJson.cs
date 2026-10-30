@@ -74,6 +74,7 @@ public static partial class SettingsJson
             var audio = Section(root, "audio");
             var player = Section(root, "player");
             var ndi = Section(root, "ndi");
+            var backup = Section(root, "backup");
 
             var settings = new AppSettings
             {
@@ -177,6 +178,12 @@ public static partial class SettingsJson
                     MonitorLocked = ReadBool(ndi, "monitorLocked") ?? defaults.Ndi.MonitorLocked,
                     MonitorDeviceName = ReadString(ndi, "monitorDeviceName") ?? defaults.Ndi.MonitorDeviceName,
                     HideFromCapture = ReadBool(ndi, "hideFromCapture") ?? defaults.Ndi.HideFromCapture,
+                },
+                Backup = new BackupSettings
+                {
+                    AutoEnabled = ReadBool(backup, "autoEnabled") ?? defaults.Backup.AutoEnabled,
+                    Folder = ReadString(backup, "folder") ?? defaults.Backup.Folder,
+                    PasswordProtected = ReadString(backup, "passwordProtected"),
                 },
             };
             return (Normalize(settings), false);
@@ -302,6 +309,12 @@ public static partial class SettingsJson
                     ["lastFiredOn"] = alarm.LastFiredOn,
                 }).ToArray()),
             },
+            ["backup"] = new JsonObject
+            {
+                ["autoEnabled"] = n.Backup.AutoEnabled,
+                ["folder"] = n.Backup.Folder,
+                ["passwordProtected"] = n.Backup.PasswordProtected,
+            },
             ["ndi"] = new JsonObject
             {
                 ["shortcutsEnabled"] = n.Ndi.ShortcutsEnabled,
@@ -341,6 +354,7 @@ public static partial class SettingsJson
         var audio = s.Audio ?? d.Audio;
         var player = s.Player ?? d.Player;
         var ndi = s.Ndi ?? d.Ndi;
+        var backup = s.Backup ?? d.Backup;
 
         return new AppSettings
         {
@@ -421,6 +435,12 @@ public static partial class SettingsJson
             },
             Player = NormalizePlayer(player),
             Ndi = NormalizeNdi(ndi),
+            Backup = new BackupSettings
+            {
+                AutoEnabled = backup.AutoEnabled,
+                Folder = NullIfBlank(backup.Folder)?.Trim() ?? string.Empty,
+                PasswordProtected = NullIfBlank(backup.PasswordProtected),
+            },
         };
     }
 
