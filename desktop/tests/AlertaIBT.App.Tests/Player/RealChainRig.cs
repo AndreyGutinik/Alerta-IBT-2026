@@ -22,7 +22,7 @@ internal sealed class RealChainRig : IDisposable
     }
 
     /// <summary>A playlist of several real files (in this order, shuffle off), each played by the real decoder; <paramref name="repeat"/> is the repeat mode.</summary>
-    public RealChainRig(IReadOnlyList<string> realFiles, string repeat, int deviceRate = Rate, int deviceChannels = 2)
+    public RealChainRig(IReadOnlyList<string> realFiles, string repeat, int deviceRate = Rate, int deviceChannels = 2, bool threadPool = false)
     {
         Settings = new SettingsRig();
         var paths = realFiles.Select((_, i) => $"/music/track-{i + 1:00}.flac").ToList();
@@ -42,7 +42,7 @@ internal sealed class RealChainRig : IDisposable
                 FadeInSeconds = 0,
             },
         });
-        Player = new MusicPlayer(Settings.Settings, _library, Backend, new FakeAudio(), new FakeMetadata(), Settings.Clock, null, action => action(), new Random(1));
+        Player = new MusicPlayer(Settings.Settings, _library, Backend, new FakeAudio(), new FakeMetadata(), Settings.Clock, null, threadPool ? (action => ThreadPool.QueueUserWorkItem(_ => action())) : (action => action()), new Random(1));
         Player.Start();
     }
 
