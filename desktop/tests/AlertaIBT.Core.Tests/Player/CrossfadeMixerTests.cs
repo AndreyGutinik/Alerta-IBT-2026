@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Settings;
 using AlertaIBT.Core.Player;
 
 namespace AlertaIBT.Core.Tests.Player;
@@ -123,6 +124,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(1);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         var ended = 0;
         mixer.TrackEnded += () => ended++;
         mixer.SetTrack(new SineTrack(Rate, 3, 440, 0.5));
@@ -141,6 +143,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(2);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         mixer.SetTrack(new SineTrack(Rate, 6, 440, 0.5));
         mixer.SetNext(new SineTrack(Rate, 6, 660, 0.5));
 
@@ -178,6 +181,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(3);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         mixer.SetTrack(new SineTrack(Rate, 8, 440, 0.5));
         mixer.SetNext(new SineTrack(Rate, 8, 660, 0.5));
 
@@ -197,6 +201,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(1);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         var incoming = new SineTrack(Rate, 5, 660, 0.5);
         var advancedAt = -1.0;
         var elapsed = 0.0;
@@ -236,6 +241,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(2); // wanted 2 s but the track is 1.2 s: 0.6 s applies
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         var advancedAt = -1.0;
         var elapsed = 0.0;
         mixer.TrackAdvanced += _ => advancedAt = elapsed;
@@ -262,6 +268,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(1);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         var outgoing = new SineTrack(Rate, 4, 440, 0.5);
         mixer.SetTrack(outgoing);
         mixer.SetNext(new SineTrack(Rate, 4, 660, 0.5));
@@ -283,6 +290,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(2);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         mixer.SetTrack(new SineTrack(Rate, 6, 440, 0.5));
         mixer.SetNext(new SineTrack(Rate, 6, 660, 0.5));
         var sound = Pull(mixer, 4.5); // half a second into the overlap
@@ -311,6 +319,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(2);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         mixer.SetTrack(new SineTrack(Rate, 6, 440, 0.5));
         mixer.SetNext(new SineTrack(Rate, 6, 660, 0.5));
         mixer.SetVolume(0.5f, muted: false, immediate: true);
@@ -334,6 +343,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(2);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         var outgoing = new SineTrack(Rate, 6, 440, 0.5);
         var incoming = new SineTrack(Rate, 60, 660, 0.5);
         mixer.SetTrack(outgoing);
@@ -358,6 +368,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(1);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         var advanced = 0;
         mixer.TrackAdvanced += _ => advanced++;
         mixer.SetTrack(new SineTrack(Rate, 10, 440, 0.5));
@@ -379,6 +390,7 @@ public sealed class CrossfadeMixerTests
     {
         var mixer = NewMixer();
         mixer.SetCrossfade(1);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         var a = new SineTrack(Rate, 4, 440, 0.5);
         var b = new SineTrack(Rate, 4, 660, 0.5);
         var c = new SineTrack(Rate, 4, 880, 0.5);

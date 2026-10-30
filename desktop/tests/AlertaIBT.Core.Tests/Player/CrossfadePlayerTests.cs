@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Settings;
 using AlertaIBT.Core.Player;
 
 namespace AlertaIBT.Core.Tests.Player;
@@ -20,7 +21,7 @@ public sealed class CrossfadePlayerTests : IDisposable
         _rig = new PlayerRig(tracks);
         Backend.TrackFrames = Rate * 4;
         Backend.LevelFor = path => 0.2f * int.Parse(System.IO.Path.GetFileNameWithoutExtension(path)[^2..], System.Globalization.CultureInfo.InvariantCulture);
-        _rig.Change(p => p with { Shuffle = false, Repeat = "all", FadeInSeconds = 0, FadeOutSeconds = 1, CrossfadeSeconds = 0 });
+        _rig.Change(p => p with { Shuffle = false, Repeat = "all", FadeInSeconds = 0, FadeOutSeconds = 1, CrossfadeSeconds = 0, CrossfadeCurve = CrossfadeCurve.ConstantPower });
     }
 
     public void Dispose() => _rig.Dispose();

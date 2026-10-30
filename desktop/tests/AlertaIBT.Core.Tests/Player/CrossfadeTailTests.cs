@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Settings;
 using AlertaIBT.Core.Player;
 
 namespace AlertaIBT.Core.Tests.Player;
@@ -85,6 +86,7 @@ public sealed class CrossfadeTailTests
         var a = new TailTrack(440, 0, 14, 20, 20.6);
         var b = new TailTrack(660, bSilence, 30, 30 + bSilence, 30.5 + bSilence);
         mixer.SetCrossfade(crossfade);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         mixer.SetTrack(a);
         if (withProfiles)
         {
@@ -176,6 +178,7 @@ public sealed class CrossfadeTailTests
         var a = new TailTrack(440, 0, 6, 20, 20.6); // only 6 s of sound before the tail
         var b = new TailTrack(660, 0, 30, 30, 30.5);
         mixer.SetCrossfade(12);
+        mixer.SetCrossfadeCurve(CrossfadeCurve.ConstantPower);
         mixer.SetTrack(a);
         mixer.SetProfile(a, new TrackProfile(TimeSpan.Zero, TimeSpan.FromSeconds(6), TimeSpan.FromSeconds(20.6)));
         mixer.SetNext(b, new TrackProfile(TimeSpan.Zero, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30.5)));
