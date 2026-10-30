@@ -19,7 +19,7 @@ public sealed class LoudnessViewModelTests
     }
 
     [Fact]
-    public void Defaults_are_on_minus_16_and_tags_on_and_the_menu_and_the_toggle_agree()
+    public void Defaults_are_on_minus_16_and_tags_off_and_the_menu_and_the_toggle_agree()
     {
         using var rig = new SomRig(withLoudness: true);
         var vm = rig.PlayerView;
@@ -27,7 +27,7 @@ public sealed class LoudnessViewModelTests
         Assert.True(vm.HasLoudness);
         Assert.True(vm.NormalizeEnabled);
         Assert.Equal("-16", vm.NormalizeChoiceKey);
-        Assert.True(vm.WriteLoudnessTags);
+        Assert.False(vm.WriteLoudnessTags);
 
         vm.NormalizeChoiceKey = "-20";
         Assert.True(rig.Current.Player.NormalizeEnabled);
@@ -44,8 +44,8 @@ public sealed class LoudnessViewModelTests
 
         vm.NormalizeChoiceKey = "-12";
         Assert.Equal(-12, rig.Current.Player.NormalizeTargetLufs);
-        vm.WriteLoudnessTags = false;
-        Assert.False(rig.Current.Player.WriteLoudnessTags);
+        vm.WriteLoudnessTags = true;
+        Assert.True(rig.Current.Player.WriteLoudnessTags);
     }
 
     [Fact]

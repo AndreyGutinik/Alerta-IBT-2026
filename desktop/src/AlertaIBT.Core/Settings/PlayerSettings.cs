@@ -144,8 +144,8 @@ public sealed record PlayerSettings
     /// <summary>The loudness the tracks are brought to, LUFS (one of <see cref="Loudness.NormalizationGain.TargetChoices"/>). -16 by default.</summary>
     public double NormalizeTargetLufs { get; init; } = Loudness.NormalizationGain.DefaultTargetLufs;
 
-    /// <summary>"Gravar etiquetas nos arquivos": after a FLAC is measured its ReplayGain tags are written into it (text tags only, the audio is never changed). On by default.</summary>
-    public bool WriteLoudnessTags { get; init; } = true;
+    /// <summary>"Gravar etiquetas nos arquivos": after a FLAC is measured its ReplayGain tags are written into it (text tags only, the audio is never changed). OFF by default: it is the only feature that changes the owner's music files, so it is turned on by the owner after a copy of the music folder.</summary>
+    public bool WriteLoudnessTags { get; init; }
 
     /// <summary>The name of the selected playlist.</summary>
     public string CurrentPlaylist { get; init; } = DefaultPlaylistName;

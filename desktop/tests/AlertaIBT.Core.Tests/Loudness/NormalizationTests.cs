@@ -54,17 +54,17 @@ public sealed class NormalizationTests
     // ---- the settings ----
 
     [Fact]
-    public void Defaults_are_on_minus_16_and_tags_on_also_for_files_that_have_no_value()
+    public void Defaults_are_on_minus_16_and_tags_off_also_for_files_that_have_no_value()
     {
         var defaults = new PlayerSettings();
         var loaded = SettingsJson.Load("{\"player\":{\"crossfadeSeconds\":5}}").Settings.Player;
 
         Assert.True(defaults.NormalizeEnabled);
         Assert.Equal(-16, defaults.NormalizeTargetLufs);
-        Assert.True(defaults.WriteLoudnessTags);
+        Assert.False(defaults.WriteLoudnessTags);
         Assert.True(loaded.NormalizeEnabled);
         Assert.Equal(-16, loaded.NormalizeTargetLufs);
-        Assert.True(loaded.WriteLoudnessTags);
+        Assert.False(loaded.WriteLoudnessTags);
     }
 
     [Fact]
