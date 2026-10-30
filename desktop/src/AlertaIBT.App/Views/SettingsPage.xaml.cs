@@ -28,6 +28,7 @@ public partial class SettingsPage : UserControl
             if (e.NewValue is SettingsViewModel settings)
             {
                 settings.ReportSampleWidth(Preview.TextWidth);
+                BackupSection.Visibility = settings.Backup is null ? Visibility.Collapsed : Visibility.Visible;
                 settings.SitePassword.PropertyChanged += OnSitePasswordEntryChanged;
             }
         };

@@ -103,6 +103,25 @@
             <Setter Property="Padding" Value="16,12" />
             <Setter Property="Margin" Value="0,0,0,8" />
         </Style>
+
+        <!-- The chip that says how the last manual backup action ended: green when it worked, red when it did not. -->
+        <Style x:Key="BackupChip" TargetType="Border">
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="BorderBrush" Value="#4D86E4AD" />
+            <Setter Property="Background" Value="#0F86E4AD" />
+            <Setter Property="TextElement.Foreground" Value="{StaticResource IbtOkBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ResultKind}" Value="Error">
+                    <Setter Property="BorderBrush" Value="#59FF5C5C" />
+                    <Setter Property="Background" Value="#14FF5C5C" />
+                    <Setter Property="TextElement.Foreground" Value="#FF9D9D" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -655,6 +674,125 @@
                                         Visibility="{Binding SitePassword.HasHint, Converter={StaticResource BoolToVisibility}}" />
                                 </StackPanel>
                             </Border>
+                        </StackPanel>
+                    </local:CardSection>
+
+                    <!-- Backup: the critical settings in one file protected by a password, and the automatic copy. The data context is the Backup of the tab. -->
+                    <local:CardSection
+                        x:Name="BackupSection"
+                        Margin="0,24,0,0"
+                        DataContext="{Binding Backup}"
+                        Header="Backup"
+                        Icon="{StaticResource LucideArchive}"
+                        Info="Guarda num arquivo, protegido por senha: Telegram (token e grupo), chave e modelo do Gemini, atalhos, barra (tamanho, velocidade, posição e tela do LED), conexão com o site, regras fixas, Alertas ligados e a limpeza semanal.&#10;Não guarda playlists, câmeras, volumes, saídas, player, despertadores nem a janela.&#10;Sem a senha não dá para abrir o arquivo: guarde-a."
+                        Style="{StaticResource IbtCardSectionStyle}">
+                        <local:CardSection.HeaderActions>
+                            <StackPanel Orientation="Horizontal">
+                                <Button
+                                    x:Name="ExportBackupButton"
+                                    AutomationProperties.Name="Exportar backup"
+                                    Command="{Binding ExportCommand}"
+                                    Style="{StaticResource IbtToolButton}"
+                                    ToolTip="Exportar backup">
+                                    <Path
+                                        Width="16"
+                                        Height="16"
+                                        Data="{StaticResource LucideDownload}"
+                                        Style="{StaticResource LucideIcon}" />
+                                </Button>
+                                <Button
+                                    x:Name="RestoreBackupButton"
+                                    Margin="8,0,0,0"
+                                    AutomationProperties.Name="Restaurar backup"
+                                    Command="{Binding RestoreCommand}"
+                                    Style="{StaticResource IbtToolButton}"
+                                    ToolTip="Restaurar backup">
+                                    <Path
+                                        Width="16"
+                                        Height="16"
+                                        Data="{StaticResource LucideUpload}"
+                                        Style="{StaticResource LucideIcon}" />
+                                </Button>
+                            </StackPanel>
+                        </local:CardSection.HeaderActions>
+                        <StackPanel>
+                            <Border
+                                x:Name="BackupResultChip"
+                                Style="{StaticResource BackupChip}"
+                                Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock
+                                    x:Name="BackupResultText"
+                                    FontSize="12"
+                                    Text="{Binding ResultText}" />
+                            </Border>
+
+                            <StackPanel Margin="0,0,0,-8">
+                                <local:SettingRow
+                                    x:Name="AutoBackupRow"
+                                    Title="Cópia automática"
+                                    Icon="{StaticResource LucideRefreshCw}"
+                                    Info="Quando algum item do backup muda, grava um arquivo novo na pasta, 5 segundos depois da última mudança.&#10;Guarda só as 5 últimas cópias (arquivos ibt-backup-AAAAMMDD-HHmmss).&#10;A senha é pedida uma vez e fica protegida neste usuário do Windows."
+                                    Style="{StaticResource SettingRowStyle}">
+                                    <ToggleButton
+                                        x:Name="AutoBackupSwitch"
+                                        AutomationProperties.Name="Cópia automática"
+                                        IsChecked="{Binding AutoEnabled, Mode=TwoWay}"
+                                        Style="{StaticResource IbtSwitch}" />
+                                </local:SettingRow>
+
+                                <local:SettingRow
+                                    x:Name="BackupFolderRow"
+                                    Title="Pasta"
+                                    Icon="{StaticResource LucideFolder}"
+                                    Style="{StaticResource SettingRowStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock
+                                            x:Name="BackupFolderText"
+                                            MaxWidth="200"
+                                            Margin="0,0,10,0"
+                                            Style="{StaticResource IbtSecondaryText}"
+                                            Text="{Binding FolderText}"
+                                            TextTrimming="CharacterEllipsis"
+                                            ToolTip="{Binding FolderTip}" />
+                                        <Button
+                                            x:Name="BackupFolderButton"
+                                            AutomationProperties.Name="Escolher a pasta das cópias"
+                                            Command="{Binding ChooseFolderCommand}"
+                                            Style="{StaticResource IbtToolButton}"
+                                            ToolTip="Escolher a pasta das cópias">
+                                            <Path
+                                                Width="16"
+                                                Height="16"
+                                                Data="{StaticResource LucideFolder}"
+                                                Style="{StaticResource LucideIcon}" />
+                                        </Button>
+                                    </StackPanel>
+                                </local:SettingRow>
+
+                                <local:SettingRow
+                                    x:Name="BackupStateRow"
+                                    Title="Última cópia"
+                                    Icon="{StaticResource LucideClock}"
+                                    Style="{StaticResource SettingRowStyle}">
+                                    <StackPanel
+                                        Background="Transparent"
+                                        Orientation="Horizontal"
+                                        ToolTip="{Binding AutoTip}">
+                                        <Ellipse
+                                            x:Name="BackupStateDot"
+                                            Width="10"
+                                            Height="10"
+                                            Margin="0,0,8,0"
+                                            VerticalAlignment="Center"
+                                            Fill="{Binding AutoLight, Converter={StaticResource StatusLightBrush}}"
+                                            Style="{StaticResource IbtStatusDot}" />
+                                        <TextBlock
+                                            x:Name="BackupStateText"
+                                            Style="{StaticResource IbtSecondaryText}"
+                                            Text="{Binding AutoText}" />
+                                    </StackPanel>
+                                </local:SettingRow>
+                            </StackPanel>
                         </StackPanel>
                     </local:CardSection>
                 </StackPanel>

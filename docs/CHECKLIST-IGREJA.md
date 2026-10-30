@@ -1,4 +1,4 @@
-# Checklist do teste na igreja (IBT Controller 8.0.2)
+# Checklist do teste na igreja (IBT Controller 8.0.4)
 
 Roteiro para testar o app novo no **PC do telão** (o PC do Holyrics, com o LED 2560x768). Marque cada item. Se algo falhar, anote o que viu e copie o log em **Configurações > Diagnóstico > Copiar logs**.
 
@@ -289,7 +289,31 @@ A aba **NDI** manda uma câmera da rede (NDI) para o LED, **por baixo** da letra
 - [ ] **Câmeras e IPs fixos**: o lápis de cada botão muda o nome e a fonte (lista das fontes achadas ou o IP digitado, `192.168.1.50` ou `192.168.1.50:5961`); o **+** adiciona até 6 câmeras; a lixeira pede confirmação. O ícone de rede abre os **IPs fixos** (para câmeras em outra rede).
 - [ ] **Rede**: cada câmera chega com ~125 Mbps e há duas conectadas (Prévia e No ar): só em cabo gigabit, nunca por Wi-Fi.
 
-## 21. Depois que tudo passou
+## 21. Backup e restauração das configurações
+
+O backup guarda **só o que é difícil de refazer**: token e grupo do Telegram, chave e modelo do Gemini, atalhos (painel, mouse, Ctrl 3 vezes, atalhos do NDI, teclas de mídia), barra (tamanho, velocidade, posição, tela do LED), conexão com o site (endereço, chave da API, e-mail e senha do PC), regras fixas, "Alertas ligados" e a limpeza semanal. **Não** guarda playlists, câmeras, volumes, saídas, player, despertadores nem a janela. Fica num arquivo `.ibtbackup` criptografado com a senha que você escolher (sem a senha ninguém abre, nem o dono: anote a senha).
+
+- [ ] **Exportar:** Configurações > Backup > ícone de baixar. Escolher a pasta (sugere `ibt-backup-AAAAMMDD.ibtbackup`), digitar a senha duas vezes (mínimo 8 caracteres; o olho mostra o que foi digitado). Aparece "Backup salvo" em verde.
+- [ ] Abrir o arquivo no Bloco de Notas: tem que ser só lixo ilegível, sem nenhum texto do token ou da chave.
+- [ ] **Restaurar com a senha errada:** ícone de subir > escolher o arquivo > senha errada. A janela da senha diz "Senha incorreta ou arquivo alterado." e continua aberta.
+- [ ] **Restaurar:** senha certa. A janela "O que será restaurado" lista só o que muda, com o valor de agora e o do backup; token, chaves e senhas aparecem só com 3 letras e pontinhos. "Cancelar" nessa janela ou na pergunta seguinte não muda nada.
+- [ ] Confirmar "Restaurar": os campos de Configurações e a seção Correção mudam na hora, o atalho novo passa a valer, a barra muda de tamanho/posição, o Telegram e o site reconectam sozinhos. Aparece "Restaurado" em verde.
+- [ ] Conferir que playlists, câmeras, volumes e despertadores **não** mudaram.
+- [ ] **Cópia automática:** ligar o interruptor, escolher uma pasta (de preferência no Google Drive/OneDrive ou num pendrive), digitar a senha duas vezes. Em segundos aparece um arquivo `ibt-backup-AAAAMMDD-HHmmss.ibtbackup` e o estado mostra "hoje HH:mm" com bolinha verde.
+- [ ] Mudar a velocidade da barra: 5 segundos depois da última mudança aparece **um** arquivo novo. Mexer em volume ou em playlist **não** cria arquivo.
+- [ ] Depois de mais de 5 mudanças, a pasta tem **só as 5 últimas** cópias (outros arquivos da pasta não são apagados).
+- [ ] Renomear a pasta (ou tirar o pendrive) e mudar algo: a bolinha fica vermelha ("Falhou"; a dica diz o motivo) e o app continua normal. Devolver a pasta, mudar algo: volta ao verde.
+- [ ] Desligar o interruptor: o app esquece a senha (para ligar de novo ela é pedida outra vez).
+
+### Restaurar num PC novo
+
+1. Instalar o IBT Controller no PC novo e abrir uma vez.
+2. Copiar o `.ibtbackup` mais recente da pasta da cópia automática (ou o exportado à mão) para o PC novo.
+3. Configurações > Backup > ícone de subir > escolher o arquivo > senha > conferir a lista > Restaurar.
+4. Conferir a bolinha Telegram, Site e Gemini no Início. Playlists, câmeras, volumes e despertadores precisam ser feitos de novo (não estão no backup).
+5. A cópia automática do PC antigo **não** vai junto: ligar de novo no PC novo (a senha dela fica protegida só no usuário do Windows de cada PC).
+
+## 22. Depois que tudo passou
 
 - [ ] **Desinstalar o Alerta-IBT antigo (Electron)**: Configurações do Windows > Aplicativos > "Avisos de Estacionamento - IBT" (Alerta-IBT).
 - [ ] Conferir que o `AlertaIBT` continua no início do Windows e que o antigo não aparece mais lá.
