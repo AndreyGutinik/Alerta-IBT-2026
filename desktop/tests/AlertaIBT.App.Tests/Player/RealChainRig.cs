@@ -40,6 +40,7 @@ internal sealed class RealChainRig : IDisposable
                 Volume = 100,
                 StartMuted = false,
                 FadeInSeconds = 0,
+                CrossfadeCurve = CrossfadeCurve.ConstantPower, // the existing probes assert cos/sin; the curve tests change it
             },
         });
         Player = new MusicPlayer(Settings.Settings, _library, Backend, new FakeAudio(), new FakeMetadata(), Settings.Clock, null, threadPool ? (action => ThreadPool.QueueUserWorkItem(_ => action())) : (action => action()), new Random(1));

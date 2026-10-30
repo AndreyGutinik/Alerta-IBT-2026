@@ -135,6 +135,9 @@ public sealed record PlayerSettings
     /// <summary>The crossfade ("mescla"), in seconds, at the automatic end of a track (one of <see cref="CrossfadeChoices"/>; 0 is none: the next track follows with no gap). 0 by default.</summary>
     public double CrossfadeSeconds { get; init; }
 
+    /// <summary>The shape of the crossfade; read at the start of each one. <see cref="CrossfadeCurve.Linear"/> by default (also for files with no value).</summary>
+    public CrossfadeCurve CrossfadeCurve { get; init; } = CrossfadeCurve.Linear;
+
     /// <summary>The name of the selected playlist.</summary>
     public string CurrentPlaylist { get; init; } = DefaultPlaylistName;
 
@@ -179,6 +182,7 @@ public sealed record PlayerSettings
         && FadeInSeconds == other.FadeInSeconds
         && FadeOutSeconds == other.FadeOutSeconds
         && CrossfadeSeconds == other.CrossfadeSeconds
+        && CrossfadeCurve == other.CrossfadeCurve
         && CurrentPlaylist == other.CurrentPlaylist
         && Playlists.SequenceEqual(other.Playlists)
         && AlarmsEnabled == other.AlarmsEnabled

@@ -1,3 +1,5 @@
+using AlertaIBT.Core.Settings;
+
 namespace AlertaIBT.Core.Player;
 
 /// <summary>A decoded track, already converted to the format of the output (float samples, interleaved).</summary>
@@ -36,8 +38,8 @@ public interface IPcmSource
 /// </summary>
 /// <remarks>
 /// <para>
-/// A crossfade is made of the outgoing track times the cosine and the incoming one times the sine of the same angle (0 to a quarter turn over the
-/// overlap): the squares add up to 1 at every sample, so the loudness of the mix stays level (a straight line down and up dips about 3 dB in the middle).
+/// A crossfade is made of the outgoing track times one gain and the incoming one times another, from the chosen <see cref="CrossfadeCurve"/> (linear by
+/// default; constant power is the cosine and the sine of a quarter turn, level in loudness, and a straight line dips about 3 dB in the middle).
 /// The fade, the seek duck and the volume act after the mix, so they act on both tracks.
 /// </para>
 /// <para>
@@ -71,6 +73,8 @@ public sealed class PlayerMixer : IPcmSource
     private long _overlapTotal;
     private long _overlapDone;
     private double _crossfadeSeconds;
+    private CrossfadeCurve _crossfadeCurve = CrossfadeCurve.Linear;
+    private CrossfadeCurve _overlapCurve = CrossfadeCurve.Linear;
     private float[] _scratch = [];
     private bool _endRaised;
     private Action? _fadeDone;
@@ -216,11 +220,12 @@ public sealed class PlayerMixer : IPcmSource
     }
 
     /// <summary>The gains of a crossfade at <paramref name="progress"/> (0 to 1): the outgoing track is the cosine and the incoming one the sine of a quarter turn, so <c>out^2 + in^2 = 1</c>.</summary>
-    public static (float Outgoing, float Incoming) CrossfadeGains(double progress)
-    {
-        var angle = Math.Clamp(progress, 0, 1) * (Math.PI / 2);
-        return ((float)Math.Cos(angle), (float)Math.Sin(angle));
-    }
+    public static (float Outgoing, float Incoming) CrossfadeGains(double progress) =>
+        CrossfadeCurves.Gains(CrossfadeCurve.ConstantPower, progress);
+
+    /// <summary>The gains of a crossfade at <paramref name="progress"/> (0 to 1) on the chosen curve.</summary>
+    public static (float Outgoing, float Incoming) CrossfadeGains(double progress, CrossfadeCurve curve) =>
+        CrossfadeCurves.Gains(curve, progress);
 
     /// <summary>Puts a track on (the previous one, the waiting next one and any outgoing one are disposed). The gain is not touched: use <see cref="FadeFromSilence"/> for a fade-in.</summary>
     public void SetTrack(IPcmTrack? track)
@@ -277,6 +282,15 @@ public sealed class PlayerMixer : IPcmSource
         lock (_gate)
         {
             _crossfadeSeconds = double.IsFinite(seconds) ? Math.Max(0, seconds) : 0;
+        }
+    }
+
+    /// <summary>Sets the shape of the crossfade. It is read when an overlap starts: a change during one applies to the next.</summary>
+    public void SetCrossfadeCurve(CrossfadeCurve curve)
+    {
+        lock (_gate)
+        {
+            _crossfadeCurve = curve;
         }
     }
 
@@ -630,6 +644,7 @@ public sealed class PlayerMixer : IPcmSource
         length -= length % Channels;
         _overlapTotal = Math.Max(Channels, length);
         _overlapDone = 0;
+        _overlapCurve = _crossfadeCurve;
         _outgoing = _track;
         Attach(_next, _nextProfile);
         _next = null;
@@ -655,7 +670,7 @@ public sealed class PlayerMixer : IPcmSource
         for (var i = 0; i < count; i += channels)
         {
             var progress = (double)(first + (i / channels)) / frames;
-            var (outGain, inGain) = CrossfadeGains(progress);
+            var (outGain, inGain) = CrossfadeGains(progress, _overlapCurve);
             for (var c = 0; c < channels; c++)
             {
                 var wanted = i + c;

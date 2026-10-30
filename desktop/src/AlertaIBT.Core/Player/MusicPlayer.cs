@@ -847,6 +847,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         var options = Options;
         mixer.SetVolume(options.Volume / 100f, options.StartMuted, immediate: true);
         mixer.SetCrossfade(options.CrossfadeSeconds);
+        mixer.SetCrossfadeCurve(options.CrossfadeCurve);
         mixer.TrackEnded += () => OnTrackEnded(session);
         mixer.TrackAdvanced += track => OnTrackAdvanced(session, track);
         output.Failed += error => OnOutputFailed(session, error);
@@ -1101,6 +1102,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         _queue.Repeat = PlayerRepeatText.Parse(options.Repeat);
         _session?.Mixer.SetVolume(options.Volume / 100f, options.StartMuted, rampSeconds: _settings.Current.Audio.VolumeRampSeconds);
         _session?.Mixer.SetCrossfade(options.CrossfadeSeconds);
+        _session?.Mixer.SetCrossfadeCurve(options.CrossfadeCurve);
         if (options.CrossfadeSeconds > 0 && !(crossfadeBefore > 0) && _session is { } running && running.Mixer.Track is { } playing && _current is { } now)
         {
             AnalyzeCurrent(running, playing, now.Path); // the crossfade was just switched on: measure the track that is already playing

@@ -1,5 +1,6 @@
 using System.Globalization;
 using AlertaIBT.Core.Player;
+using AlertaIBT.Core.Settings;
 
 namespace AlertaIBT.App.Tests.Player;
 
@@ -157,6 +158,104 @@ public sealed class CrossfadeGainProbeTests : IDisposable
         var (left, overlapStart) = Run(rig, crossfade, LoudSeconds + 3.5);
 
         Check(left, RealChainRig.Rate, overlapStart, crossfade, crossfade < 1 ? 0.2 : 0.1);
+    }
+
+    // Independent formulas of the three curves (not the production function).
+    private static (double Out, double In) Expected(CrossfadeCurve curve, double p)
+    {
+        var (cos, sin) = (Math.Cos(p * Math.PI / 2), Math.Sin(p * Math.PI / 2));
+        return curve switch
+        {
+            CrossfadeCurve.Linear => (1 - p, p),
+            CrossfadeCurve.ConstantPower => (cos, sin),
+            _ => ((0.5 * (1 - p)) + (0.5 * cos), (0.5 * p) + (0.5 * sin)),
+        };
+    }
+
+    [Theory]
+    [InlineData(CrossfadeCurve.Linear, 8, -3.01)]
+    [InlineData(CrossfadeCurve.ConstantPower, 8, 0.0)]
+    [InlineData(CrossfadeCurve.Intermediate, 8, -1.37)]
+    [InlineData(CrossfadeCurve.Linear, 12, -3.01)]
+    [InlineData(CrossfadeCurve.Intermediate, 12, -1.37)]
+    public void Each_selectable_curve_is_what_the_real_chain_plays(CrossfadeCurve curve, double crossfade, double expectedMidDb)
+    {
+        var a = Tone("a", 440, 44100, 2, 0, LoudSeconds, TailSeconds);
+        var b = Tone("b", 880, 48000, 2, HeadSeconds, LoudSeconds, 0);
+        using var rig = new RealChainRig([a, b], "all");
+        rig.Change(p => p with { CrossfadeCurve = curve });
+
+        var (left, overlapStart) = Run(rig, crossfade, LoudSeconds + 3.5);
+
+        const double Window = 0.05;
+        double previousA = 1;
+        double previousB = 0;
+        double maxStep = 0;
+        double midDb = double.NaN;
+        var table = new List<string>();
+        for (var t = overlapStart - 1; t + Window <= overlapStart + crossfade + 1; t += Window)
+        {
+            var ga = Goertzel(left, RealChainRig.Rate, t, Window, 440);
+            var gb = Goertzel(left, RealChainRig.Rate, t, Window, 880);
+            var progress = Math.Clamp((t + (Window / 2) - overlapStart) / crossfade, 0, 1);
+            var (wantA, wantB) = Expected(curve, progress);
+            Assert.True(Math.Abs(ga - wantA) <= 0.05, $"{curve}: outgoing {ga:F3}, expected {wantA:F3} at p={progress:F2}");
+            Assert.True(Math.Abs(gb - wantB) <= 0.05, $"{curve}: incoming {gb:F3}, expected {wantB:F3} at p={progress:F2}");
+            Assert.True(ga <= previousA + 0.03, $"{curve}: the outgoing track must fall (p={progress:F2})");
+            Assert.True(gb >= previousB - 0.03, $"{curve}: the incoming track must rise (p={progress:F2})");
+            maxStep = Math.Max(maxStep, Math.Max(Math.Abs(ga - previousA), Math.Abs(gb - previousB)));
+            previousA = ga;
+            previousB = gb;
+            if (Math.Abs(progress - 0.5) < (Window / crossfade / 2) + 1e-9)
+            {
+                midDb = 10 * Math.Log10((ga * ga) + (gb * gb));
+            }
+
+            if (Math.Abs((progress * 4) - Math.Round(progress * 4)) < Window / crossfade * 2 && progress is > 0 and < 1)
+            {
+                table.Add(string.Create(CultureInfo.InvariantCulture, $"p={progress:F2} out={ga:F3} in={gb:F3}"));
+            }
+        }
+
+        Assert.False(double.IsNaN(midDb));
+        Assert.True(Math.Abs(midDb - expectedMidDb) <= 0.5, $"{curve}: the middle is {midDb:F2} dB, expected {expectedMidDb:F2}");
+        Assert.True(maxStep <= (Window / crossfade) + 0.12, $"{curve}: a step of {maxStep:F3}");
+        Console.WriteLine($"CURVE {curve} N={crossfade}: mid {midDb:F2} dB; " + string.Join(" | ", table));
+    }
+
+    [Fact]
+    public void Changing_the_curve_during_a_crossfade_does_not_change_that_crossfade_and_applies_to_the_next()
+    {
+        var a = Tone("a", 440, 44100, 2, 0, LoudSeconds, TailSeconds);
+        var b = Tone("b", 880, 48000, 2, HeadSeconds, LoudSeconds, TailSeconds);
+        var c = Tone("c", 1320, 44100, 2, HeadSeconds, LoudSeconds, 0);
+        using var rig = new RealChainRig([a, b, c], "all");
+        rig.Change(p => p with { CrossfadeCurve = CrossfadeCurve.Linear, CrossfadeSeconds = 8 });
+        rig.Player.Play();
+
+        // The first overlap is 20..28 s: capture up to 4 s into it, switch the curve, go on.
+        var first = Capture(rig.Output, 24, 480);
+        rig.Change(p => p with { CrossfadeCurve = CrossfadeCurve.ConstantPower });
+        var second = Capture(rig.Output, 48 + 3.5 - 24, 480);
+        var left = first.Concat(second).ToArray();
+
+        const double Window = 0.05;
+        double previousA = 0.88;
+        for (var t = 21.0; t + Window <= 28; t += Window)
+        {
+            var progress = Math.Clamp((t + (Window / 2) - 20) / 8, 0, 1);
+            var ga = Goertzel(left, RealChainRig.Rate, t, Window, 440);
+            Assert.True(Math.Abs(ga - (1 - progress)) <= 0.07, $"the running crossfade stays linear: {ga:F3} vs {1 - progress:F3} at p={progress:F2}");
+            Assert.True(Math.Abs(ga - previousA) <= 0.1, $"no step when the curve is changed: {previousA:F3} -> {ga:F3} at t={t:F2}");
+            previousA = ga;
+        }
+
+        for (var t = 41.0; t + Window <= 48; t += Window)
+        {
+            var progress = Math.Clamp((t + (Window / 2) - 40) / 8, 0, 1);
+            var outgoing = Goertzel(left, RealChainRig.Rate, t, Window, 880);
+            Assert.True(Math.Abs(outgoing - Math.Cos(progress * Math.PI / 2)) <= 0.07, $"the next crossfade uses the new curve: {outgoing:F3} at p={progress:F2}");
+        }
     }
 
     [Theory]

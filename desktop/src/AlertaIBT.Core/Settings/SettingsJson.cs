@@ -163,6 +163,7 @@ public static partial class SettingsJson
                     FadeInSeconds = ReadDouble(player, "fadeInSeconds") ?? ReadDouble(player, "alarmFadeSeconds") ?? defaults.Player.FadeInSeconds,
                     FadeOutSeconds = ReadDouble(player, "fadeOutSeconds") ?? ReadDouble(player, "stopFadeSeconds") ?? defaults.Player.FadeOutSeconds,
                     CrossfadeSeconds = ReadDouble(player, "crossfadeSeconds") ?? defaults.Player.CrossfadeSeconds,
+                    CrossfadeCurve = CrossfadeCurves.Parse(ReadString(player, "crossfadeCurve")),
                     CurrentPlaylist = ReadString(player, "currentPlaylist") ?? defaults.Player.CurrentPlaylist,
                     Playlists = ReadPlaylists(player) ?? defaults.Player.Playlists,
                     AlarmsEnabled = ReadBool(player, "alarmsEnabled") ?? defaults.Player.AlarmsEnabled,
@@ -282,6 +283,7 @@ public static partial class SettingsJson
                 ["fadeInSeconds"] = n.Player.FadeInSeconds,
                 ["fadeOutSeconds"] = n.Player.FadeOutSeconds,
                 ["crossfadeSeconds"] = n.Player.CrossfadeSeconds,
+                ["crossfadeCurve"] = CrossfadeCurves.ToText(n.Player.CrossfadeCurve),
                 ["currentPlaylist"] = n.Player.CurrentPlaylist,
                 ["playlists"] = new JsonArray(n.Player.Playlists.Select(list => (JsonNode)new JsonObject
                 {
@@ -496,6 +498,7 @@ public static partial class SettingsJson
             FadeInSeconds = PlayerSettings.Nearest(PlayerSettings.FadeChoices, p.FadeInSeconds),
             FadeOutSeconds = PlayerSettings.Nearest(PlayerSettings.FadeChoices, p.FadeOutSeconds),
             CrossfadeSeconds = PlayerSettings.Nearest(PlayerSettings.CrossfadeChoices, p.CrossfadeSeconds),
+            CrossfadeCurve = Enum.IsDefined(p.CrossfadeCurve) ? p.CrossfadeCurve : CrossfadeCurve.Linear,
             CurrentPlaylist = current,
             Playlists = playlists,
             AlarmsEnabled = p.AlarmsEnabled,
