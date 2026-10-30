@@ -6,6 +6,7 @@ using AlertaIBT.Core.Http;
 using AlertaIBT.Core.Ndi;
 using AlertaIBT.Core.Player;
 using Microsoft.Extensions.Logging;
+using AlertaIBT.Core.Diagnostics;
 
 namespace AlertaIBT.Core.Services;
 
@@ -254,6 +255,7 @@ public sealed class HttpControlServer : IDisposable
 
             var method = (request.HttpMethod ?? "GET").ToUpperInvariant();
             var rawUrl = request.RawUrl ?? "/";
+            Breadcrumbs.Add("api: " + method + " " + (rawUrl.Contains('?', StringComparison.Ordinal) ? rawUrl[..rawUrl.IndexOf('?', StringComparison.Ordinal)] : rawUrl));
 
             // The preflight is answered for any path, before the route is looked up.
             if (method == "OPTIONS")

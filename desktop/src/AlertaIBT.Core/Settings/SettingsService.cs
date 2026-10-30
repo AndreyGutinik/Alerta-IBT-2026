@@ -1,3 +1,7 @@
+using System.Diagnostics;
+using System.Globalization;
+using AlertaIBT.Core.Diagnostics;
+
 namespace AlertaIBT.Core.Settings;
 
 /// <summary>
@@ -13,11 +17,15 @@ namespace AlertaIBT.Core.Settings;
 /// </remarks>
 public sealed class SettingsService : IDisposable
 {
+    /// <summary>A <see cref="Changed"/> handler that takes longer than this is reported (it runs on the caller's thread: the UI thread for a click).</summary>
+    public static readonly TimeSpan SlowHandler = TimeSpan.FromMilliseconds(50);
+
     /// <summary>How long settings must stay unchanged before they are written (600 ms).</summary>
     public static readonly TimeSpan SaveDelay = TimeSpan.FromMilliseconds(600);
 
     private readonly SettingsStore _store;
     private readonly Action<Exception>? _onError;
+    private readonly Action<string>? _onSlowHandler;
     private readonly ITimer _timer;
     private readonly object _gate = new();
     private readonly object _saveGate = new();
@@ -31,12 +39,14 @@ public sealed class SettingsService : IDisposable
     /// <param name="store">The settings file.</param>
     /// <param name="clock">Drives the save delay; the system clock by default.</param>
     /// <param name="onError">Told about a save that failed, a handler that threw, or a file that stays unreadable; it must not throw.</param>
-    public SettingsService(SettingsStore store, TimeProvider? clock = null, Action<Exception>? onError = null)
+    /// <param name="onSlowHandler">Told (with a text naming the handler and its time) when a <see cref="Changed"/> handler kept the caller more than <see cref="SlowHandler"/>; it must not throw.</param>
+    public SettingsService(SettingsStore store, TimeProvider? clock = null, Action<Exception>? onError = null, Action<string>? onSlowHandler = null)
     {
         ArgumentNullException.ThrowIfNull(store);
 
         _store = store;
         _onError = onError;
+        _onSlowHandler = onSlowHandler;
         LoadResult = store.Load();
         _current = LoadResult.Settings;
         _fileUnreadable = LoadResult is { WasCorrupt: true, BackupPath: null };
@@ -97,8 +107,10 @@ public sealed class SettingsService : IDisposable
         ArgumentNullException.ThrowIfNull(change);
 
         AppSettings next;
+        AppSettings previous;
         lock (_gate)
         {
+            previous = _current;
             next = SettingsJson.Normalize(change(_current));
             _current = next;
             _dirty = true;
@@ -108,6 +120,7 @@ public sealed class SettingsService : IDisposable
             }
         }
 
+        Breadcrumbs.Add("configuracao: " + SettingsDiff.Keys(previous, next));
         RaiseChanged(next);
     }
 
@@ -222,6 +235,7 @@ public sealed class SettingsService : IDisposable
 
         foreach (var handler in handlers.GetInvocationList().Cast<Action<AppSettings>>())
         {
+            var watch = Stopwatch.StartNew();
             try
             {
                 handler(settings);
@@ -229,6 +243,20 @@ public sealed class SettingsService : IDisposable
             catch (Exception ex)
             {
                 Report(ex);
+            }
+
+            if (watch.Elapsed > SlowHandler)
+            {
+                var text = string.Create(CultureInfo.InvariantCulture, $"Configuracao: o ouvinte {handler.Method.DeclaringType?.Name}.{handler.Method.Name} levou {watch.Elapsed.TotalMilliseconds:0} ms na thread que mudou a opcao");
+                Breadcrumbs.Add(text);
+                try
+                {
+                    _onSlowHandler?.Invoke(text);
+                }
+                catch (Exception)
+                {
+                    // Only a diagnostic: it may not hurt the change.
+                }
             }
         }
     }

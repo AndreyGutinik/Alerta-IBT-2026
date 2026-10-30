@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Settings;
@@ -56,6 +57,7 @@ public sealed class MediaKeyRouter
         {
             try
             {
+                Breadcrumbs.Add("tecla de midia: " + key);
                 var result = MediaKeyRouting.Execute(key, _player);
                 _logger?.LogInformation("Tecla de midia: {Command} ({Result})", key, result.Success ? "ok" : result.Error);
             }

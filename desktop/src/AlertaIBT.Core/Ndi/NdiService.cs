@@ -1,6 +1,7 @@
 using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
+using AlertaIBT.Core.Diagnostics;
 
 namespace AlertaIBT.Core.Ndi;
 
@@ -166,20 +167,37 @@ public sealed class NdiService : INdiControl, IDisposable
     }
 
     /// <inheritdoc />
-    public NdiResult SetLayer(bool on) => _switcher.SetLayer(on);
+    public NdiResult SetLayer(bool on)
+    {
+        Breadcrumbs.Add(on ? "ndi: camada ligar" : "ndi: camada desligar");
+        return _switcher.SetLayer(on);
+    }
 
     /// <summary>Flips the layer; returns the new state.</summary>
-    public NdiResult ToggleLayer() => _switcher.SetLayer(!_switcher.LayerOn);
+    public NdiResult ToggleLayer()
+    {
+        Breadcrumbs.Add("ndi: camada alternar");
+        return _switcher.SetLayer(!_switcher.LayerOn);
+    }
 
     /// <summary>Shows or hides the color bars.</summary>
-    public NdiResult SetTestPattern(bool on) => _switcher.SetTestPattern(on);
+    public NdiResult SetTestPattern(bool on)
+    {
+        Breadcrumbs.Add("ndi: barras de teste");
+        return _switcher.SetTestPattern(on);
+    }
 
     /// <inheritdoc />
-    public NdiResult Take() => _switcher.Take();
+    public NdiResult Take()
+    {
+        Breadcrumbs.Add("ndi: Take");
+        return _switcher.Take();
+    }
 
     /// <inheritdoc />
     public NdiResult SelectPreview(int slot)
     {
+        Breadcrumbs.Add("ndi: previa " + slot);
         var result = _switcher.SelectPreview(slot);
         if (result.Success)
         {

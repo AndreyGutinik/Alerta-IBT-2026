@@ -1,6 +1,7 @@
 using AlertaIBT.Core.Player;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using AlertaIBT.Core.Diagnostics;
 
 namespace AlertaIBT.Core.Loudness;
 
@@ -360,6 +361,7 @@ public sealed class LoudnessScanner : ILoudnessProvider, IDisposable
             return new ScanStep(ScanStepKind.Waiting, TimeSpan.Zero, path);
         }
 
+        Breadcrumbs.Add("volume: medindo " + Path.GetFileName(path));
         var started = _clock.GetTimestamp();
         LoudnessEntry entry;
         var kind = ScanStepKind.Measured;
@@ -490,6 +492,7 @@ public sealed class LoudnessScanner : ILoudnessProvider, IDisposable
             }
 
             var entry = _cache.Get(path)!;
+            Breadcrumbs.Add("volume: gravando etiqueta em " + Path.GetFileName(path));
             var result = _writer!.Write(path, new LoudnessTagValues(entry.Lufs!.Value, Math.Max(entry.TruePeak, entry.SamplePeak)), cancellation);
             _lastTagWrite = _clock.GetUtcNow();
             switch (result.Outcome)

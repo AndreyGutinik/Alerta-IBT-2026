@@ -3,6 +3,7 @@ using AlertaIBT.Core.Loudness;
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using AlertaIBT.Core.Diagnostics;
 
 namespace AlertaIBT.Core.Player;
 
@@ -192,13 +193,18 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
         Locked(() =>
         {
             ApplyOptions(Options);
+            _outputKey = string.Join('|', Options.OutputDeviceId, string.Join('+', Options.OutputMatch));
             RefreshOutputLocked();
             return PlayerResult.Ok;
         });
     }
 
     /// <inheritdoc />
-    public PlayerResult Play() => Locked(() => PlayLocked(Options.FadeInSeconds));
+    public PlayerResult Play() => Locked(() =>
+    {
+        Breadcrumbs.Add("player: Play");
+        return PlayLocked(Options.FadeInSeconds);
+    });
 
     /// <summary>
     /// The alarm start: selects <paramref name="playlistName"/>, sets shuffle on and repeat all (saved, so the screen shows it), and starts the next
@@ -243,14 +249,23 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     }
 
     /// <inheritdoc />
-    public PlayerResult Pause() => Locked(() => FadeOutLocked(PlayerState.Paused));
+    public PlayerResult Pause() => Locked(() =>
+    {
+        Breadcrumbs.Add("player: Pause");
+        return FadeOutLocked(PlayerState.Paused);
+    });
 
     /// <inheritdoc />
-    public PlayerResult Stop() => Locked(() => FadeOutLocked(PlayerState.Stopped));
+    public PlayerResult Stop() => Locked(() =>
+    {
+        Breadcrumbs.Add("player: Stop");
+        return FadeOutLocked(PlayerState.Stopped);
+    });
 
     /// <inheritdoc />
     public PlayerResult Next() => Locked(() =>
     {
+        Breadcrumbs.Add("player: Next");
         if (!Options.Enabled)
         {
             return PlayerResult.Disabled;
@@ -268,6 +283,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     /// <inheritdoc />
     public PlayerResult Previous() => Locked(() =>
     {
+        Breadcrumbs.Add("player: Previous");
         if (!Options.Enabled)
         {
             return PlayerResult.Disabled;
@@ -290,6 +306,7 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     /// </summary>
     public PlayerResult Seek(TimeSpan position) => Locked(() =>
     {
+        Breadcrumbs.Add("player: Seek");
         if (!Options.Enabled)
         {
             return PlayerResult.Disabled;
@@ -1188,13 +1205,24 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
 
     // ---- settings, library, devices ----
 
+    // The handler runs on the thread that changed the setting (the UI thread for a click): it must never wait for Windows. The devices are asked only
+    // when a setting about the OUTPUT changed (the device events and the device list keep their own path); any other change (volume, the tags switch,
+    // "Igualar volume"...) touches the audio service not at all, so a service that is stuck cannot freeze the screen.
     private void OnSettingsChanged(AppSettings settings) => Locked(() =>
     {
         _library.Configure(settings.Player.Playlists);
         ApplyOptions(settings.Player);
-        RefreshOutputLocked();
+        var outputKey = string.Join('|', settings.Player.OutputDeviceId, string.Join('+', settings.Player.OutputMatch));
+        if (!string.Equals(outputKey, _outputKey, StringComparison.Ordinal))
+        {
+            _outputKey = outputKey;
+            RefreshOutputLocked();
+        }
+
         return PlayerResult.Ok;
     });
+
+    private string? _outputKey;
 
     private void OnLibraryChanged(string name) => Locked(() =>
     {

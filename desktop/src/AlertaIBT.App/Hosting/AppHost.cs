@@ -77,7 +77,8 @@ public static class AppHost
             var logger = provider.GetRequiredService<ILogger<SettingsService>>();
             return new SettingsService(
                 new SettingsStore(paths.SettingsFile),
-                onError: ex => logger.LogError(ex, "Problema com o arquivo de configurações"));
+                onError: ex => logger.LogError(ex, "Problema com o arquivo de configurações"),
+                onSlowHandler: text => logger.LogWarning("{Text}", text));
         });
         services.AddSingleton<IRunKeyStore, WindowsRunKeyStore>();
         services.AddSingleton<IUpdateClient>(_ => new VelopackUpdateClient());

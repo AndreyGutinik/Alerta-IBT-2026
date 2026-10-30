@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Diagnostics;
 using System.Windows.Interop;
 
 namespace AlertaIBT.App.Platform;
@@ -46,6 +47,7 @@ public sealed class MessageWindow : IDisposable
         switch (message)
         {
             case NativeMethods.WM_HOTKEY:
+                Breadcrumbs.Add("atalho global " + wParam.ToInt32().ToString("X", System.Globalization.CultureInfo.InvariantCulture));
                 HotkeyPressed?.Invoke(wParam.ToInt32());
                 handled = true;
                 break;

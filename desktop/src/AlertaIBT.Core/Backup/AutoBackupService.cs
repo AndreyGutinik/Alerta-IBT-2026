@@ -1,6 +1,7 @@
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using AlertaIBT.Core.Diagnostics;
 
 namespace AlertaIBT.Core.Backup;
 
@@ -186,6 +187,7 @@ public sealed class AutoBackupService : IDisposable
 
     private void WriteNow()
     {
+        Breadcrumbs.Add("backup: copia automatica");
         lock (_writeGate)
         {
             var snapshot = _settings.Current;

@@ -29,6 +29,9 @@ public sealed record AppPaths(string DataFolder)
     /// <summary><c>update-restart.txt</c>, written just before an update restarts the app (see <see cref="Platform.UpdateRestartMarker"/>).</summary>
     public string UpdateRestartFile => Path.Combine(DataFolder, "update-restart.txt");
 
+    /// <summary><c>session.txt</c>, the marker that tells the next start how this run ended (see <see cref="Platform.SessionMarker"/>).</summary>
+    public string SessionFile => Path.Combine(DataFolder, "session.txt");
+
     /// <summary>The folder of the daily log files, kept 7 days.</summary>
     public string LogsFolder => Path.Combine(DataFolder, "logs");
 
