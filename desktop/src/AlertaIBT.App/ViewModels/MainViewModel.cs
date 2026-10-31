@@ -6,7 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AlertaIBT.App.ViewModels;
 
-/// <summary>The three tabs of the main window (the correction lives inside Início).</summary>
+/// <summary>The tabs of the main window (the correction lives inside Início).</summary>
 public enum MainTab
 {
     /// <summary>Início: what is on the bar, the message field, the correction (folded), the queue and the history.</summary>
@@ -17,6 +17,9 @@ public enum MainTab
 
     /// <summary>NDI: the camera on the telao (Previa, No ar, Cortar, the cameras and the telao card).</summary>
     Ndi,
+
+    /// <summary>Controle: the grandMA2 controlling the app over Art-Net (switch, signal, universe, the map of channels to actions).</summary>
+    Control,
 
     /// <summary>Configurações: the bar, Telegram, the system, the Gemini model and the diagnostics.</summary>
     Settings,
@@ -52,6 +55,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <param name="updates">The automatic update, for the one-line notice while it downloads or installs; null shows none.</param>
     /// <param name="som">The Som tab; null leaves the tab empty (tests of the other tabs).</param>
     /// <param name="ndi">The NDI tab; null leaves the tab empty (tests of the other tabs).</param>
+    /// <param name="control">The Controle tab; null leaves the tab empty (tests of the other tabs).</param>
     public MainViewModel(
         StatusHub hub,
         HomeViewModel home,
@@ -61,7 +65,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Action<Action>? post = null,
         IUpdateStatus? updates = null,
         SomViewModel? som = null,
-        NdiViewModel? ndi = null)
+        NdiViewModel? ndi = null,
+        ControlViewModel? control = null)
     {
         ArgumentNullException.ThrowIfNull(hub);
         ArgumentNullException.ThrowIfNull(home);
@@ -75,6 +80,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Settings = settings;
         Som = som;
         Ndi = ndi;
+        Control = control;
         Saver = saver;
         _post = post ?? (action => action());
         SelectTabCommand = new RelayCommand<MainTab>(tab => SelectedTab = tab);
@@ -112,6 +118,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The NDI tab (null when the window was built without it).</summary>
     public NdiViewModel? Ndi { get; }
 
+    /// <summary>The Controle tab (null when the window was built without it).</summary>
+    public ControlViewModel? Control { get; }
+
     /// <summary>The autosave of the settings tabs (their "Salvo" stamp).</summary>
     public Autosaver Saver { get; }
 
@@ -129,6 +138,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Whether the NDI tab is selected.</summary>
     public bool IsNdiSelected => SelectedTab == MainTab.Ndi;
+
+    /// <summary>Whether the Controle tab is selected.</summary>
+    public bool IsControlSelected => SelectedTab == MainTab.Control;
 
     /// <summary>Whether the Som tab is selected.</summary>
     public bool IsSomSelected => SelectedTab == MainTab.Som;
@@ -162,6 +174,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Settings.Dispose();
         Som?.Dispose();
         Ndi?.Dispose();
+        Control?.Dispose();
     }
 
     partial void OnSelectedTabChanged(MainTab value)
@@ -170,6 +183,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsSettingsSelected));
         OnPropertyChanged(nameof(IsSomSelected));
         OnPropertyChanged(nameof(IsNdiSelected));
+        OnPropertyChanged(nameof(IsControlSelected));
     }
 
     private void OnHubChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => _post(RefreshStatus);

@@ -171,3 +171,14 @@ public sealed class HexColorBrushConverter : IValueConverter
     /// <inheritdoc />
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }
+
+/// <summary>Shows an element only when the number bound to it is zero (an empty list, an empty box): the placeholder of a field, the "nothing here" line.</summary>
+public sealed class ZeroToVisibleConverter : IValueConverter
+{
+    /// <inheritdoc />
+    public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
+        value is int number && number == 0 ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+
+    /// <inheritdoc />
+    public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => throw new NotSupportedException();
+}

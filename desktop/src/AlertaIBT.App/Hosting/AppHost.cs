@@ -380,6 +380,12 @@ public static class AppHost
             ips => IpListDialog.Ask(ips, provider.GetRequiredService<AppWindowPolicy>()),
             OpenLink,
             provider.GetRequiredService<ILogger<NdiViewModel>>()));
+        services.AddSingleton(provider => new ControlViewModel(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<ControlService>(),
+            (title, message) => ConfirmDialog.Ask(title, message, provider.GetRequiredService<AppWindowPolicy>()),
+            PostToUi,
+            provider.GetRequiredService<ILogger<ControlViewModel>>()));
         services.AddSingleton(provider => new MainViewModel(
             provider.GetRequiredService<StatusHub>(),
             provider.GetRequiredService<HomeViewModel>(),
@@ -389,7 +395,8 @@ public static class AppHost
             PostToUi,
             provider.GetRequiredService<IUpdateStatus>(),
             provider.GetRequiredService<SomViewModel>(),
-            provider.GetRequiredService<NdiViewModel>()));
+            provider.GetRequiredService<NdiViewModel>(),
+            provider.GetRequiredService<ControlViewModel>()));
         services.AddSingleton(provider =>
         {
             var viewModel = provider.GetRequiredService<MainViewModel>();

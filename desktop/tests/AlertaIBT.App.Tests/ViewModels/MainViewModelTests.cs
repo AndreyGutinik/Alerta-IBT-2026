@@ -43,12 +43,16 @@ public sealed class MainViewModelTests : IDisposable
         Assert.True(_vm.IsNdiSelected);
         Assert.False(_vm.IsSomSelected);
 
+        _vm.SelectTabCommand.Execute(MainTab.Control);
+        Assert.True(_vm.IsControlSelected);
+        Assert.False(_vm.IsNdiSelected);
+
         _vm.SelectTabCommand.Execute(MainTab.Settings);
         Assert.True(_vm.IsSettingsSelected);
         Assert.False(_vm.IsSomSelected);
 
         // The correction is not a tab any more: it lives inside Inicio.
-        Assert.Equal(["Home", "Som", "Ndi", "Settings"], Enum.GetNames<MainTab>());
+        Assert.Equal(["Home", "Som", "Ndi", "Control", "Settings"], Enum.GetNames<MainTab>());
     }
 
     [Fact]

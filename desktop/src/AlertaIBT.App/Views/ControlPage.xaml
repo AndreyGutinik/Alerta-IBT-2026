@@ -1,0 +1,671 @@
+<UserControl
+    x:Class="AlertaIBT.App.Views.ControlPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:AlertaIBT.App.Views"
+    xmlns:theme="clr-namespace:AlertaIBT.App.Theme"
+    xmlns:vm="clr-namespace:AlertaIBT.App.ViewModels">
+
+    <!--
+        The Controle tab: a grandMA2 on another PC controls the app over Art-Net. Top to bottom: (1) the header card with the master switch, the signal and
+        the two network fields, (2) the map of channels to actions with the live level of each channel, (3) the folded "Como configurar na MA2" card.
+        The design system of the other tabs: lighter cards with a thin border, icons with tooltips, an 8 px grid.
+    -->
+
+    <UserControl.Resources>
+        <!-- The small gray words above the columns of the map. -->
+        <Style x:Key="ColumnTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- The dot of the signal chip: green ok, amber no signal, red port in use, gray off. -->
+        <Style x:Key="SignalDot" BasedOn="{StaticResource IbtStatusDot}" TargetType="Ellipse">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Fill" Value="{StaticResource IbtMutedBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SignalTone}" Value="ok">
+                    <Setter Property="Fill" Value="{StaticResource IbtOkBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SignalTone}" Value="warn">
+                    <Setter Property="Fill" Value="{StaticResource IbtWarnBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding SignalTone}" Value="bad">
+                    <Setter Property="Fill" Value="{StaticResource IbtBadBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The live level (0..255) of a channel: a thin track and a fill; green when the channel is ON (or a fader follows), amber while a fader waits for its pickup. -->
+        <Style x:Key="LevelBar" TargetType="ProgressBar">
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="255" />
+            <Setter Property="Height" Value="8" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
+            <Setter Property="Background" Value="{StaticResource IbtInsetBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid>
+                            <Border
+                                x:Name="PART_Track"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{StaticResource IbtBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4" />
+                            <Border
+                                x:Name="PART_Indicator"
+                                HorizontalAlignment="Left"
+                                Background="{TemplateBinding Foreground}"
+                                CornerRadius="4" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsOn}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource IbtOkBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding PickupState}" Value="Waiting">
+                    <Setter Property="Foreground" Value="{StaticResource IbtWarnBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <theme:ZeroToVisibleConverter x:Key="ZeroToVisible" />
+
+        <!-- One step of the help card. -->
+        <Style x:Key="HelpStep" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <!-- The soft pickup of a fader: a gauge icon, green when on. -->
+        <Style x:Key="PickupToggle" BasedOn="{StaticResource IbtIconToggle}" TargetType="ToggleButton">
+            <Setter Property="theme:IconToggle.OnGeometry" Value="{StaticResource LucideGauge}" />
+            <Setter Property="theme:IconToggle.OffGeometry" Value="{StaticResource LucideGauge}" />
+        </Style>
+
+        <!-- A small chip with an icon and a word ("em breve"). -->
+        <Style x:Key="SoonChip" TargetType="Border">
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
+            <Setter Property="Background" Value="{StaticResource IbtInsetBrush}" />
+            <Setter Property="TextElement.Foreground" Value="{StaticResource IbtTextSecondaryBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- The box of an IP address turns red when what is typed is not one. -->
+        <Style
+            x:Key="SourceBox"
+            BasedOn="{StaticResource IbtFieldInput}"
+            TargetType="TextBox">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding SourceIpInvalid}" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource IbtBadBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- One line of the map. -->
+        <DataTemplate x:Key="RowTemplate" DataType="{x:Type vm:ControlRowViewModel}">
+            <Border
+                x:Name="Line"
+                MinHeight="48"
+                Padding="0,8"
+                BorderBrush="{StaticResource IbtDividerBrush}"
+                BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="48" />
+                        <ColumnDefinition Width="*" MinWidth="136" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MinWidth="88" MaxWidth="220" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- The channel: a number box; a repeated channel shows a warning dot. -->
+                    <Grid>
+                        <TextBox
+                            AutomationProperties.Name="Canal"
+                            LostFocus="OnFieldLostFocus"
+                            Style="{StaticResource IbtNumberBox}"
+                            Tag="{Binding ChannelBox}"
+                            Text="{Binding ChannelBox.Text, UpdateSourceTrigger=PropertyChanged}"
+                            TextAlignment="Center"
+                            ToolTip="Canal DMX de 1 a 512" />
+                        <Border
+                            x:Name="DuplicateDot"
+                            Width="10"
+                            Height="10"
+                            Margin="0,-3,-3,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            AutomationProperties.Name="Canal repetido"
+                            Background="{StaticResource IbtWarnBrush}"
+                            CornerRadius="5"
+                            ToolTip="Mais de uma ação neste canal: as duas rodam juntas."
+                            Visibility="Collapsed" />
+                    </Grid>
+
+                    <!-- The action: its icon and a compact list. -->
+                    <Grid
+                        x:Name="ActionCell"
+                        Grid.Column="1"
+                        Margin="8,0,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Path
+                            Width="16"
+                            Height="16"
+                            Margin="0,0,8,0"
+                            VerticalAlignment="Center"
+                            Data="{Binding IconKey, Converter={StaticResource GeometryKey}}"
+                            Style="{StaticResource IbtRowIcon}" />
+                        <ComboBox
+                            Grid.Column="1"
+                            AutomationProperties.Name="Ação"
+                            DisplayMemberPath="Name"
+                            ItemsSource="{Binding Actions}"
+                            SelectedItem="{Binding SelectedAction, Mode=TwoWay}"
+                            Style="{StaticResource IbtComboBox}" />
+                    </Grid>
+
+                    <!-- The mode: a list when the action accepts more than one, else just the word. -->
+                    <Grid
+                        x:Name="ModeCell"
+                        Grid.Column="2"
+                        Width="96"
+                        Margin="8,0,0,0">
+                        <ComboBox
+                            x:Name="ModeCombo"
+                            AutomationProperties.Name="Modo"
+                            DisplayMemberPath="Label"
+                            ItemsSource="{Binding Modes}"
+                            SelectedItem="{Binding SelectedMode, Mode=TwoWay}"
+                            Style="{StaticResource IbtComboBox}" />
+                        <TextBlock
+                            x:Name="ModeWord"
+                            Padding="10,0,0,0"
+                            Style="{StaticResource IbtSecondaryText}"
+                            Text="{Binding SelectedMode.Label}"
+                            ToolTip="{Binding SelectedMode.Tip}"
+                            Visibility="Collapsed" />
+                    </Grid>
+
+                    <!-- The option of the mode: the trigger of a button, the camera of a selection, the pickup of a fader. -->
+                    <Grid
+                        x:Name="OptionCell"
+                        Grid.Column="3"
+                        Width="168"
+                        Margin="8,0,0,0">
+                        <ComboBox
+                            AutomationProperties.Name="Quando roda"
+                            DisplayMemberPath="Label"
+                            ItemsSource="{Binding Triggers}"
+                            SelectedItem="{Binding SelectedTrigger, Mode=TwoWay}"
+                            Style="{StaticResource IbtComboBox}"
+                            ToolTip="Quando roda: em qualquer mudança do canal (padrão, as macros seguram o canal ligado ou desligado) ou só quando ele liga."
+                            Visibility="{Binding ShowTrigger, Converter={StaticResource BoolToVisibility}}" />
+                        <ComboBox
+                            AutomationProperties.Name="Câmera"
+                            ItemsSource="{Binding Cameras}"
+                            SelectedItem="{Binding Camera, Mode=TwoWay}"
+                            Style="{StaticResource IbtComboBox}"
+                            ToolTip="Qual câmera este canal escolhe"
+                            Visibility="{Binding ShowCamera, Converter={StaticResource BoolToVisibility}}" />
+                        <ToggleButton
+                            HorizontalAlignment="Left"
+                            AutomationProperties.Name="Pickup suave"
+                            IsChecked="{Binding PickupOn, Mode=TwoWay}"
+                            Style="{StaticResource PickupToggle}"
+                            ToolTip="Pickup suave: o app ignora o fader até ele cruzar o valor atual do app, assim o valor nunca dá um salto. Desligado, o fader controla assim que mexe."
+                            Visibility="{Binding ShowPickup, Converter={StaticResource BoolToVisibility}}" />
+                        <Border
+                            x:Name="SoonChip"
+                            HorizontalAlignment="Left"
+                            Style="{StaticResource SoonChip}"
+                            ToolTip="As ações do Holyrics chegam na próxima versão. A linha já está no mapa, mas não roda."
+                            Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <Path
+                                    Width="12"
+                                    Height="12"
+                                    Margin="0,0,6,0"
+                                    VerticalAlignment="Center"
+                                    Data="{StaticResource LucideHourglass}"
+                                    Style="{StaticResource LucideIcon}" />
+                                <TextBlock FontSize="11.5" Text="em breve" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- The live level coming from the console, and the pickup state of a fader. -->
+                    <Grid
+                        x:Name="LevelCell"
+                        Grid.Column="4"
+                        Margin="8,0,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="36" />
+                            <ColumnDefinition Width="20" />
+                        </Grid.ColumnDefinitions>
+                        <ProgressBar
+                            x:Name="Level"
+                            AutomationProperties.Name="Nível do canal"
+                            Style="{StaticResource LevelBar}"
+                            ToolTip="Valor que chega da MA2 neste canal (0 a 255)"
+                            Value="{Binding Level, Mode=OneWay}" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Margin="6,0,0,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            FontSize="11"
+                            Foreground="{StaticResource IbtTextSecondaryBrush}"
+                            Text="{Binding LevelText}" />
+                        <Border
+                            x:Name="PickupMark"
+                            Grid.Column="2"
+                            Style="{StaticResource IbtDotHost}"
+                            ToolTip="{Binding PickupTip}"
+                            Visibility="Collapsed">
+                            <Path
+                                x:Name="PickupGlyph"
+                                Width="14"
+                                Height="14"
+                                Data="{StaticResource LucideHourglass}"
+                                Style="{StaticResource LucideIcon}"
+                                TextElement.Foreground="{StaticResource IbtWarnBrush}" />
+                        </Border>
+                    </Grid>
+
+                    <Button
+                        Grid.Column="5"
+                        Margin="8,0,0,0"
+                        AutomationProperties.Name="Testar"
+                        Command="{Binding TestCommand}"
+                        Style="{StaticResource IbtToolButton}"
+                        ToolTip="Testar: roda esta ação uma vez, sem a MA2">
+                        <Path
+                            Width="14"
+                            Height="14"
+                            Data="{StaticResource LucideZap}"
+                            Style="{StaticResource LucideIcon}" />
+                    </Button>
+
+                    <ToggleButton
+                        x:Name="EnableSwitch"
+                        Grid.Column="6"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="Ligar esta linha"
+                        IsChecked="{Binding Enabled, Mode=TwoWay}"
+                        Style="{StaticResource IbtSwitch}"
+                        ToolTip="Liga ou desliga esta linha do mapa" />
+
+                    <Button
+                        Grid.Column="7"
+                        Margin="8,0,0,0"
+                        AutomationProperties.Name="Remover linha"
+                        Command="{Binding RemoveCommand}"
+                        Style="{StaticResource IbtDangerToolButton}"
+                        ToolTip="Remover esta linha do mapa">
+                        <Path
+                            Width="14"
+                            Height="14"
+                            Data="{StaticResource LucideTrash2}"
+                            Style="{StaticResource LucideIcon}" />
+                    </Button>
+                </Grid>
+            </Border>
+            <DataTemplate.Triggers>
+                <!-- Narrow window: the mode, the option and the level go to a second line under the action. -->
+                <DataTrigger Binding="{Binding DataContext.Compact, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
+                    <Setter TargetName="ModeCell" Property="Grid.Row" Value="1" />
+                    <Setter TargetName="ModeCell" Property="Grid.Column" Value="1" />
+                    <Setter TargetName="ModeCell" Property="HorizontalAlignment" Value="Left" />
+                    <Setter TargetName="ModeCell" Property="Margin" Value="32,8,0,0" />
+                    <Setter TargetName="OptionCell" Property="Grid.Row" Value="1" />
+                    <Setter TargetName="OptionCell" Property="Grid.Column" Value="2" />
+                    <Setter TargetName="OptionCell" Property="Margin" Value="8,8,0,0" />
+                    <Setter TargetName="ActionCell" Property="Grid.ColumnSpan" Value="3" />
+                    <Setter TargetName="LevelCell" Property="Grid.Row" Value="1" />
+                    <Setter TargetName="LevelCell" Property="Grid.Column" Value="4" />
+                    <Setter TargetName="LevelCell" Property="Grid.ColumnSpan" Value="4" />
+                    <Setter TargetName="LevelCell" Property="Margin" Value="8,8,0,0" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsDuplicate}" Value="True">
+                    <Setter TargetName="DuplicateDot" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Info.Modes.Count}" Value="1">
+                    <Setter TargetName="ModeCombo" Property="Visibility" Value="Collapsed" />
+                    <Setter TargetName="ModeWord" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSoon}" Value="True">
+                    <Setter TargetName="SoonChip" Property="Visibility" Value="Visible" />
+                    <Setter TargetName="Line" Property="Opacity" Value="0.6" />
+                    <Setter TargetName="EnableSwitch" Property="IsEnabled" Value="False" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ShowPickup}" Value="True">
+                    <Setter TargetName="PickupMark" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding PickupState}" Value="Following">
+                    <Setter TargetName="PickupGlyph" Property="Data" Value="{StaticResource LucideCheck}" />
+                    <Setter TargetName="PickupGlyph" Property="TextElement.Foreground" Value="{StaticResource IbtOkBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding PickupState}" Value="None">
+                    <Setter TargetName="PickupMark" Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="1280" Margin="24">
+            <TextBlock
+                Margin="0,0,0,24"
+                Style="{StaticResource IbtPageTitle}"
+                Text="Controle" />
+
+            <!-- ===== (1) The master switch, the signal and the network ===== -->
+            <local:CardSection
+                x:Name="HeaderCard"
+                Header="Controle pela MA2"
+                Icon="{StaticResource LucideGamepad2}"
+                Style="{StaticResource IbtCardSectionStyle}"
+                Info="Uma mesa grandMA2 (onPC, em outro PC) controla este app pela rede, com Art-Net. O app só ESCUTA: nunca manda nada. Escuta a porta UDP 6454 em todas as placas de rede, então não importa qual é o IP deste PC na rede 2.x. A MA2 do dono (onPC) é 2.0.0.2. Desligado, o app não abre a porta.">
+                <local:CardSection.HeaderActions>
+                    <ToggleButton
+                        x:Name="MasterSwitch"
+                        AutomationProperties.Name="Controle pela MA2"
+                        IsChecked="{Binding Enabled, Mode=TwoWay}"
+                        Style="{StaticResource IbtPowerToggle}"
+                        ToolTip="Controle pela MA2: liga e desliga. Desligado, o app não escuta a rede." />
+                </local:CardSection.HeaderActions>
+
+                <theme:AdaptiveGrid
+                    x:Name="HeaderGrid"
+                    Gap="16"
+                    MaxColumns="3"
+                    MinColumnWidth="232">
+                    <!-- The signal chip. -->
+                    <Border
+                        x:Name="SignalBlock"
+                        MinHeight="56"
+                        Style="{StaticResource IbtBlock}"
+                        ToolTip="{Binding SignalTip}"
+                        ToolTipService.InitialShowDelay="150"
+                        ToolTipService.ShowDuration="30000">
+                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                            <Border Style="{StaticResource IbtDotHost}">
+                                <Ellipse Style="{StaticResource SignalDot}" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock
+                                    x:Name="SignalLabel"
+                                    FontSize="13.5"
+                                    FontWeight="SemiBold"
+                                    Text="{Binding SignalText}" />
+                                <TextBlock
+                                    x:Name="SinceLabel"
+                                    Margin="0,2,0,0"
+                                    Style="{StaticResource IbtSecondaryText}"
+                                    Visibility="{Binding HasPacket, Converter={StaticResource BoolToVisibility}}">
+                                    <Run Text="último pacote" />
+                                    <Run Text="{Binding SinceText, Mode=OneWay}" />
+                                    <Run Text="{Binding LastSource, Mode=OneWay, StringFormat='· {0}'}" />
+                                </TextBlock>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- The universe, as the console shows it, and the +1 switch. -->
+                    <Border
+                        x:Name="UniverseBlock"
+                        MinHeight="56"
+                        Style="{StaticResource IbtBlock}"
+                        ToolTip="Universo que a MA2 mostra. O Art-Net conta a partir de 0 e a MA2 a partir de 1, então 100 na MA2 é 99 no Art-Net. Com o botão +1 ligado (padrão) o app faz essa conta sozinho."
+                        ToolTipService.InitialShowDelay="150"
+                        ToolTipService.ShowDuration="30000">
+                        <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                            <Path
+                                Width="18"
+                                Height="18"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource LucideNetwork}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBlock
+                                Margin="0,0,10,0"
+                                Style="{StaticResource IbtRowLabel}"
+                                Text="Universo" />
+                            <TextBox
+                                x:Name="UniverseBox"
+                                Width="64"
+                                AutomationProperties.Name="Universo"
+                                LostFocus="OnFieldLostFocus"
+                                Style="{StaticResource IbtNumberBox}"
+                                Tag="{Binding UniverseBox}"
+                                Text="{Binding UniverseBox.Text, UpdateSourceTrigger=PropertyChanged}"
+                                TextAlignment="Center" />
+                            <ToggleButton
+                                x:Name="OffsetToggle"
+                                Width="40"
+                                Margin="8,0,0,0"
+                                AutomationProperties.Name="Universo mostrado na MA2 igual ao Art-Net mais 1"
+                                Content="+1"
+                                IsChecked="{Binding UniverseOffset, Mode=TwoWay}"
+                                Style="{StaticResource IbtToggleChip}"
+                                ToolTip="Universo mostrado na MA2 = Art-Net + 1 (ligado: o app escuta o Art-Net 99 quando a MA2 mostra 100)." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- The source filter. -->
+                    <Border
+                        x:Name="SourceBlock"
+                        MinHeight="56"
+                        Style="{StaticResource IbtBlock}"
+                        ToolTip="IP da MA2: vazio aceita qualquer origem. Preenchido, o app ignora pacotes de outros endereços. A MA2 onPC do dono é 2.0.0.2."
+                        ToolTipService.InitialShowDelay="150"
+                        ToolTipService.ShowDuration="30000">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Path
+                                Width="18"
+                                Height="18"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource LucideCast}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Margin="0,0,10,0"
+                                Style="{StaticResource IbtRowLabel}"
+                                Text="IP da MA2" />
+                            <Grid Grid.Column="2">
+                                <TextBox
+                                    x:Name="SourceBox"
+                                    MinWidth="96"
+                                    AutomationProperties.Name="IP da MA2"
+                                    Style="{StaticResource SourceBox}"
+                                    Text="{Binding SourceIpText, UpdateSourceTrigger=PropertyChanged}" />
+                                <TextBlock
+                                    Margin="11,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Foreground="{StaticResource IbtMutedBrush}"
+                                    IsHitTestVisible="False"
+                                    Text="qualquer"
+                                    Visibility="{Binding Text.Length, ElementName=SourceBox, Converter={StaticResource ZeroToVisible}}" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </theme:AdaptiveGrid>
+            </local:CardSection>
+
+            <!-- ===== (2) The map ===== -->
+            <local:CardSection
+                x:Name="MapCard"
+                Margin="0,16,0,0"
+                Header="Mapa de canais"
+                Icon="{StaticResource LucideSlidersHorizontal}"
+                Style="{StaticResource IbtCardSectionStyle}"
+                Info="Cada linha liga um canal da MA2 a uma ação do app. Botão: valor 128 ou mais é ligado; roda em qualquer mudança (padrão, as macros seguram o canal) ou só na subida. Seleção: escolhe a câmera na prévia. Estado: o app acompanha o canal. Fader: 0 a 255 vira 0 a 100 %, com pickup suave. A barra mostra o valor que chega da MA2.">
+                <local:CardSection.HeaderActions>
+                    <StackPanel Orientation="Horizontal">
+                        <Button
+                            x:Name="AddRowButton"
+                            AutomationProperties.Name="Adicionar linha"
+                            Command="{Binding AddRowCommand}"
+                            Style="{StaticResource IbtToolButton}"
+                            ToolTip="Adicionar uma linha ao mapa">
+                            <Path
+                                Width="16"
+                                Height="16"
+                                Data="{StaticResource LucidePlus}"
+                                Style="{StaticResource LucideIcon}" />
+                        </Button>
+                        <Button
+                            x:Name="RestoreButton"
+                            Margin="8,0,0,0"
+                            AutomationProperties.Name="Restaurar mapa padrão"
+                            Command="{Binding RestoreCommand}"
+                            Style="{StaticResource IbtToolButton}"
+                            ToolTip="Restaurar mapa padrão: as 21 linhas de fábrica">
+                            <Path
+                                Width="16"
+                                Height="16"
+                                Data="{StaticResource LucideRotateCcw}"
+                                Style="{StaticResource LucideIcon}" />
+                        </Button>
+                    </StackPanel>
+                </local:CardSection.HeaderActions>
+
+                <StackPanel>
+                    <!-- A repeated channel is allowed, but the owner is told. -->
+                    <Border
+                        x:Name="DuplicateNote"
+                        Margin="0,0,0,12"
+                        Style="{StaticResource IbtBlock}"
+                        Visibility="{Binding HasDuplicates, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel Orientation="Horizontal">
+                            <Path
+                                Width="16"
+                                Height="16"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource LucideTriangleAlert}"
+                                Style="{StaticResource LucideIcon}"
+                                TextElement.Foreground="{StaticResource IbtWarnBrush}" />
+                            <TextBlock Style="{StaticResource IbtSecondaryText}" Text="{Binding DuplicateTip}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- The titles of the columns (same widths as a line). -->
+                    <Grid x:Name="ColumnTitles" Margin="0,0,0,4" Visibility="{Binding NotCompact, Converter={StaticResource BoolToVisibility}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="48" />
+                            <ColumnDefinition Width="*" MinWidth="136" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" MinWidth="88" MaxWidth="220" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Style="{StaticResource ColumnTitle}" Text="Canal" TextAlignment="Center" />
+                        <TextBlock Grid.Column="1" Margin="32,0,0,0" Style="{StaticResource ColumnTitle}" Text="Ação" />
+                        <TextBlock Grid.Column="2" Width="96" Margin="8,0,0,0" Style="{StaticResource ColumnTitle}" Text="Modo" />
+                        <TextBlock Grid.Column="3" Width="168" Margin="8,0,0,0" Style="{StaticResource ColumnTitle}" Text="Opção" />
+                        <TextBlock Grid.Column="4" Margin="8,0,0,0" Style="{StaticResource ColumnTitle}" Text="Nível" />
+                        <Border Grid.Column="5" Width="108" Margin="8,0,0,0" />
+                    </Grid>
+
+                    <ItemsControl
+                        x:Name="RowList"
+                        ItemTemplate="{StaticResource RowTemplate}"
+                        ItemsSource="{Binding Rows}" />
+
+                    <TextBlock
+                        x:Name="EmptyMap"
+                        Margin="0,16,0,0"
+                        Style="{StaticResource IbtSecondaryText}"
+                        Text="Nenhuma linha. Use + para adicionar ou restaurar o mapa padrão."
+                        Visibility="{Binding Rows.Count, Converter={StaticResource ZeroToVisible}}" />
+                </StackPanel>
+            </local:CardSection>
+
+            <!-- ===== (3) How to set the MA2 up (folded) ===== -->
+            <Border
+                x:Name="HelpCard"
+                Margin="0,16,0,0"
+                Style="{StaticResource IbtSurfaceCard}">
+                <Expander
+                    x:Name="HelpExpander"
+                    AutomationProperties.Name="Como configurar na MA2"
+                    Style="{StaticResource IbtExpander}">
+                    <Expander.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <Path
+                                Width="18"
+                                Height="18"
+                                Margin="0,0,10,0"
+                                Data="{StaticResource LucideInfo}"
+                                Style="{StaticResource IbtHeaderIcon}" />
+                            <TextBlock Style="{StaticResource IbtCardTitle}" Text="Como configurar na MA2" />
+                        </StackPanel>
+                    </Expander.Header>
+                    <StackPanel Margin="0,20,0,0">
+                        <Border Style="{StaticResource IbtBlock}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource HelpStep}" Text="1  Setup › Network › DMX Protocols: ligue Art-Net, escolha a placa da rede 2.x e mande o universo 100 em broadcast." />
+                                <TextBlock Style="{StaticResource HelpStep}" Text="2  Patch: 21 canais genéricos (dimmers) no universo 100, endereços 1 a 21." />
+                                <TextBlock Style="{StaticResource HelpStep}" Text="3  Macros: cada botão põe o dimmer em 100 (ligado) ou 0 (desligado) e o canal fica assim." />
+                                <TextBlock Style="{StaticResource HelpStep}" Text="4  Faders: um executor de fader em cada dimmer de 17 a 21." />
+                                <TextBlock Style="{StaticResource HelpStep}" Text="5  Aqui: ligue Controle pela MA2, universo 100 e, se quiser, o IP 2.0.0.2." />
+                                <TextBlock Margin="0,8,0,0" Style="{StaticResource IbtSecondaryText}" Text="Passo a passo completo em docs/CONTROLE-MA2.md." />
+                            </StackPanel>
+                        </Border>
+                        <Border Margin="0,8,0,0" Style="{StaticResource IbtBlock}">
+                            <ItemsControl x:Name="HelpMap" ItemsSource="{Binding HelpMap}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <theme:AdaptiveGrid Gap="24" MaxColumns="2" MinColumnWidth="260" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Margin="0,2" Style="{StaticResource IbtSecondaryText}" Text="{Binding}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+                </Expander>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -129,6 +129,23 @@
                             </StackPanel>
                         </Button>
                         <Button
+                            x:Name="ControlTab"
+                            Margin="0,4,0,0"
+                            AutomationProperties.Name="Controle"
+                            Command="{Binding SelectTabCommand}"
+                            CommandParameter="{x:Static vm:MainTab.Control}"
+                            Style="{StaticResource IbtTabButton}"
+                            Tag="{Binding IsControlSelected}">
+                            <StackPanel Orientation="Horizontal">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{StaticResource LucideGamepad2}"
+                                    Style="{StaticResource LucideIcon}" />
+                                <TextBlock Margin="10,0,0,0" Text="Controle" />
+                            </StackPanel>
+                        </Button>
+                        <Button
                             x:Name="SettingsTab"
                             Margin="0,4,0,0"
                             AutomationProperties.Name="Configurações"
@@ -239,6 +256,11 @@
                         theme:Motion.FadeOnShow="True"
                         DataContext="{Binding Ndi}"
                         Visibility="{Binding DataContext.IsNdiSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
+                    <local:ControlPage
+                        x:Name="ControlPage"
+                        theme:Motion.FadeOnShow="True"
+                        DataContext="{Binding Control}"
+                        Visibility="{Binding DataContext.IsControlSelected, RelativeSource={RelativeSource AncestorType=ui:FluentWindow}, Converter={StaticResource BoolToVisibility}}" />
                     <local:SettingsPage
                         x:Name="SettingsPage"
                         theme:Motion.FadeOnShow="True"
