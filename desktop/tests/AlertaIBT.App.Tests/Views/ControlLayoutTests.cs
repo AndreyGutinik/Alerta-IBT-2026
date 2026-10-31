@@ -145,10 +145,27 @@ public sealed class ControlLayoutTests
 
             var blocks = new[] { "HolyricsAddressBlock", "HolyricsTokenBlock", "HolyricsArrowsBlock" }.Select(n => rig.BoundsOf(rig.Named<Border>(n))).ToList();
             Assert.All(blocks, b => Assert.True(b.Width >= 320 && b.Left >= card.Left - 0.5 && b.Right <= card.Right + 0.5, $"a block {b}"));
-            var grid = rig.Named<AdaptiveGrid>("HolyricsGrid");
+            var grid = rig.Named<BalancedColumns>("HolyricsGrid");
+            var address = blocks[0];
+            var token = blocks[1];
+            var arrows = blocks[2];
             if (width >= 1100)
             {
                 Assert.Equal(2, grid.Columns);
+                // Two balanced columns: address and arrows on the left, the token on the right, bottoms on one line, no block alone beside a hole.
+                Assert.True(Math.Abs(address.Left - arrows.Left) < 0.5 && token.Left > address.Right, "address/arrows left, token right");
+                Assert.True(Math.Abs(address.Top - token.Top) < 0.5, "columns start together");
+                var left = rig.BoundsOf(rig.Named<Border>("HolyricsArrowsBlock")).Bottom;
+                var right = rig.BoundsOf(rig.Named<Border>("HolyricsTokenBlock")).Bottom;
+                var presentationBottoms = rig.Named<Border>("PresentationSwitchBlock").Visibility == System.Windows.Visibility.Visible
+                    ? (rig.BoundsOf(rig.Named<Border>("PresentationSwitchBlock")).Bottom, rig.BoundsOf(rig.Named<Border>("PresentationKeysBlock")).Bottom)
+                    : (left, right);
+                Assert.True(Math.Abs(presentationBottoms.Item1 - presentationBottoms.Item2) <= 8, $"column bottoms {presentationBottoms}");
+            }
+            else
+            {
+                Assert.Equal(1, grid.Columns);
+                Assert.True(token.Top >= address.Bottom && arrows.Top >= token.Bottom, "one column: address, token, arrows");
             }
 
             foreach (var name in new[] { "HolyricsHostBox", "HolyricsPortBox", "TokenLockedBox", "TokenLockButton", "HolyricsTestButton", "HolyricsArrowsSwitch", "HolyricsChip" })

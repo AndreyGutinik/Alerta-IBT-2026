@@ -124,20 +124,33 @@ public sealed class PresentationLayoutTests
         {
             using var rig = new Rig(width, setup: r => r.Vm.SetActive(true));
             var card = rig.BoundsOf(rig.Named<CardSection>("HolyricsCard"));
-            var grid = rig.Named<AdaptiveGrid>("PresentationGrid");
-            var holyricsGrid = rig.Named<AdaptiveGrid>("HolyricsGrid");
+            var grid = rig.Named<BalancedColumns>("HolyricsGrid");
+            var address = rig.BoundsOf(rig.Named<Border>("HolyricsAddressBlock"));
+            var token = rig.BoundsOf(rig.Named<Border>("HolyricsTokenBlock"));
+            var arrows = rig.BoundsOf(rig.Named<Border>("HolyricsArrowsBlock"));
             var switchBlock = rig.BoundsOf(rig.Named<Border>("PresentationSwitchBlock"));
             var keysBlock = rig.BoundsOf(rig.Named<Border>("PresentationKeysBlock"));
 
-            Assert.True(rig.BoundsOf(grid).Top >= rig.BoundsOf(holyricsGrid).Bottom, "below the connection blocks");
             Assert.All(new[] { switchBlock, keysBlock }, b => Assert.True(b.Width >= 320 && b.Left >= card.Left - 0.5 && b.Right <= card.Right + 0.5, $"block {b}"));
             if (width >= 1100)
             {
                 Assert.Equal(2, grid.Columns);
+                // Left: address, arrows, presentation. Right: token, keys. Bottoms within 8 px and nothing alone beside an empty cell.
+                Assert.True(Math.Abs(address.Left - switchBlock.Left) < 0.5 && Math.Abs(arrows.Left - switchBlock.Left) < 0.5, "left column");
+                Assert.True(Math.Abs(token.Left - keysBlock.Left) < 0.5 && token.Left > address.Right, "right column");
+                Assert.True(Math.Abs(switchBlock.Bottom - keysBlock.Bottom) <= 8, $"bottoms {switchBlock.Bottom} {keysBlock.Bottom}");
+                Assert.True(address.Top < arrows.Top && arrows.Top < switchBlock.Top && token.Top < keysBlock.Top, "order inside the columns");
+                Assert.True(keysBlock.Height > token.Height && switchBlock.Height >= 56, "no collapsed block");
             }
             else
             {
-                Assert.True(keysBlock.Top >= switchBlock.Bottom - 0.5, "one column at 900: stacked, not overlapping");
+                Assert.Equal(1, grid.Columns);
+                var order = new[] { address, token, arrows, switchBlock, keysBlock };
+                for (var i = 1; i < order.Length; i++)
+                {
+                    Assert.True(order[i].Top >= order[i - 1].Bottom - 0.5, $"one column, block {i} below block {i - 1}");
+                    Assert.Equal(order[0].Left, order[i].Left, 1);
+                }
             }
 
             foreach (var name in new[] { "PresentationSwitch", "PresentationHotkeyChip", "PresentationRestoreButton", "PresentationAddNextButton", "PresentationAddPreviousButton", "PresentationNextList", "PresentationPreviousList" })

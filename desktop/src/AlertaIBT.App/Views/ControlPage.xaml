@@ -700,14 +700,14 @@
                 </local:CardSection.HeaderActions>
 
                 <StackPanel>
-                <theme:AdaptiveGrid
+                <theme:BalancedColumns
                     x:Name="HolyricsGrid"
                     Gap="16"
-                    MaxColumns="2"
                     MinColumnWidth="320">
                     <!-- Where Holyrics listens: host and port. -->
                     <Border
                         x:Name="HolyricsAddressBlock"
+                        theme:BalancedColumns.Side="0"
                         MinHeight="56"
                         Style="{StaticResource IbtBlock}"
                         ToolTip="Endereço do servidor da API do Holyrics. 127.0.0.1 é este PC; para um Holyrics em outro PC, use o IP dele. A porta padrão é 8091."
@@ -756,6 +756,7 @@
                     <!-- The token: dots once stored, paste and Trocar at the right. -->
                     <Border
                         x:Name="HolyricsTokenBlock"
+                        theme:BalancedColumns.Side="1"
                         MinHeight="56"
                         Style="{StaticResource IbtBlock}"
                         ToolTip="Token da API do Holyrics (Arquivo > Configurações > API Server > gerenciar permissões). Fica protegido neste PC e nunca aparece de novo, só os pontos."
@@ -828,6 +829,7 @@
                     <!-- The arrows of the quick panel. -->
                     <Border
                         x:Name="HolyricsArrowsBlock"
+                        theme:BalancedColumns.Side="0"
                         MinHeight="56"
                         Style="{StaticResource IbtBlock}"
                         ToolTip="Setas do painel rápido controlam o Holyrics: enquanto você digita um aviso na caixa do painel rápido (a janelinha da bandeja), Seta direita passa o slide e Seta esquerda volta o slide no Holyrics. Só vale com o cursor nessa caixa, nunca no resto do Windows. Preço: as setas deixam de mover o cursor do texto (use o mouse, Home e End para corrigir uma palavra). Sem token do Holyrics, as setas funcionam normalmente."
@@ -861,20 +863,13 @@
                                 Style="{StaticResource IbtSwitch}" />
                         </Grid>
                     </Border>
-                </theme:AdaptiveGrid>
 
-                <!-- The presentation mode: the remote of the pastor (a keyboard to Windows) passes the Holyrics slides from any window. Off at every start. -->
-                <theme:AdaptiveGrid
-                    x:Name="PresentationGrid"
-                    Margin="0,16,0,0"
-                    Gap="16"
-                    MaxColumns="2"
-                    MinColumnWidth="320"
-                    Visibility="{Binding HasPresentation, Converter={StaticResource BoolToVisibility}}">
+                    <!-- The presentation mode: the remote of the pastor (a keyboard to Windows) passes the Holyrics slides from any window. Off at every start. -->
                     <Border
                         x:Name="PresentationSwitchBlock"
+                        theme:BalancedColumns.Side="0"
+                        Visibility="{Binding HasPresentation, Converter={StaticResource BoolToVisibility}}"
                         MinHeight="56"
-                        VerticalAlignment="Top"
                         Style="{StaticResource PresentationSwitchBlock}"
                         ToolTip="{Binding PresentationTip}"
                         ToolTipService.InitialShowDelay="150"
@@ -931,7 +926,11 @@
                         </Grid>
                     </Border>
 
-                    <Border x:Name="PresentationKeysBlock" Style="{StaticResource IbtBlock}">
+                    <Border
+                        x:Name="PresentationKeysBlock"
+                        theme:BalancedColumns.Side="1"
+                        Style="{StaticResource IbtBlock}"
+                        Visibility="{Binding HasPresentation, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel>
                             <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
@@ -1064,7 +1063,7 @@
                             </Grid>
                         </StackPanel>
                     </Border>
-                </theme:AdaptiveGrid>
+                </theme:BalancedColumns>
 
                 <!-- Why the presentation mode is off, or why its shortcut does not work. -->
                 <TextBlock
