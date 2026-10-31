@@ -10,6 +10,7 @@ using AlertaIBT.App.ViewModels;
 using AlertaIBT.App.Views;
 using AlertaIBT.Core.Backup;
 using AlertaIBT.Core.Audio;
+using AlertaIBT.Core.Control;
 using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Firebase;
@@ -161,6 +162,7 @@ public static class AppHost
             provider.GetRequiredService<MediaKeyRouter>()));
         ConfigurePlayer(services);
         ConfigureNdi(services);
+        ConfigureControl(services);
         services.AddSingleton<TrayService>();
         services.AddSingleton<AppShell>();
         ConfigureQuickPanel(services);
@@ -188,6 +190,21 @@ public static class AppHost
 
         // The shortcuts register on the shell's message window; a test swaps this factory so no real global hotkey is taken.
         services.AddSingleton<Func<MessageWindow, INdiHotkeyRegistry>>(_ => window => new NdiHotkeyRegistry(window));
+    }
+
+    // The control by a grandMA2 (Art-Net, receive only): off at install, so no socket exists until the owner turns it on in the "Controle" tab. The actions
+    // go through the controllers the buttons use (the NDI service, the player, the rows of the Som tab).
+    private static void ConfigureControl(IServiceCollection services)
+    {
+        services.AddSingleton<IControlVolumes>(provider => new SomControlVolumes(provider.GetRequiredService<SomViewModel>(), PostToUi));
+        services.AddSingleton<IControlTargets>(provider => new ControlTargets(
+            new NdiControlAdapter(provider.GetRequiredService<NdiService>()),
+            provider.GetRequiredService<MusicPlayer>(),
+            provider.GetRequiredService<IControlVolumes>()));
+        services.AddSingleton(provider => new ControlService(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<IControlTargets>(),
+            logger: provider.GetRequiredService<ILogger<ControlService>>()));
     }
 
     // The music player: nothing here touches a device or a folder until the shell starts it (tests replace the backend and the audio system).

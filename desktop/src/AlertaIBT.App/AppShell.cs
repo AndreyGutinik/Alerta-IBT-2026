@@ -6,6 +6,7 @@ using AlertaIBT.App.Platform;
 using AlertaIBT.App.Services;
 using AlertaIBT.App.Tray;
 using AlertaIBT.Core.Audio;
+using AlertaIBT.Core.Control;
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Loudness;
 using AlertaIBT.Core.Ndi;
@@ -36,6 +37,7 @@ public sealed class AppShell : IDisposable
     private readonly MouseLockController _mouse;
     private readonly MusicPlayer _player;
     private readonly LoudnessService _loudness;
+    private readonly ControlService _control;
     private readonly AlarmScheduler _alarms;
     private readonly AudioController _audio;
     private readonly NdiService _ndi;
@@ -70,7 +72,8 @@ public sealed class AppShell : IDisposable
         NdiService ndi,
         NdiTelaoHost ndiHost,
         Func<MessageWindow, INdiHotkeyRegistry> ndiRegistryFactory,
-        LoudnessService loudness)
+        LoudnessService loudness,
+        ControlService control)
     {
         _logger = logger;
         _settings = settings;
@@ -84,6 +87,7 @@ public sealed class AppShell : IDisposable
         _mouse = mouse;
         _player = player;
         _loudness = loudness;
+        _control = control;
         _alarms = alarms;
         _audio = audio;
         _ndi = ndi;
@@ -208,6 +212,16 @@ public sealed class AppShell : IDisposable
 
         _ndiHotkeys.Apply(_settings.Current.Ndi.ShortcutsEnabled);
 
+        // Controle pela MA2: OFF at install, so this opens no socket until the owner turns it on; it never blocks the start.
+        try
+        {
+            _control.Start();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nao foi possivel iniciar o controle pela MA2");
+        }
+
         _settings.Changed += OnSettingsChanged;
 
         var registration = _startup.Apply(ex => _logger.LogWarning(ex, "Nao foi possivel ajustar o inicio com o Windows"));
@@ -306,6 +320,7 @@ public sealed class AppShell : IDisposable
         _player.Dispose(); // the sound stops at once, before the slow parts
         _loudness.Dispose(); // cancels the measurement or the tag write in progress and saves the cache
         _audio.Dispose();
+        _control.Dispose(); // closes the Art-Net socket
         _ndiHotkeys?.Dispose();
         (_ndiRegistry as IDisposable)?.Dispose();
         _ndiHost.Dispose(); // hides the camera window before anything slow runs
