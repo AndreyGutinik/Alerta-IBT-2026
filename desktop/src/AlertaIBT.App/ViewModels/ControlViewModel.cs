@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Net;
+using AlertaIBT.App.Platform;
 using AlertaIBT.Core.Control;
 using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Settings;
@@ -286,6 +287,7 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
     /// <param name="logger">Receives the log lines.</param>
     /// <param name="holyrics">The Holyrics connection (the card with host, port, token and "Testar"); null leaves the card inactive (tests).</param>
     /// <param name="protector">Protects the Holyrics token (DPAPI in the app).</param>
+    /// <param name="presentation">The presentation mode (the switch and the keys of the pastor's remote); null leaves that part inactive (tests).</param>
     public ControlViewModel(
         SettingsService settings,
         ControlService service,
@@ -293,7 +295,8 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
         Action<Action>? post = null,
         ILogger? logger = null,
         HolyricsClient? holyrics = null,
-        ISecretProtector? protector = null)
+        ISecretProtector? protector = null,
+        PresentationModeController? presentation = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(service);
@@ -309,6 +312,7 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
         AddRowCommand = new RelayCommand(AddRow);
         RestoreCommand = new RelayCommand(Restore);
         (HolyricsPort, HolyricsToken, TestHolyricsCommand) = CreateHolyrics(holyrics, protector);
+        CreatePresentation(presentation);
         Load();
         _settings.Changed += OnSettingsChanged;
         _service.Changed += OnServiceChanged;
@@ -499,6 +503,11 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
         _disposed = true;
         _settings.Changed -= OnSettingsChanged;
         _service.Changed -= OnServiceChanged;
+        if (_presentation is not null)
+        {
+            _presentation.StateChanged -= OnPresentationChanged;
+        }
+
         if (_holyricsClient is not null)
         {
             _holyricsClient.StatusChanged -= OnHolyricsChanged;

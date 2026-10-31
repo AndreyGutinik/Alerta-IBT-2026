@@ -323,5 +323,6 @@ public sealed partial class ControlViewModel
         OnPropertyChanged(nameof(HasHolyrics));
         NotifyHolyricsStatus();
         TestHolyricsCommand?.NotifyCanExecuteChanged();
+        LoadPresentation();
     }
 }

@@ -83,6 +83,16 @@ Endereço: o campo aceita `127.0.0.1`, `http://127.0.0.1:8091/` e afins; o `http
 
 **Setas do painel rápido:** com a chave **Setas do painel rápido controlam o Holyrics** ligada (padrão) e o token configurado, enquanto você digita o aviso na caixa do painel da bandeja, **Seta direita = slide próximo** e **Seta esquerda = slide anterior**. Só vale com o cursor nessa caixa (nunca no resto do Windows), sem Shift/Ctrl/Alt, tecla segurada não repete, e as setas **não movem mais o cursor do texto** (use mouse, Home e End). Sem token ou com a chave desligada elas movem o cursor normalmente. Funciona igual com ou sem a MA2.
 
+**Modo apresentação (controle do pastor).** O controle de slides do pastor (o "clicker") não fala com o app nem com o Holyrics: para o Windows ele é **só um teclado** que aperta **Page Down / Page Up** ou **seta direita / seta esquerda**. Com o **Modo apresentação** ligado, o app pega essas teclas em qualquer janela, **engole** a tecla (o programa da frente nunca a recebe) e manda `ActionNext` / `ActionPrevious` ao Holyrics pela API, mesmo com o Holyrics minimizado. Liga e desliga por **Ctrl+Alt+P**, pela chave no cartão Holyrics da aba Controle, pelo item da bandeja (**Modo apresentação (Ctrl+Alt+P)**), pela API (`/holyrics/presentation/on`, `/off`, `/status`, mesmo estilo de `/ndi/*`) ou pela ação **Modo apresentação (controle do pastor)** do mapa da MA2 (disponível na lista, **fora** do mapa padrão; Botão alterna, Estado segue o canal).
+
+- **Sempre começa desligado** (nunca é guardado ligado). Desligado, todas as teclas funcionam normal em todo lugar, e o gancho do teclado nem existe.
+- **Teclas padrão**: próximo = Page Down e seta direita; anterior = Page Up e seta esquerda. Dá para trocar no cartão (etiquetas com x, **+** grava a próxima tecla apertada, restaurar padrão). As teclas escolhidas ficam em `holyrics.presentationNext` e `holyrics.presentationPrevious` do `settings.json` (códigos de tecla do Windows; fora do backup).
+- **Só teclas sozinhas**: com Ctrl, Alt, Shift ou Windows apertado a tecla **não** é engolida (Ctrl+Seta direita continua valendo nos outros programas). Tecla segurada (repetição) manda **um** comando e engole o resto; a tecla que sobe também é engolida, então nenhuma tecla fica "presa".
+- **Janela do próprio app na frente**: as teclas passam normalmente (o painel rápido tem as suas setas; assim um slide nunca é mandado duas vezes).
+- **Sem token** do Holyrics o modo recusa ligar (chave apagada com dica) e não engole nada. Com o Holyrics fora do ar a tecla ainda é engolida e o chip do cartão mostra o motivo.
+- **Se o gancho falhar**: o Windows recusou ou removeu o gancho do teclado -> o modo desliga sozinho e o cartão mostra o motivo. O app troca o gancho por um novo a cada 30 s enquanto o modo está ligado, o que também renova um gancho que o Windows tenha derrubado em silêncio.
+- **Controle que manda outras teclas** (F5, B, ponto, Enter...): adicione-as no cartão; o app só engole o que estiver nas listas. Alguns controles têm um botão que manda um clique do mouse ou uma tecla multimídia: esses não são tratados.
+
 **Macros da MA2 (lista):** canal 13 = slide próximo, 14 = slide anterior, 15 = play/pausa do vídeo, 16 = logo; cada macro põe o dimmer em 100 e 0 como as outras. Passos da MA2 continuam a confirmar no onPC.
 
 ## 4. Riscos conhecidos

@@ -125,6 +125,87 @@
             </Style.Triggers>
         </Style>
 
+        <!-- The small x of a key chip of the presentation mode. -->
+        <Style x:Key="PresentationChipRemove" TargetType="Button">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border
+                            x:Name="Chrome"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            BorderThickness="1"
+                            CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource IbtHoverOverlayBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource IbtTextBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource IbtFocusRingBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- One key of a set: its legend, a tooltip with the full name, and the x that takes it out. -->
+        <DataTemplate x:Key="PresentationKeyChipTemplate" DataType="{x:Type vm:PresentationKeyChip}">
+            <Border
+                Height="32"
+                Margin="0,0,8,8"
+                Padding="12,0,4,0"
+                Background="{StaticResource IbtInsetBrush}"
+                BorderBrush="{StaticResource IbtBorderStrongBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                ToolTip="{Binding Tip}"
+                ToolTipService.InitialShowDelay="250">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock
+                        Margin="0,0,6,0"
+                        VerticalAlignment="Center"
+                        FontSize="13"
+                        FontWeight="SemiBold"
+                        Foreground="{StaticResource IbtTextBrush}"
+                        Text="{Binding Label}" />
+                    <Button
+                        AutomationProperties.Name="Tirar tecla"
+                        Command="{Binding RemoveCommand}"
+                        Style="{StaticResource PresentationChipRemove}"
+                        ToolTip="Tirar">
+                        <Path
+                            Width="10"
+                            Height="10"
+                            Data="{StaticResource LucideX}"
+                            Style="{StaticResource LucideIcon}" />
+                    </Button>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
+        <!-- The switch block lights up while the presentation mode is on. -->
+        <Style
+            x:Key="PresentationSwitchBlock"
+            BasedOn="{StaticResource IbtBlock}"
+            TargetType="Border">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding PresentationOn}" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource IbtAccentBorderBrush}" />
+                    <Setter Property="Background" Value="{StaticResource IbtAccentWashBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- The host box turns red when what is typed cannot be an address. -->
         <Style
             x:Key="HostBox"
@@ -781,6 +862,224 @@
                         </Grid>
                     </Border>
                 </theme:AdaptiveGrid>
+
+                <!-- The presentation mode: the remote of the pastor (a keyboard to Windows) passes the Holyrics slides from any window. Off at every start. -->
+                <theme:AdaptiveGrid
+                    x:Name="PresentationGrid"
+                    Margin="0,16,0,0"
+                    Gap="16"
+                    MaxColumns="2"
+                    MinColumnWidth="320"
+                    Visibility="{Binding HasPresentation, Converter={StaticResource BoolToVisibility}}">
+                    <Border
+                        x:Name="PresentationSwitchBlock"
+                        MinHeight="56"
+                        VerticalAlignment="Top"
+                        Style="{StaticResource PresentationSwitchBlock}"
+                        ToolTip="{Binding PresentationTip}"
+                        ToolTipService.InitialShowDelay="150"
+                        ToolTipService.ShowDuration="30000"
+                        ToolTipService.ShowOnDisabled="True">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Path
+                                Width="18"
+                                Height="18"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource LucidePresentation}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <StackPanel
+                                Grid.Column="1"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal">
+                                <TextBlock
+                                    Margin="0,0,10,0"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource IbtRowLabel}"
+                                    Text="Modo apresentação" />
+                                <Border
+                                    x:Name="PresentationHotkeyChip"
+                                    Padding="8,2"
+                                    VerticalAlignment="Center"
+                                    Background="{StaticResource IbtInsetBrush}"
+                                    BorderBrush="{StaticResource IbtBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    ToolTip="Atalho global: Ctrl+Alt+P liga e desliga, de qualquer janela.">
+                                    <TextBlock
+                                        FontSize="11.5"
+                                        Foreground="{StaticResource IbtTextSecondaryBrush}"
+                                        Text="Ctrl+Alt+P" />
+                                </Border>
+                            </StackPanel>
+                            <ToggleButton
+                                x:Name="PresentationSwitch"
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="Modo apresentação"
+                                IsChecked="{Binding PresentationOn, Mode=TwoWay}"
+                                IsEnabled="{Binding PresentationSwitchEnabled}"
+                                Style="{StaticResource IbtSwitch}"
+                                ToolTip="{Binding PresentationTip}"
+                                ToolTipService.ShowOnDisabled="True" />
+                        </Grid>
+                    </Border>
+
+                    <Border x:Name="PresentationKeysBlock" Style="{StaticResource IbtBlock}">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Path
+                                    Width="18"
+                                    Height="18"
+                                    Margin="0,0,10,0"
+                                    VerticalAlignment="Center"
+                                    Data="{StaticResource LucideKeyboard}"
+                                    Style="{StaticResource IbtRowIcon}"
+                                    ToolTip="As teclas que o controle do pastor manda. Só teclas sozinhas: com Ctrl, Alt, Shift ou Windows apertado elas passam normalmente." />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource IbtRowLabel}"
+                                    Text="Teclas do controle" />
+                                <Button
+                                    x:Name="PresentationRestoreButton"
+                                    Grid.Column="2"
+                                    AutomationProperties.Name="Restaurar teclas padrão"
+                                    Command="{Binding RestorePresentationKeysCommand}"
+                                    Style="{StaticResource IbtToolButton}"
+                                    ToolTip="Restaurar o padrão: Page Down e seta direita passam, Page Up e seta esquerda voltam.">
+                                    <Path
+                                        Width="14"
+                                        Height="14"
+                                        Data="{StaticResource LucideRotateCcw}"
+                                        Style="{StaticResource LucideIcon}" />
+                                </Button>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="88" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Margin="0,8,10,0"
+                                    VerticalAlignment="Top"
+                                    Data="{StaticResource LucideSkipForward}"
+                                    Style="{StaticResource IbtRowIcon}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Margin="0,6,0,0"
+                                    VerticalAlignment="Top"
+                                    Foreground="{StaticResource IbtTextSecondaryBrush}"
+                                    Text="Próximo" />
+                                <ItemsControl
+                                    x:Name="PresentationNextList"
+                                    Grid.Column="2"
+                                    ItemTemplate="{StaticResource PresentationKeyChipTemplate}"
+                                    ItemsSource="{Binding PresentationNextKeys}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                                <Button
+                                    x:Name="PresentationAddNextButton"
+                                    Grid.Column="3"
+                                    Margin="8,0,0,8"
+                                    VerticalAlignment="Top"
+                                    AutomationProperties.Name="Adicionar tecla em Próximo"
+                                    Command="{Binding AddNextKeyCommand}"
+                                    Style="{StaticResource IbtToolButton}"
+                                    ToolTip="Adicionar tecla: aperte a tecla do controle que passa o slide.">
+                                    <Path
+                                        Width="14"
+                                        Height="14"
+                                        Data="{StaticResource LucidePlus}"
+                                        Style="{StaticResource LucideIcon}" />
+                                </Button>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="88" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Margin="0,8,10,0"
+                                    VerticalAlignment="Top"
+                                    Data="{StaticResource LucideSkipBack}"
+                                    Style="{StaticResource IbtRowIcon}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Margin="0,6,0,0"
+                                    VerticalAlignment="Top"
+                                    Foreground="{StaticResource IbtTextSecondaryBrush}"
+                                    Text="Anterior" />
+                                <ItemsControl
+                                    x:Name="PresentationPreviousList"
+                                    Grid.Column="2"
+                                    ItemTemplate="{StaticResource PresentationKeyChipTemplate}"
+                                    ItemsSource="{Binding PresentationPreviousKeys}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                                <Button
+                                    x:Name="PresentationAddPreviousButton"
+                                    Grid.Column="3"
+                                    Margin="8,0,0,8"
+                                    VerticalAlignment="Top"
+                                    AutomationProperties.Name="Adicionar tecla em Anterior"
+                                    Command="{Binding AddPreviousKeyCommand}"
+                                    Style="{StaticResource IbtToolButton}"
+                                    ToolTip="Adicionar tecla: aperte a tecla do controle que volta o slide.">
+                                    <Path
+                                        Width="14"
+                                        Height="14"
+                                        Data="{StaticResource LucidePlus}"
+                                        Style="{StaticResource LucideIcon}" />
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </theme:AdaptiveGrid>
+
+                <!-- Why the presentation mode is off, or why its shortcut does not work. -->
+                <TextBlock
+                    x:Name="PresentationReasonLine"
+                    Margin="0,8,0,0"
+                    Style="{StaticResource IbtHint}"
+                    Text="{Binding PresentationReasonText}"
+                    Visibility="{Binding HasPresentationReason, Converter={StaticResource BoolToVisibility}}" />
+                <!-- A key that was refused (already used, not allowed). -->
+                <TextBlock
+                    x:Name="PresentationKeyHintLine"
+                    Margin="0,8,0,0"
+                    Style="{StaticResource IbtHint}"
+                    Text="{Binding PresentationKeyHint}"
+                    Visibility="{Binding HasPresentationKeyHint, Converter={StaticResource BoolToVisibility}}" />
 
                 <!-- Why Holyrics is not answering (the chip trims long words; here they show whole). -->
                 <TextBlock
