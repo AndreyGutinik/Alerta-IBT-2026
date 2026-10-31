@@ -6,14 +6,19 @@ namespace AlertaIBT.App.Platform;
 
 /// <summary>
 /// Hides a window from every kind of screen capture (<c>SetWindowDisplayAffinity</c> with <c>WDA_EXCLUDEFROMCAPTURE</c>): OBS
-/// "Captura de tela", NDI and screenshots show the window as if it were not there. The bar of the LED and every other window
-/// of the app (quick panel, main window, dialogs) go through here, so there is one way to do it and one way to check it.
+/// "Captura de tela", NDI and screenshots show the window as if it were not there. The bar of the LED always goes through here; the
+/// other windows of the app (quick panel, main window, dialogs) go through <see cref="AppWindowPolicy"/>, which excludes them only over
+/// the LED or when the setting says so. One way to do it and one way to check it.
 /// </summary>
 internal static class CaptureExclusion
 {
     /// <summary>Excludes the window with this handle and checks that Windows really took it.</summary>
     public static bool Apply(IntPtr hwnd) =>
         NativeMethods.SetWindowDisplayAffinity(hwnd, NativeMethods.WDA_EXCLUDEFROMCAPTURE) && IsExcluded(hwnd);
+
+    /// <summary>Makes the window capturable again and checks that Windows really took it.</summary>
+    public static bool Clear(IntPtr hwnd) =>
+        NativeMethods.SetWindowDisplayAffinity(hwnd, NativeMethods.WDA_NONE) && !IsExcluded(hwnd);
 
     /// <summary>Whether Windows reports the window as excluded from capture.</summary>
     public static bool IsExcluded(IntPtr hwnd) =>

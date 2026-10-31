@@ -133,10 +133,15 @@ public static class AppHost
         });
         services.AddSingleton<ILedSource>(provider => provider.GetRequiredService<LedWatcher>());
 
-        // Every window of the app but the bar: out of screen capture, and never on the LED monitor.
-        services.AddSingleton(provider => new AppWindowPolicy(
-            () => provider.GetRequiredService<LedWatcher>().Led,
-            provider.GetRequiredService<ILogger<AppWindowPolicy>>()));
+        // Every window of the app but the bar: capturable by screenshots away from the LED (a setting), excluded over it, and never opened on the LED monitor.
+        services.AddSingleton(provider =>
+        {
+            var settings = provider.GetRequiredService<SettingsService>();
+            return new AppWindowPolicy(
+                () => provider.GetRequiredService<LedWatcher>().Led,
+                provider.GetRequiredService<ILogger<AppWindowPolicy>>(),
+                inScreenshots: () => settings.Current.System.AppWindowsInScreenshots);
+        });
         services.AddSingleton<IFrameSource, CompositionFrameSource>();
         services.AddSingleton<IUiDispatcher>(_ => new WpfUiDispatcher(Application.Current.Dispatcher));
         services.AddSingleton(provider => new OverlayController(

@@ -101,24 +101,28 @@ public sealed class TrayServiceTests
     }
 
     [Fact]
-    public void The_menu_popup_is_excluded_from_capture_when_it_opens()
+    public void The_menu_popup_is_capturable_by_default_and_excluded_when_the_setting_is_off()
     {
         WpfTestHost.Run(() =>
         {
-            using var tray = new TrayService();
-            tray.Menu.Placement = PlacementMode.Absolute;
-            tray.Menu.HorizontalOffset = -30000;
-            tray.Menu.VerticalOffset = -30000;
-            try
+            var primary = Platform.PolicyFakes.Primary();
+            foreach (var inScreenshots in new[] { true, false })
             {
-                tray.Menu.IsOpen = true;
+                using var tray = new TrayService(Platform.PolicyFakes.Policy(null, [primary], (0, 0), () => inScreenshots));
+                tray.Menu.Placement = PlacementMode.Absolute;
+                tray.Menu.HorizontalOffset = -30000;
+                tray.Menu.VerticalOffset = -30000;
+                try
+                {
+                    tray.Menu.IsOpen = true;
 
-                var source = Assert.IsType<HwndSource>(System.Windows.PresentationSource.FromVisual(tray.Menu));
-                Assert.True(CaptureExclusion.IsExcluded(source.Handle));
-            }
-            finally
-            {
-                tray.Menu.IsOpen = false;
+                    var source = Assert.IsType<HwndSource>(System.Windows.PresentationSource.FromVisual(tray.Menu));
+                    Assert.Equal(!inScreenshots, CaptureExclusion.IsExcluded(source.Handle));
+                }
+                finally
+                {
+                    tray.Menu.IsOpen = false;
+                }
             }
         });
     }

@@ -44,6 +44,7 @@ public sealed class AppShell : IDisposable
     private readonly NdiTelaoHost _ndiHost;
     private readonly Func<MessageWindow, INdiHotkeyRegistry> _ndiRegistryFactory;
     private readonly PresentationModeController _presentation;
+    private readonly AppWindowPolicy _windowPolicy;
 
     private MessageWindow? _messages;
     private INdiHotkeyRegistry? _ndiRegistry;
@@ -76,8 +77,10 @@ public sealed class AppShell : IDisposable
         Func<MessageWindow, INdiHotkeyRegistry> ndiRegistryFactory,
         LoudnessService loudness,
         ControlService control,
-        PresentationModeController presentation)
+        PresentationModeController presentation,
+        AppWindowPolicy windowPolicy)
     {
+        _windowPolicy = windowPolicy;
         _presentation = presentation;
         _logger = logger;
         _settings = settings;
@@ -297,7 +300,7 @@ public sealed class AppShell : IDisposable
         }
 
         _exitDialogOpen = true;
-        var box = Views.ExitDialog.Create(_logger);
+        var box = Views.ExitDialog.Create(_logger, _windowPolicy);
 
         Wpf.Ui.Controls.MessageBoxResult answer;
         try

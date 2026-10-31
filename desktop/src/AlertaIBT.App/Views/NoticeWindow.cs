@@ -52,7 +52,7 @@ internal sealed class NoticeWindow : Window
         Content = layout;
 
         // The handle is made now, hidden: out of every screen capture before the first pixel (the LED is captured).
-        _policy.Exclude(this);
+        _policy.Protect(this);
     }
 
     /// <summary>What the owner chose: true for "Sim".</summary>

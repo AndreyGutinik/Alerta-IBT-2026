@@ -21,6 +21,14 @@ internal static class PolicyFakes
     public static AppWindowPolicy Policy(ScreenInfo? led, ScreenInfo[] screens, (int X, int Y) cursor) =>
         new(() => led, null, () => screens, () => cursor);
 
+    /// <summary>A policy whose "Janelas do app aparecem em prints" switch is <paramref name="inScreenshots"/> (read every time, so a test can flip it).</summary>
+    public static AppWindowPolicy Policy(ScreenInfo? led, ScreenInfo[] screens, (int X, int Y) cursor, Func<bool> inScreenshots) =>
+        new(() => led, null, () => screens, () => cursor, inScreenshots);
+
+    /// <summary>Moves the window (shown or not) so its top left corner is at the physical pixel.</summary>
+    public static void MoveTo(IntPtr hwnd, int x, int y) =>
+        NativeMethods.SetWindowPos(hwnd, IntPtr.Zero, x, y, 0, 0, NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
+
     public static NativeMethods.RECT WorkAreaOf(ScreenInfo screen)
     {
         var monitor = NativeMethods.MonitorFromPoint(
@@ -54,19 +62,19 @@ internal sealed class PlainWindow : Window
 public sealed class AppWindowPolicyTests
 {
     [Fact]
-    public void Exclude_makes_the_handle_and_excludes_the_window_before_it_is_ever_shown()
+    public void Protect_makes_the_handle_and_leaves_a_window_away_from_the_LED_capturable_before_it_is_ever_shown()
     {
         WpfTestHost.Run(() =>
         {
             var window = new PlainWindow { ShowInTaskbar = false };
             try
             {
-                Assert.True(PolicyFakes.Policy(null, [PolicyFakes.Primary()], (0, 0)).Exclude(window));
+                Assert.False(PolicyFakes.Policy(null, [PolicyFakes.Primary()], (0, 0)).Protect(window));
 
                 var handle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
                 Assert.NotEqual(IntPtr.Zero, handle);
                 Assert.False(window.IsVisible);
-                Assert.True(CaptureExclusion.IsExcluded(handle));
+                Assert.False(CaptureExclusion.IsExcluded(handle));
             }
             finally
             {
@@ -76,7 +84,7 @@ public sealed class AppWindowPolicyTests
     }
 
     [Fact]
-    public void The_exclusion_survives_hiding_and_showing_the_window_again()
+    public void The_exclusion_over_the_LED_survives_hiding_and_showing_the_window_again()
     {
         WpfTestHost.Run(() =>
         {
@@ -91,8 +99,11 @@ public sealed class AppWindowPolicyTests
             };
             try
             {
-                PolicyFakes.Policy(null, [PolicyFakes.Primary()], (0, 0)).Exclude(window);
+                var primary = PolicyFakes.Primary();
+                PolicyFakes.Policy(primary, [primary], (0, 0)).Protect(window); // the primary stands in for the LED: the window is over it
                 var handle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+                PolicyFakes.MoveTo(handle, primary.X + 10, primary.Y + 10);
+                Assert.True(CaptureExclusion.IsExcluded(handle));
 
                 window.Show();
                 Assert.True(CaptureExclusion.IsExcluded(handle));
@@ -129,7 +140,7 @@ public sealed class AppWindowPolicyTests
             var window = new PlainWindow { ShowInTaskbar = false, Width = 400, Height = 300 };
             try
             {
-                policy.Exclude(window);
+                policy.Protect(window);
                 var handle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
                 NativeMethods.SetWindowPos(handle, IntPtr.Zero, led.X + 100, led.Y + 100, 0, 0, NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
                 Assert.True(policy.IsOnLed(handle));
@@ -157,7 +168,7 @@ public sealed class AppWindowPolicyTests
             var window = new PlainWindow { ShowInTaskbar = false, Width = 400, Height = 300 };
             try
             {
-                policy.Exclude(window);
+                policy.Protect(window);
                 var handle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
                 NativeMethods.SetWindowPos(handle, IntPtr.Zero, primary.X + 37, primary.Y + 41, 0, 0, NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
                 var before = PolicyFakes.RectOf(handle);
@@ -183,7 +194,7 @@ public sealed class AppWindowPolicyTests
             var window = new PlainWindow { ShowInTaskbar = false, Width = 400, Height = 300 };
             try
             {
-                policy.Exclude(window);
+                policy.Protect(window);
                 var handle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
 
                 policy.KeepOffLed(window, neverPlaced: true);
@@ -212,7 +223,7 @@ public sealed class AppWindowPolicyTests
             var window = new PlainWindow { ShowInTaskbar = false, Width = 400, Height = 300 };
             try
             {
-                policy.Exclude(window);
+                policy.Protect(window);
                 var handle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
                 NativeMethods.SetWindowPos(handle, IntPtr.Zero, primary.X + 10, primary.Y + 10, 0, 0, NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
                 var before = PolicyFakes.RectOf(handle);
@@ -226,6 +237,111 @@ public sealed class AppWindowPolicyTests
             {
                 window.Close();
             }
+        });
+    }
+
+    [Fact]
+    public void A_window_over_the_LED_is_excluded_even_partly()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var primary = PolicyFakes.Primary();
+            var led = PolicyFakes.FakeLed();
+            var policy = PolicyFakes.Policy(led, [primary, led], (0, 0));
+            var window = new PlainWindow { ShowInTaskbar = false, Width = 400, Height = 300 };
+            try
+            {
+                policy.Protect(window);
+                var handle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+
+                PolicyFakes.MoveTo(handle, led.X - 100, led.Y + 50); // 300 px of its 400 are over the LED, 100 are not
+                policy.Reevaluate(window);
+
+                Assert.True(CaptureExclusion.IsExcluded(handle));
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [Fact]
+    public void Moving_the_window_off_the_LED_makes_it_capturable_and_back_on_excludes_it_again()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var primary = PolicyFakes.Primary();
+            var led = PolicyFakes.FakeLed();
+            var policy = PolicyFakes.Policy(led, [primary, led], (0, 0));
+            var window = new PlainWindow { ShowInTaskbar = false, Width = 400, Height = 300 };
+            try
+            {
+                policy.Protect(window);
+                var handle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+                PolicyFakes.MoveTo(handle, led.X + 100, led.Y + 100);
+                policy.Reevaluate(window);
+                Assert.True(CaptureExclusion.IsExcluded(handle));
+
+                // No explicit re-evaluation: the window's own LocationChanged does it.
+                PolicyFakes.MoveTo(handle, primary.X + 50, primary.Y + 50);
+                Assert.False(CaptureExclusion.IsExcluded(handle));
+
+                PolicyFakes.MoveTo(handle, led.X + 100, led.Y + 100);
+                Assert.True(CaptureExclusion.IsExcluded(handle));
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [Fact]
+    public void With_the_setting_off_every_window_is_excluded_even_away_from_the_LED_and_back_on_frees_it()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var primary = PolicyFakes.Primary();
+            var led = PolicyFakes.FakeLed();
+            var inScreenshots = false;
+            var policy = PolicyFakes.Policy(led, [primary, led], (0, 0), () => inScreenshots);
+            var window = new PlainWindow { ShowInTaskbar = false, Width = 400, Height = 300 };
+            try
+            {
+                Assert.True(policy.Protect(window));
+                var handle = new System.Windows.Interop.WindowInteropHelper(window).Handle;
+                PolicyFakes.MoveTo(handle, primary.X + 50, primary.Y + 50);
+                Assert.True(CaptureExclusion.IsExcluded(handle));
+
+                inScreenshots = true;
+                policy.Refresh();
+                Assert.False(CaptureExclusion.IsExcluded(handle));
+
+                inScreenshots = false;
+                policy.Refresh();
+                Assert.True(CaptureExclusion.IsExcluded(handle));
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
+
+    [Fact]
+    public void A_closed_window_is_forgotten_and_a_refresh_does_not_touch_it()
+    {
+        WpfTestHost.Run(() =>
+        {
+            var primary = PolicyFakes.Primary();
+            var policy = PolicyFakes.Policy(null, [primary], (0, 0));
+            var window = new PlainWindow { ShowInTaskbar = false, Width = 100, Height = 100 };
+            policy.Protect(window);
+            window.Show();
+            window.Close();
+
+            policy.Refresh(); // would throw on a dead handle if it were still tracked
         });
     }
 }

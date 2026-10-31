@@ -21,8 +21,11 @@ public sealed class DialogWindowTests
             var handle = new WindowInteropHelper(box).Handle;
             Assert.NotEqual(IntPtr.Zero, handle);
             Assert.False(box.IsVisible);
-            Assert.True(CaptureExclusion.IsExcluded(handle));
+            Assert.False(CaptureExclusion.IsExcluded(handle)); // capturable by default
             Assert.Equal("Sair do IBT Controller?", box.Title);
+
+            var hidden = ExitDialog.Create(null, PolicyFakes.Policy(null, [PolicyFakes.Primary()], (0, 0), () => false));
+            Assert.True(CaptureExclusion.IsExcluded(new WindowInteropHelper(hidden).Handle));
             Assert.Equal("Sair", box.PrimaryButtonText);
         });
     }
@@ -39,7 +42,7 @@ public sealed class DialogWindowTests
                 var handle = new WindowInteropHelper(window).Handle;
                 Assert.NotEqual(IntPtr.Zero, handle);
                 Assert.False(window.IsVisible);
-                Assert.True(CaptureExclusion.IsExcluded(handle));
+                Assert.False(CaptureExclusion.IsExcluded(handle));
             }
             finally
             {

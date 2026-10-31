@@ -109,6 +109,7 @@ public partial class App : Application
             }
 
             settings.SaveIfMissing();
+            _host.Services.GetRequiredService<AppWindowPolicy>().Attach(settings, _host.Services.GetRequiredService<LedWatcher>());
             _host.StartAsync().GetAwaiter().GetResult();
 
             var shell = _host.Services.GetRequiredService<AppShell>();

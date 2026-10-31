@@ -513,16 +513,21 @@ public sealed class BackupCardTests
     }
 
     [Fact]
-    public void The_two_windows_are_hidden_from_screen_capture_before_they_show()
+    public void The_two_windows_follow_the_capture_policy_before_they_show()
     {
         WpfTestHost.Run(() =>
         {
             var password = PasswordDialog.CreateNew("Senha do backup", Policy());
             var preview = RestorePreviewDialog.Create(SamplePreview(true), Policy());
 
-            Assert.True(CaptureExclusion.IsExcluded(new System.Windows.Interop.WindowInteropHelper(password).Handle));
-            Assert.True(CaptureExclusion.IsExcluded(new System.Windows.Interop.WindowInteropHelper(preview).Handle));
+            Assert.False(CaptureExclusion.IsExcluded(new System.Windows.Interop.WindowInteropHelper(password).Handle));
+            Assert.False(CaptureExclusion.IsExcluded(new System.Windows.Interop.WindowInteropHelper(preview).Handle));
             Assert.False(password.IsVisible);
+
+            var primary = PolicyFakes.Primary();
+            var hidden = PolicyFakes.Policy(null, [primary], (0, 0), () => false);
+            var locked = PasswordDialog.CreateNew("Senha do backup", hidden);
+            Assert.True(CaptureExclusion.IsExcluded(new System.Windows.Interop.WindowInteropHelper(locked).Handle));
         });
     }
 

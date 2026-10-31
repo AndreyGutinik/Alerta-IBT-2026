@@ -91,7 +91,7 @@ internal abstract class ThemedDialog : Window
         Height = Math.Ceiling(card.DesiredSize.Height);
 
         // The handle is made now, hidden: out of every screen capture before the first pixel.
-        _policy.Exclude(this);
+        _policy.Protect(this);
         if (owner is { IsVisible: true } && !ReferenceEquals(owner, this))
         {
             Owner = owner;

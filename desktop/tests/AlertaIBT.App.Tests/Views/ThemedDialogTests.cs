@@ -23,7 +23,7 @@ public sealed class ThemedDialogTests
             var handle = new WindowInteropHelper(dialog).Handle;
             Assert.NotEqual(IntPtr.Zero, handle);
             Assert.False(dialog.IsVisible);
-            Assert.True(CaptureExclusion.IsExcluded(handle));
+            Assert.False(CaptureExclusion.IsExcluded(handle)); // capturable by default: the owner can screenshot it
             Assert.Equal("Sim", dialog.YesButton.Content);
             Assert.Equal("N\U000000E3o", dialog.NoButton.Content);
             Assert.True(dialog.NoButton.IsDefault);
@@ -64,8 +64,11 @@ public sealed class ThemedDialogTests
             var dialog = InputDialog.Create("Renomear a lista", "Louvor", text => text.Trim().Length == 0 ? "Digite um nome." : text.Trim() == "Igreja" ? "J\U000000E1 existe uma lista com esse nome." : null, Policy());
 
             var handle = new WindowInteropHelper(dialog).Handle;
-            Assert.True(CaptureExclusion.IsExcluded(handle));
+            Assert.False(CaptureExclusion.IsExcluded(handle));
             Assert.Equal("Louvor", dialog.Box.Text);
+
+            var hidden = ConfirmDialog.Create("Sair?", "Mesmo?", PolicyFakes.Policy(null, [PolicyFakes.Primary()], (0, 0), () => false));
+            Assert.True(CaptureExclusion.IsExcluded(new WindowInteropHelper(hidden).Handle));
             Assert.True(dialog.SaveButton.IsEnabled);
             Assert.Equal(string.Empty, dialog.Problem.Text);
             Assert.Equal("Salvar", dialog.SaveButton.Content);

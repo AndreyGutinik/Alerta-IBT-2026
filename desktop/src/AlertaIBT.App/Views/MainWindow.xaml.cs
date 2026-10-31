@@ -45,7 +45,7 @@ public partial class MainWindow : FluentWindow, IMainWindow
         InitializeComponent();
 
         // The handle is made now, hidden: the window is out of every screen capture before its first pixel (the LED is captured).
-        _policy.Exclude(this);
+        _policy.Protect(this);
 
         // The timers only run while the window is on screen.
         _progress = new DispatcherTimer(ProgressTick, DispatcherPriority.Background, (_, _) => _viewModel.Home.Composer.RefreshProgress(), Dispatcher);

@@ -27,13 +27,15 @@ public sealed class TrayService : IDisposable
     private readonly MenuItem _presentationItem;
     private bool _paused;
     private bool _presentation;
+    private readonly Platform.AppWindowPolicy _policy;
     private bool _mouseLocked;
     private string? _hotkeyWarning;
     private string? _updateNotice;
 
     /// <summary>Creates the icon (not yet visible; call <see cref="Show"/>). Needs the WPF application resources and the UI thread.</summary>
-    public TrayService()
+    public TrayService(Platform.AppWindowPolicy? policy = null)
     {
+        _policy = policy ?? Platform.AppWindowPolicy.Default;
         _openItem = new MenuItem { Header = "Abrir", FontWeight = FontWeights.SemiBold, Icon = LucideIcon("LucidePanelTop") };
         _openItem.Click += (_, _) => MainWindowRequested?.Invoke();
 
@@ -68,7 +70,7 @@ public sealed class TrayService : IDisposable
         _exitItem.Click += (_, _) => ExitRequested?.Invoke();
 
         Menu = new ContextMenu();
-        Menu.Opened += (_, _) => ExcludeFromCapture(Menu); // the menu is a window of its own, at the taskbar
+        Menu.Opened += (_, _) => ProtectMenu(Menu); // the menu is a window of its own, at the taskbar
         Menu.Items.Add(_openItem);
         Menu.Items.Add(_pauseItem);
         Menu.Items.Add(_mouseLockItem);
@@ -220,13 +222,13 @@ public sealed class TrayService : IDisposable
     /// <inheritdoc />
     public void Dispose() => _icon.Dispose();
 
-    // The popup of the menu has its own handle, made when it opens: it never shows in a capture either (best effort: it opens at
-    // the notification area, which is not the LED).
-    private static void ExcludeFromCapture(ContextMenu menu)
+    // The popup of the menu has its own handle, made when it opens: it follows the capture rule of the policy (capturable unless it
+    // opens over the LED or the setting is off).
+    private void ProtectMenu(ContextMenu menu)
     {
         if (System.Windows.PresentationSource.FromVisual(menu) is System.Windows.Interop.HwndSource source)
         {
-            Platform.CaptureExclusion.Apply(source.Handle);
+            _policy.ProtectHandle(source.Handle);
         }
     }
 

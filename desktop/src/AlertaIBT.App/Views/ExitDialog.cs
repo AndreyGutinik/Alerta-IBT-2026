@@ -3,11 +3,11 @@ using Microsoft.Extensions.Logging;
 
 namespace AlertaIBT.App.Views;
 
-/// <summary>The "Sair do IBT Controller?" confirmation: a window like any other, so it is out of every screen capture before it is shown.</summary>
+/// <summary>The "Sair do IBT Controller?" confirmation: a window like any other: it follows the capture rule of <see cref="AppWindowPolicy"/> before it is shown.</summary>
 internal static class ExitDialog
 {
     /// <summary>Builds the dialog (not shown), already excluded from capture.</summary>
-    public static Wpf.Ui.Controls.MessageBox Create(ILogger? logger = null)
+    public static Wpf.Ui.Controls.MessageBox Create(ILogger? logger = null, AppWindowPolicy? policy = null)
     {
         var box = new Wpf.Ui.Controls.MessageBox
         {
@@ -16,7 +16,7 @@ internal static class ExitDialog
             PrimaryButtonText = "Sair",
             CloseButtonText = "Cancelar",
         };
-        CaptureExclusion.Apply(box, logger);
+        (policy ?? AppWindowPolicy.Default).Protect(box);
         return box;
     }
 }
