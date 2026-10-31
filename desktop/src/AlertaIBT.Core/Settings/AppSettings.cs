@@ -367,6 +367,13 @@ public sealed record SystemSettings
     /// <summary>Whether the app looks for a newer version when it opens (and every 30 minutes) and installs it, restarting, when it is idle.</summary>
     public bool AutoUpdate { get; init; } = true;
 
+    /// <summary>
+    /// "Janelas do app aparecem em prints": the main window, the quick panel and the dialogs can be captured (Win+Shift+S, Print Screen) while
+    /// they are away from the LED monitor. Off keeps every app window hidden from capture, as before. On by default, and for an older settings file.
+    /// The bar of the LED is always hidden, whatever this says.
+    /// </summary>
+    public bool AppWindowsInScreenshots { get; init; } = true;
+
     /// <summary>The version whose installation was attempted last, or <c>null</c> before the first attempt (see <see cref="UpdateAttemptPolicy"/>).</summary>
     public string? UpdateAttemptVersion { get; init; }
 
