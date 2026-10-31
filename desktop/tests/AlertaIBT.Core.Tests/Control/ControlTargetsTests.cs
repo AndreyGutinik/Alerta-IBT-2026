@@ -1,4 +1,5 @@
 using AlertaIBT.Core.Control;
+using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Player;
 
 namespace AlertaIBT.Core.Tests.Control;
@@ -71,6 +72,26 @@ internal sealed class FakePlayerControl : IPlayerControl
     {
         Calls.Add(call);
         return Result;
+    }
+}
+
+internal sealed class FakeHolyricsRemote : IHolyricsRemote
+{
+    public List<HolyricsCommand> Posted { get; } = [];
+
+    public bool IsConfigured { get; set; } = true;
+
+    public bool ArrowsActive { get; set; } = true;
+
+    public bool Post(HolyricsCommand command)
+    {
+        if (!IsConfigured)
+        {
+            return false;
+        }
+
+        Posted.Add(command);
+        return true;
     }
 }
 
@@ -229,12 +250,52 @@ public sealed class ControlTargetsTests
     [InlineData(ControlAction.SlidePrevious)]
     [InlineData(ControlAction.VideoPlayPause)]
     [InlineData(ControlAction.LogoToggle)]
-    public void Holyrics_actions_are_not_there_yet(ControlAction action)
+    public void Holyrics_actions_without_a_connection_say_so_and_send_nothing(ControlAction action)
     {
-        var result = Run(action);
+        var result = Run(action); // no Holyrics given
 
         Assert.False(result.Success);
-        Assert.Equal("em breve", result.Message);
+        Assert.Equal(ControlTargets.HolyricsMissingText, result.Message);
+    }
+
+    [Fact]
+    public void Holyrics_actions_are_queued_on_the_connection_and_return_at_once()
+    {
+        var holyrics = new FakeHolyricsRemote();
+        var targets = new ControlTargets(_ndi, _player, _volumes, holyrics);
+
+        ControlResult Go(ControlAction action, ControlCommandKind kind = ControlCommandKind.Trigger, bool on = false) =>
+            targets.Run(new ControlCommand(13, action, kind, On: on));
+
+        Assert.True(Go(ControlAction.SlideNext).Success);
+        Assert.True(Go(ControlAction.SlidePrevious).Success);
+        Assert.True(Go(ControlAction.VideoPlayPause).Success);
+        Assert.True(Go(ControlAction.LogoToggle).Success); // Botao: a trigger flips the app's memory of the logo
+        Assert.True(Go(ControlAction.LogoToggle, ControlCommandKind.SetState, on: true).Success); // Estado: the channel is the logo
+        Assert.True(Go(ControlAction.LogoToggle, ControlCommandKind.SetState, on: false).Success);
+
+        Assert.Equal(
+            [
+                new HolyricsCommand(HolyricsActionKind.SlideNext),
+                new HolyricsCommand(HolyricsActionKind.SlidePrevious),
+                new HolyricsCommand(HolyricsActionKind.VideoPlayPause),
+                new HolyricsCommand(HolyricsActionKind.LogoToggle),
+                new HolyricsCommand(HolyricsActionKind.LogoSet, true),
+                new HolyricsCommand(HolyricsActionKind.LogoSet, false),
+            ],
+            holyrics.Posted);
+        Assert.Empty(_ndi.Calls);
+    }
+
+    [Fact]
+    public void Holyrics_actions_fail_clearly_when_the_connection_is_not_set_up()
+    {
+        var holyrics = new FakeHolyricsRemote { IsConfigured = false };
+        var result = new ControlTargets(_ndi, _player, _volumes, holyrics).Run(new ControlCommand(13, ControlAction.SlideNext, ControlCommandKind.Trigger));
+
+        Assert.False(result.Success);
+        Assert.Equal(ControlTargets.HolyricsMissingText, result.Message);
+        Assert.Empty(holyrics.Posted);
     }
 
     // The whole chain: packets in, controllers out, with the real service and the real engine.

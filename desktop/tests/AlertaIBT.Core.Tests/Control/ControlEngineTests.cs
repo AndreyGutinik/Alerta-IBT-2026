@@ -135,14 +135,13 @@ public sealed class ControlEngineTests
     }
 
     [Fact]
-    public void A_disabled_row_and_a_holyrics_row_never_fire_but_keep_tracking()
+    public void A_disabled_row_never_fires_but_keeps_tracking()
     {
         var rows = new ControlSettings().Rows.Select(r => r.Channel == 9 ? r with { Enabled = false } : r).ToList();
         _engine = Make(rows);
         Baseline();
 
         Assert.Empty(Send((9, 255))); // disabled
-        Assert.Empty(Send((13, 255))); // Holyrics: slide next, not available
         Wait(200);
 
         // Enabling it later does not fire from the level that is already there.

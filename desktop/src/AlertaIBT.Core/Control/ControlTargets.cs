@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Ndi;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Settings;
@@ -75,21 +76,23 @@ public sealed class NdiControlAdapter(NdiService ndi) : IControlNdi
 
 /// <summary>
 /// What the actions of the "Controle" map really do: each one goes through the same controller the buttons use (the NDI service, the player, the volume
-/// rows), never around it. Holyrics actions answer "em breve" until their batch exists.
+/// rows), never around it. The Holyrics actions are queued on <see cref="IHolyricsRemote"/> and sent in the background (they never wait for Holyrics).
 /// </summary>
 public sealed class ControlTargets : IControlTargets
 {
-    /// <summary>The text of a Holyrics action that does not exist yet.</summary>
-    public const string SoonText = "em breve";
+    /// <summary>The text of a Holyrics action when the connection to Holyrics is not filled in.</summary>
+    public const string HolyricsMissingText = "Holyrics sem token (aba Controle)";
 
     private readonly IControlNdi _ndi;
     private readonly IPlayerControl _player;
     private readonly IControlVolumes _volumes;
+    private readonly IHolyricsRemote? _holyrics;
 
     /// <param name="ndi">The NDI engine.</param>
     /// <param name="player">The music player.</param>
     /// <param name="volumes">The volume controls.</param>
-    public ControlTargets(IControlNdi ndi, IPlayerControl player, IControlVolumes volumes)
+    /// <param name="holyrics">The Holyrics connection; without one the Holyrics actions fail with a clear message.</param>
+    public ControlTargets(IControlNdi ndi, IPlayerControl player, IControlVolumes volumes, IHolyricsRemote? holyrics = null)
     {
         ArgumentNullException.ThrowIfNull(ndi);
         ArgumentNullException.ThrowIfNull(player);
@@ -98,6 +101,7 @@ public sealed class ControlTargets : IControlTargets
         _ndi = ndi;
         _player = player;
         _volumes = volumes;
+        _holyrics = holyrics;
     }
 
     /// <inheritdoc />
@@ -141,8 +145,23 @@ public sealed class ControlTargets : IControlTargets
                 _volumes.Set(command.Action, (int)Math.Round(Math.Clamp(command.Value, 0, 100)));
                 return ControlResult.Ok;
 
+            case ControlAction.SlideNext:
+                return Holyrics(new HolyricsCommand(HolyricsActionKind.SlideNext));
+
+            case ControlAction.SlidePrevious:
+                return Holyrics(new HolyricsCommand(HolyricsActionKind.SlidePrevious));
+
+            case ControlAction.VideoPlayPause:
+                return Holyrics(new HolyricsCommand(HolyricsActionKind.VideoPlayPause));
+
+            case ControlAction.LogoToggle:
+                // "Estado": the channel is the logo (ON shows, OFF hides). "Botao": every change flips the app's own memory of the logo.
+                return Holyrics(command.Kind == ControlCommandKind.SetState
+                    ? new HolyricsCommand(HolyricsActionKind.LogoSet, command.On)
+                    : new HolyricsCommand(HolyricsActionKind.LogoToggle));
+
             default:
-                return ControlResult.Fail(SoonText); // the Holyrics actions
+                return ControlResult.Fail("a\U000000E7\U000000E3o desconhecida");
         }
     }
 
@@ -154,6 +173,10 @@ public sealed class ControlTargets : IControlTargets
         ControlAction.VolumeWindows or ControlAction.VolumeHolyrics or ControlAction.VolumePlayer => _volumes.Get(action),
         _ => null,
     };
+
+    // Queued and sent in the background: the answer of Holyrics (or its silence) never holds up the next command of the console.
+    private ControlResult Holyrics(HolyricsCommand command) =>
+        _holyrics is { IsConfigured: true } remote && remote.Post(command) ? ControlResult.Ok : ControlResult.Fail(HolyricsMissingText);
 
     private ControlResult SetVertical(int? slot, double value, string missing) =>
         slot is { } s ? _ndi.SetVerticalPosition(s, (int)Math.Round(Math.Clamp(value, 0, 100))) : ControlResult.Fail(missing);

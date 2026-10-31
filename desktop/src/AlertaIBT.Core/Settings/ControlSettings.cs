@@ -66,7 +66,7 @@ public sealed record ControlSettings
     /// <summary>The highest universe the field accepts.</summary>
     public int MaxUniverse => UniverseOffset ? 32768 : 32767;
 
-    /// <summary>The owner's 21 channels: cameras 1-6, camera on the telao, Cortar, the player keys, 4 Holyrics rows (not available yet), 5 faders.</summary>
+    /// <summary>The owner's 21 channels: cameras 1-6, camera on the telao, Cortar, the player keys, 4 Holyrics rows (slides, video, logo), 5 faders.</summary>
     public static IReadOnlyList<ControlRow> DefaultRows()
     {
         var rows = new List<ControlRow>();
@@ -81,10 +81,10 @@ public sealed record ControlSettings
         rows.Add(new ControlRow(10, ControlAction.Stop, ControlMode.Button));
         rows.Add(new ControlRow(11, ControlAction.Next, ControlMode.Button));
         rows.Add(new ControlRow(12, ControlAction.Previous, ControlMode.Button));
-        rows.Add(new ControlRow(13, ControlAction.SlideNext, ControlMode.Button, Enabled: false));
-        rows.Add(new ControlRow(14, ControlAction.SlidePrevious, ControlMode.Button, Enabled: false));
-        rows.Add(new ControlRow(15, ControlAction.VideoPlayPause, ControlMode.Button, Enabled: false));
-        rows.Add(new ControlRow(16, ControlAction.LogoToggle, ControlMode.Button, Enabled: false));
+        rows.Add(new ControlRow(13, ControlAction.SlideNext, ControlMode.Button));
+        rows.Add(new ControlRow(14, ControlAction.SlidePrevious, ControlMode.Button));
+        rows.Add(new ControlRow(15, ControlAction.VideoPlayPause, ControlMode.Button));
+        rows.Add(new ControlRow(16, ControlAction.LogoToggle, ControlMode.Button));
         rows.Add(new ControlRow(17, ControlAction.PreviewVertical, ControlMode.Fader));
         rows.Add(new ControlRow(18, ControlAction.ProgramVertical, ControlMode.Fader));
         rows.Add(new ControlRow(19, ControlAction.VolumeWindows, ControlMode.Fader));

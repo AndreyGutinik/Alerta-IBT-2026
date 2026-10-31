@@ -50,9 +50,9 @@ public sealed class ControlSettingsTests
         Assert.All(rows.Skip(7).Take(5), r => Assert.Equal(ControlTrigger.AnyChange, r.Trigger));
         Assert.All(rows.Skip(7).Take(5), r => Assert.True(r.Enabled));
 
-        // 13..16 are the Holyrics ones: present, inactive.
+        // 13..16 are the Holyrics ones (slides, video, logo): active since the Holyrics batch.
         Assert.Equal([ControlAction.SlideNext, ControlAction.SlidePrevious, ControlAction.VideoPlayPause, ControlAction.LogoToggle], rows.Skip(12).Take(4).Select(r => r.Action));
-        Assert.All(rows.Skip(12).Take(4), r => Assert.False(r.Enabled));
+        Assert.All(rows.Skip(12).Take(4), r => Assert.True(r.Enabled));
 
         Assert.Equal(
             [ControlAction.PreviewVertical, ControlAction.ProgramVertical, ControlAction.VolumeWindows, ControlAction.VolumeHolyrics, ControlAction.VolumePlayer],
@@ -121,7 +121,7 @@ public sealed class ControlSettingsTests
         Assert.Equal(3, c.Rows.Count);
         Assert.Equal(new ControlRow(512, ControlAction.Take, ControlMode.Button), c.Rows[0]); // the fader mode is not one a Take accepts
         Assert.Equal(new ControlRow(1, ControlAction.SelectCamera, ControlMode.Select, ControlTrigger.AnyChange, 6), c.Rows[1]);
-        Assert.False(c.Rows[2].Enabled); // a Holyrics row never runs until its engine exists
+        Assert.True(c.Rows[2].Enabled); // a Holyrics row is a real action now
     }
 
     [Fact]

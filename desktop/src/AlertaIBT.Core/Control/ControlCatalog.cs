@@ -24,16 +24,16 @@ public enum ControlAction
     /// <summary>The previous track (Voltar).</summary>
     Previous,
 
-    /// <summary>The next slide in Holyrics (not available yet).</summary>
+    /// <summary>The next slide in Holyrics.</summary>
     SlideNext,
 
-    /// <summary>The previous slide in Holyrics (not available yet).</summary>
+    /// <summary>The previous slide in Holyrics.</summary>
     SlidePrevious,
 
-    /// <summary>Plays or pauses the video of Holyrics (not available yet).</summary>
+    /// <summary>Plays or pauses the video of Holyrics.</summary>
     VideoPlayPause,
 
-    /// <summary>Shows or hides the logo of Holyrics (not available yet).</summary>
+    /// <summary>Shows or hides the logo of Holyrics.</summary>
     LogoToggle,
 
     /// <summary>The vertical position (0 to 100 %) of the camera that is in Preview.</summary>
@@ -83,7 +83,7 @@ public enum ControlTrigger
 /// <param name="Name">The name shown on the screen (pt-BR).</param>
 /// <param name="IconKey">The resource key of the Lucide icon.</param>
 /// <param name="Modes">The modes the action accepts; the first is the default.</param>
-/// <param name="Available">False for an action whose engine does not exist yet (the Holyrics ones): its row is shown but never runs.</param>
+/// <param name="Available">False for an action whose engine does not exist (none today): its row is shown but never runs.</param>
 public sealed record ControlActionInfo(ControlAction Action, string Name, string IconKey, IReadOnlyList<ControlMode> Modes, bool Available)
 {
     /// <summary>The mode a new row of this action gets.</summary>
@@ -111,10 +111,10 @@ public static class ControlCatalog
         new(ControlAction.Stop, "Parar a m\U000000FAsica", "LucideSquare", ButtonOnly, true),
         new(ControlAction.Next, "Avan\U000000E7ar a m\U000000FAsica", "LucideSkipForward", ButtonOnly, true),
         new(ControlAction.Previous, "Voltar a m\U000000FAsica", "LucideSkipBack", ButtonOnly, true),
-        new(ControlAction.SlideNext, "Slide pr\U000000F3ximo", "LucidePresentation", ButtonOnly, false),
-        new(ControlAction.SlidePrevious, "Slide anterior", "LucidePresentation", ButtonOnly, false),
-        new(ControlAction.VideoPlayPause, "Play/pausa do v\U000000EDdeo do Holyrics", "LucideVideo", ButtonOnly, false),
-        new(ControlAction.LogoToggle, "Logo do Holyrics", "LucideEye", ButtonOrState, false),
+        new(ControlAction.SlideNext, "Slide pr\U000000F3ximo", "LucidePresentation", ButtonOnly, true),
+        new(ControlAction.SlidePrevious, "Slide anterior", "LucidePresentation", ButtonOnly, true),
+        new(ControlAction.VideoPlayPause, "Play/pausa do v\U000000EDdeo do Holyrics", "LucideVideo", ButtonOnly, true),
+        new(ControlAction.LogoToggle, "Logo do Holyrics", "LucideEye", ButtonOrState, true),
         new(ControlAction.PreviewVertical, "Posi\U000000E7\U000000E3o da pr\U000000E9via", "LucideMoveVertical", FaderOnly, true),
         new(ControlAction.ProgramVertical, "Posi\U000000E7\U000000E3o do no ar", "LucideMoveVertical", FaderOnly, true),
         new(ControlAction.VolumeWindows, "Volume do Windows", "LucideVolume2", FaderOnly, true),
