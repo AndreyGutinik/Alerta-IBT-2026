@@ -57,6 +57,9 @@ public partial class ControlPage : UserControl
         }
     }
 
+    // The address box lost the focus: show the clean address (what was typed with http://, a port or a slash is cleaned and noted).
+    private void OnHostLostFocus(object sender, RoutedEventArgs e) => ViewModel?.NormalizeHolyricsHostText();
+
     // "Colar": the clipboard text becomes the new token (the field opens first when it was locked). A clipboard that cannot be read is simply ignored.
     private void OnPasteTokenClick(object sender, RoutedEventArgs e)
     {

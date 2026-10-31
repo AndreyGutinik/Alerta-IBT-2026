@@ -40,7 +40,7 @@ public sealed class ControlHolyricsViewModelTests
         Assert.Equal("192.168.0.50", rig.Settings.Holyrics.Host);
         Assert.False(rig.Vm.HolyricsHostInvalid);
 
-        rig.Vm.HolyricsHostText = "http://oops/";
+        rig.Vm.HolyricsHostText = "my host";
         Assert.True(rig.Vm.HolyricsHostInvalid);
         Assert.Equal("192.168.0.50", rig.Settings.Holyrics.Host);
     }
@@ -167,8 +167,83 @@ public sealed class ControlHolyricsViewModelTests
 
         await rig.Vm.TestHolyricsCommand.ExecuteAsync(null);
 
-        Assert.Equal("sem resposta", rig.Vm.HolyricsStatusText);
+        Assert.StartsWith("sem resposta: ", rig.Vm.HolyricsStatusText, StringComparison.Ordinal);
         Assert.Equal("bad", rig.Vm.HolyricsTone);
+    }
+
+    [Fact]
+    public async Task A_failed_test_puts_the_reason_in_the_chip_the_full_facts_in_the_tooltip_and_never_the_token()
+    {
+        using var rig = new ControlRig();
+        StoreToken(rig);
+        rig.HolyricsHandler.Down = true;
+
+        await rig.Vm.TestHolyricsCommand.ExecuteAsync(null);
+
+        Assert.StartsWith("sem resposta: ", rig.Vm.HolyricsStatusText, StringComparison.Ordinal);
+        Assert.Contains("CheckPermissions", rig.Vm.HolyricsStatusTip, StringComparison.Ordinal);
+        Assert.Contains("127.0.0.1:8091", rig.Vm.HolyricsStatusTip, StringComparison.Ordinal);
+        Assert.Contains("tempo: ", rig.Vm.HolyricsStatusTip, StringComparison.Ordinal);
+        Assert.True(rig.Vm.HasHolyricsReason);
+        Assert.Equal(rig.Vm.HolyricsStatusText, rig.Vm.HolyricsReasonText);
+        Assert.DoesNotContain(Token, rig.Vm.HolyricsStatusText + rig.Vm.HolyricsStatusTip + rig.Vm.HolyricsReasonText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_pending_permission_shows_amber_and_names_the_actions()
+    {
+        using var rig = new ControlRig();
+        StoreToken(rig);
+        rig.HolyricsHandler.Reply = _ => (HttpStatusCode.Unauthorized, "{\"status\":\"error\",\"error\":{\"unauthorized_actions\":\"SetLogo,ActionNext\",\"request_status\":\"pending\"}}");
+
+        await rig.Vm.TestHolyricsCommand.ExecuteAsync(null);
+
+        Assert.Equal("permiss\U000000E3o pendente no Holyrics para SetLogo, ActionNext", rig.Vm.HolyricsStatusText);
+        Assert.Equal("warn", rig.Vm.HolyricsTone);
+        Assert.True(rig.Vm.HasHolyricsReason);
+    }
+
+    [Fact]
+    public async Task A_connected_chip_has_no_reason_line()
+    {
+        using var rig = new ControlRig();
+        StoreToken(rig);
+
+        await rig.Vm.TestHolyricsCommand.ExecuteAsync(null);
+
+        Assert.False(rig.Vm.HasHolyricsReason);
+        Assert.Equal(string.Empty, rig.Vm.HolyricsReasonText);
+    }
+
+    [Fact]
+    public void An_address_typed_with_a_scheme_and_a_port_is_cleaned_the_port_moves_and_a_note_says_so()
+    {
+        using var rig = new ControlRig();
+
+        rig.Vm.HolyricsHostText = "http://192.168.0.50:9001/";
+
+        Assert.False(rig.Vm.HolyricsHostInvalid);
+        Assert.Equal("192.168.0.50", rig.Settings.Holyrics.Host);
+        Assert.Equal(9001, rig.Settings.Holyrics.Port);
+        Assert.Equal("9001", rig.Vm.HolyricsPort.Text);
+        Assert.True(rig.Vm.HasHolyricsHostHint);
+
+        rig.Vm.NormalizeHolyricsHostText();
+
+        Assert.Equal("192.168.0.50", rig.Vm.HolyricsHostText);
+        Assert.True(rig.Vm.HasHolyricsHostHint); // the note stays until the next edit
+    }
+
+    [Fact]
+    public void An_address_with_spaces_is_refused_with_the_reason_and_not_saved()
+    {
+        using var rig = new ControlRig();
+
+        rig.Vm.HolyricsHostText = "127.0.0.1 8091";
+
+        Assert.True(rig.Vm.HolyricsHostInvalid);
+        Assert.Contains("espa", rig.Vm.HolyricsHostHint, StringComparison.Ordinal);
+        Assert.Equal("127.0.0.1", rig.Settings.Holyrics.Host);
     }
 
     [Fact]

@@ -651,6 +651,7 @@
                                 Grid.Column="1"
                                 MinWidth="96"
                                 AutomationProperties.Name="Endereço do Holyrics"
+                                LostFocus="OnHostLostFocus"
                                 Style="{StaticResource HostBox}"
                                 Text="{Binding HolyricsHostText, UpdateSourceTrigger=PropertyChanged}" />
                             <TextBlock
@@ -781,6 +782,20 @@
                     </Border>
                 </theme:AdaptiveGrid>
 
+                <!-- Why Holyrics is not answering (the chip trims long words; here they show whole). -->
+                <TextBlock
+                    x:Name="HolyricsReasonLine"
+                    Margin="0,8,0,0"
+                    Style="{StaticResource IbtHint}"
+                    Text="{Binding HolyricsReasonText}"
+                    Visibility="{Binding HasHolyricsReason, Converter={StaticResource BoolToVisibility}}" />
+                <!-- What was fixed in the address box, or why it is refused. -->
+                <TextBlock
+                    x:Name="HolyricsHostHintLine"
+                    Margin="0,8,0,0"
+                    Style="{StaticResource IbtHint}"
+                    Text="{Binding HolyricsHostHint}"
+                    Visibility="{Binding HasHolyricsHostHint, Converter={StaticResource BoolToVisibility}}" />
                 <TextBlock
                     Margin="0,8,0,0"
                     Style="{StaticResource IbtHint}"

@@ -183,8 +183,37 @@ public sealed class ControlLayoutTests
                 e.HolyricsHandler.Down = true;
                 e.Vm.TestHolyricsCommand.ExecuteAsync(null).GetAwaiter().GetResult();
             });
-            Assert.Equal("sem resposta", failed.Vm.HolyricsStatusText);
+            Assert.StartsWith("sem resposta: ", failed.Vm.HolyricsStatusText, StringComparison.Ordinal);
+            AssertReasonShows(failed, width);
             failed.Snapshot($"holyrics-{width}-sem-resposta");
+
+            using var pending = new Rig(width, e =>
+            {
+                WithToken(e);
+                e.HolyricsHandler.Reply = _ => (System.Net.HttpStatusCode.Unauthorized, "{\"status\":\"error\",\"error\":{\"unauthorized_actions\":\"ActionNext,ActionPrevious,MediaPlayerAction,GetMediaPlayerInfo,SetLogo\",\"request_status\":\"pending\"}}");
+                e.Vm.TestHolyricsCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            });
+            AssertReasonShows(pending, width);
+            pending.Snapshot($"holyrics-{width}-permissao-pendente");
+
+            using var broken = new Rig(width, e =>
+            {
+                WithToken(e);
+                e.HolyricsHandler.Reply = _ => (System.Net.HttpStatusCode.InternalServerError, "oops");
+                e.Vm.TestHolyricsCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            });
+            Assert.Equal("resposta inesperada (HTTP 500)", broken.Vm.HolyricsStatusText);
+            AssertReasonShows(broken, width);
+            broken.Snapshot($"holyrics-{width}-resposta-inesperada");
+
+            using var hint = new Rig(width, e =>
+            {
+                WithToken(e);
+                e.Vm.HolyricsHostText = "http://192.168.0.50:8091/";
+            });
+            Assert.True(hint.Vm.HasHolyricsHostHint);
+            Assert.True(hint.BoundsOf(hint.Named<TextBlock>("HolyricsHostHintLine")).Height > 0);
+            hint.Snapshot($"holyrics-{width}-endereco-ajustado");
 
             using var denied = new Rig(width, e =>
             {
@@ -202,6 +231,22 @@ public sealed class ControlLayoutTests
             });
             ok.Snapshot($"holyrics-{width}-conectado");
         });
+    }
+
+    // A failure or a wait: the chip keeps inside the card (its words may be trimmed), the whole reason shows on the line under the grid, and the tooltip has the facts.
+    private static void AssertReasonShows(Rig rig, double width)
+    {
+        var card = rig.BoundsOf(rig.Named<CardSection>("HolyricsCard"));
+        var chip = rig.BoundsOf(rig.Named<Border>("HolyricsChip"));
+        var line = rig.Named<TextBlock>("HolyricsReasonLine");
+        var lineBounds = rig.BoundsOf(line);
+        Assert.True(chip.Right <= card.Right + 0.5 && chip.Left >= card.Left, $"chip {chip} card {card}");
+        Assert.Equal(System.Windows.Visibility.Visible, line.Visibility);
+        Assert.True(lineBounds.Height > 0 && lineBounds.Right <= card.Right + 0.5 && lineBounds.Bottom <= card.Bottom + 0.5, $"{width}: line {lineBounds} card {card}");
+        Assert.Equal(rig.Vm.HolyricsStatusText, line.Text);
+        var tip = Assert.IsType<string>(rig.Named<Border>("HolyricsChip").ToolTip);
+        Assert.Contains("endere", tip, StringComparison.Ordinal);
+        Assert.DoesNotContain("TOKEN-FOR-LAYOUT-TESTS", tip + line.Text, StringComparison.Ordinal);
     }
 
     // A console that is on: the first packet (baseline), then channel 7 ON, camera 2 ON and the faders at different places.

@@ -47,7 +47,7 @@ Modos: **Botão** roda a ação (valor 128 ou mais é "ligado"; "Qualquer mudan�
 O app controla o Holyrics **só pela API HTTP dele** (nada de teclas simuladas na janela). Cartão **Holyrics** da aba Controle:
 
 1. No Holyrics: *Arquivo > Configurações > API Server*: ligue o servidor, anote a porta (padrão **8091**) e crie um **token** com permissão para `ActionNext`, `ActionPrevious`, `MediaPlayerAction`, `GetMediaPlayerInfo` e `SetLogo`.
-2. No app: endereço (**127.0.0.1** se o Holyrics está neste PC; o IP dele se for outro PC), porta, token (**Colar**; fica protegido por DPAPI, só aparecem pontos) e o raio **Testar**. O chip diz **conectado**, **token sem permissão para X**, **token não aceito** ou **sem resposta** (2 s). Testar só pergunta (`CheckPermissions` e `GetMediaPlayerInfo`), não muda nada no Holyrics.
+2. No app: endereço (**127.0.0.1** se o Holyrics está neste PC; o IP dele se for outro PC), porta, token (**Colar**; fica protegido por DPAPI, só aparecem pontos) e o raio **Testar**. O chip diz **conectado** ou o **motivo** da falha (ver "Se o Holyrics não responde" abaixo; passe o mouse no chip para ver os detalhes). Testar só pergunta (`CheckPermissions` e `GetMediaPlayerInfo`), não muda nada no Holyrics.
 3. Sem token nada é enviado; as linhas 13 a 16 falham no log com "Holyrics sem token".
 
 | Canal | Ação | O que o app manda (`POST /api/AÇÃO?token=...`, corpo JSON) |
@@ -61,7 +61,25 @@ O app controla o Holyrics **só pela API HTTP dele** (nada de teclas simuladas n
 
 **Sem apresentação aberta**, `ActionNext`/`ActionPrevious` respondem `{"status":"error","error":"No presentation available"}` (HTTP 200): o app trata como "nada para mover", não como falha da conexão.
 
-**Anti-inundação:** um botão segurado não sobrecarrega o Holyrics: as chamadas saem uma de cada vez em segundo plano, no máximo uma de cada tipo esperando, a mesma ação não repete em menos de 150 ms e a chamada nunca trava o app (nem a fila da MA2). O Holyrics fora do ar não enche o log (1 aviso por tipo a cada 5 s). Não entra no backup.
+**Anti-inundação:** um botão segurado não sobrecarrega o Holyrics: as chamadas saem uma de cada vez em segundo plano, no máximo uma de cada tipo esperando, a mesma ação não repete em menos de 150 ms e a chamada nunca trava o app (nem a fila da MA2). O Holyrics fora do ar não enche o log (a mesma falha não repete em 5 s). Não entra no backup.
+
+**Se o Holyrics não responde (o chip e o log dizem o motivo).** O chip mostra o motivo curto; o balão (mouse em cima) e a linha embaixo do cartão trazem tudo: ação, endereço:porta, status HTTP, exceção e tempo. O token nunca aparece (nem no balão, nem no log, nem em texto de erro). O mesmo motivo vai ao log (1 linha por falha; a mesma linha em menos de 5 s não repete e a seguinte diz "repetido N vezes").
+
+| O chip diz | Causa provável | O que fazer |
+| --- | --- | --- |
+| sem resposta: conexão recusada em IP:porta | Holyrics fechado, API Server desligado ou porta errada | Abrir o Holyrics, ligar o servidor, conferir a porta (8091) |
+| sem resposta: não conectou em IP:porta ... (porta fechada ou endereço errado) | Nada responde nesse endereço (IP errado, outro PC desligado, firewall) | Conferir o IP e a rede |
+| sem resposta: endereço não encontrado | Nome de PC que não existe | Usar o IP |
+| sem resposta: demorou mais de 2 s | Conectou mas o Holyrics não respondeu a tempo | Ver se o Holyrics está travado ou ocupado |
+| sem resposta: demorou mais de 15 s (... esperando você aprovar ...) | Token novo: o Holyrics mostra na tela dele um pedido para aprovar a permissão | Aprovar no Holyrics e clicar Testar de novo |
+| aguardando você aprovar no Holyrics | O Testar está esperando essa aprovação (até 15 s) | Olhar a tela do Holyrics |
+| permissão pendente / negada no Holyrics para X | O token não tem X (pendente: pedido aberto no Holyrics; negada: foi recusado) | Dar a permissão ao token no Holyrics e testar de novo |
+| token não aceito (HTTP 401) | Token errado ou apagado | Colar o token certo |
+| o Holyrics recusou o formato do pedido (HTTP 415) | O Holyrics só aceita `Content-Type: application/json` exato; com `; charset=utf-8` responde 415 `{}` (era a causa do "erro do Holyrics" e do "sem resposta" nas versões anteriores a esta correção) | Atualizar o app |
+| erro do Holyrics: MENSAGEM | O Holyrics respondeu `status: error` com essa mensagem | Ler a mensagem |
+| resposta inesperada (HTTP N) / resposta que não é do Holyrics (porta errada?) | Outro programa na porta, ou resposta fora do padrão | Conferir a porta |
+
+Endereço: o campo aceita `127.0.0.1`, `http://127.0.0.1:8091/` e afins; o `http://`, a barra e o `:porta` saem (a porta vai para o campo de porta) e uma nota diz o que foi ajustado; espaços no meio são recusados. O app não usa proxy do Windows para falar com o Holyrics (a API é local ou da rede) e tenta IPv4 antes de IPv6 (o `localhost` não perde tempo no `::1`). No Windows, uma porta fechada leva uns 2 s para recusar; por isso a conexão ganha 3 s a mais antes de virar "não conectou".
 
 **Setas do painel rápido:** com a chave **Setas do painel rápido controlam o Holyrics** ligada (padrão) e o token configurado, enquanto você digita o aviso na caixa do painel da bandeja, **Seta direita = slide próximo** e **Seta esquerda = slide anterior**. Só vale com o cursor nessa caixa (nunca no resto do Windows), sem Shift/Ctrl/Alt, tecla segurada não repete, e as setas **não movem mais o cursor do texto** (use mouse, Home e End). Sem token ou com a chave desligada elas movem o cursor normalmente. Funciona igual com ou sem a MA2.
 
