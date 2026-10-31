@@ -1,6 +1,7 @@
 using AlertaIBT.App.Platform;
 using AlertaIBT.App.Services;
 using AlertaIBT.Core.Alerts;
+using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -57,6 +58,7 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
     private readonly TimeProvider _clock;
     private readonly ILogger _logger;
     private readonly object _gate = new();
+    private readonly IHolyricsRemote? _holyrics;
 
     private ITimer? _previewTimer;
     private ITimer? _feedbackTimer;
@@ -128,6 +130,7 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
     /// <param name="clock">Drives the preview delay and the message time.</param>
     /// <param name="logger">Receives failures.</param>
     /// <param name="player">The music player, for the compact row at the bottom (shown only while the player is on); <c>null</c> for no row.</param>
+    /// <param name="holyrics">Where the Left/Right arrows of the field go when the connection is set up; <c>null</c> (the window of the Início tab) leaves the arrows to the caret.</param>
     public QuickPanelViewModel(
         IAlertGateway gateway,
         StatusHub hub,
@@ -135,7 +138,8 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
         Action<Action>? post = null,
         TimeProvider? clock = null,
         ILogger? logger = null,
-        PlayerViewModel? player = null)
+        PlayerViewModel? player = null,
+        IHolyricsRemote? holyrics = null)
     {
         ArgumentNullException.ThrowIfNull(gateway);
         ArgumentNullException.ThrowIfNull(hub);
@@ -147,6 +151,7 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
         _clock = clock ?? TimeProvider.System;
         _logger = logger ?? NullLogger.Instance;
         Player = player;
+        _holyrics = holyrics;
         if (player is not null)
         {
             player.PropertyChanged += OnPlayerPropertyChanged;
@@ -238,6 +243,29 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
         RefreshStatus();
         RefreshQueue();
         FocusInputRequested?.Invoke();
+    }
+
+    /// <summary>
+    /// A Left (<paramref name="next"/> false) or Right (true) arrow pressed in the field of the panel, with no Shift/Ctrl/Alt. Returns true when the key was
+    /// taken for Holyrics (the window then marks it handled so the caret does not move): the switch "Setas do painel rápido controlam o Holyrics" is on and the
+    /// connection is set up. A key repeated by holding it down is taken but not sent, so a held arrow neither moves the caret nor floods Holyrics. The send is
+    /// queued in the background, never on the UI thread.
+    /// </summary>
+    /// <param name="next">Right (next slide) or Left (previous slide).</param>
+    /// <param name="isRepeat">The key is an auto-repeat of one already down.</param>
+    public bool TryForwardArrow(bool next, bool isRepeat)
+    {
+        if (_holyrics is not { ArrowsActive: true } remote)
+        {
+            return false;
+        }
+
+        if (!isRepeat)
+        {
+            remote.Post(new HolyricsCommand(next ? HolyricsActionKind.SlideNext : HolyricsActionKind.SlidePrevious));
+        }
+
+        return true;
     }
 
     /// <summary>Esc: clears the field; on an empty field, closes the panel.</summary>

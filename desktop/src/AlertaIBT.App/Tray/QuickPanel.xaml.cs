@@ -22,6 +22,9 @@ public partial class QuickPanel : Window, IQuickPanelWindow
     private readonly DispatcherTimer _progress;
     private IntPtr _previousForeground;
 
+    /// <summary>Whether the keyboard focus is in the text box (a test replaces it: a window that is not shown never has the focus).</summary>
+    internal Func<bool> InputHasFocus { get; set; } = () => false;
+
     /// <param name="viewModel">The logic of the panel; the window binds to it.</param>
     /// <param name="policy">Where windows may open (never the LED) and the capture exclusion; a plain one when omitted.</param>
     public QuickPanel(QuickPanelViewModel viewModel, AppWindowPolicy? policy = null)
@@ -42,6 +45,7 @@ public partial class QuickPanel : Window, IQuickPanelWindow
         _viewModel.FocusInputRequested += FocusInput;
         _viewModel.SendRejected += Shake;
         Deactivated += (_, _) => HideCore(restoreFocus: false); // the user clicked somewhere else: that window already has the focus
+        InputHasFocus = () => InputBox.IsKeyboardFocused;
         PreviewKeyDown += OnPreviewKeyDown;
     }
 
@@ -125,6 +129,17 @@ public partial class QuickPanel : Window, IQuickPanelWindow
 
     private void OnInputKeyDown(object sender, KeyEventArgs e)
     {
+        // Left/Right while the owner types an alert are slide back/next in Holyrics (only here, only with the field focused, never global). A key with a
+        // modifier (Shift+Left selects text, Ctrl+Left jumps a word) stays a normal key.
+        if (e.Key is Key.Left or Key.Right
+            && InputHasFocus()
+            && Keyboard.Modifiers == ModifierKeys.None
+            && _viewModel.TryForwardArrow(e.Key == Key.Right, e.IsRepeat))
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key != Key.Enter || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
         {
             return; // Shift+Enter is a new line

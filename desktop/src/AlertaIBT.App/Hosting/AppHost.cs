@@ -11,6 +11,7 @@ using AlertaIBT.App.Views;
 using AlertaIBT.Core.Backup;
 using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Control;
+using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Firebase;
@@ -197,10 +198,17 @@ public static class AppHost
     private static void ConfigureControl(IServiceCollection services)
     {
         services.AddSingleton<IControlVolumes>(provider => new SomControlVolumes(provider.GetRequiredService<SomViewModel>(), PostToUi));
+        // Holyrics through its HTTP API (slides, video, logo): used by the Controle map and by the arrows of the quick panel. Nothing is sent until a token is set.
+        services.AddSingleton(provider => new HolyricsClient(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<ISecretProtector>(),
+            provider.GetRequiredService<ILogger<HolyricsClient>>()));
+        services.AddSingleton<IHolyricsRemote>(provider => provider.GetRequiredService<HolyricsClient>());
         services.AddSingleton<IControlTargets>(provider => new ControlTargets(
             new NdiControlAdapter(provider.GetRequiredService<NdiService>()),
             provider.GetRequiredService<MusicPlayer>(),
-            provider.GetRequiredService<IControlVolumes>()));
+            provider.GetRequiredService<IControlVolumes>(),
+            provider.GetRequiredService<IHolyricsRemote>()));
         services.AddSingleton(provider => new ControlService(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<IControlTargets>(),
@@ -284,7 +292,8 @@ public static class AppHost
                 () => overlay.PassProgress,
                 PostToUi,
                 logger: provider.GetRequiredService<ILogger<QuickPanelViewModel>>(),
-                player: provider.GetRequiredService<PlayerViewModel>());
+                player: provider.GetRequiredService<PlayerViewModel>(),
+                holyrics: provider.GetRequiredService<IHolyricsRemote>());
         });
         services.AddSingleton(provider =>
         {
@@ -385,7 +394,9 @@ public static class AppHost
             provider.GetRequiredService<ControlService>(),
             (title, message) => ConfirmDialog.Ask(title, message, provider.GetRequiredService<AppWindowPolicy>()),
             PostToUi,
-            provider.GetRequiredService<ILogger<ControlViewModel>>()));
+            provider.GetRequiredService<ILogger<ControlViewModel>>(),
+            provider.GetRequiredService<HolyricsClient>(),
+            provider.GetRequiredService<ISecretProtector>()));
         services.AddSingleton(provider => new MainViewModel(
             provider.GetRequiredService<StatusHub>(),
             provider.GetRequiredService<HomeViewModel>(),
