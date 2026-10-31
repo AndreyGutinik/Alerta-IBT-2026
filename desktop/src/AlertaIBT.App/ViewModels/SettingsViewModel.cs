@@ -109,6 +109,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _autoUpdate;
 
     [ObservableProperty]
+    private bool _appWindowsInScreenshots = true;
+
+    [ObservableProperty]
     private string _updateResultText = string.Empty;
 
     [ObservableProperty]
@@ -486,6 +489,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    // "Janelas do app aparecem em prints": saved now; the window policy reads the setting and re-applies it to the open windows.
+    partial void OnAppWindowsInScreenshotsChanged(bool value)
+    {
+        if (!_quiet)
+        {
+            _saver.Queue("system.appWindowsInScreenshots", s => s with { System = s.System with { AppWindowsInScreenshots = value } });
+        }
+    }
+
     // "Travar o mouse na tela principal": the switch takes effect at once (saved now, the shell follows the setting), so no 600 ms wait.
     partial void OnMouseLockEnabledChanged(bool value)
     {
@@ -649,6 +661,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             ClearHistoryWeekly = settings.System.ClearHistoryWeekly;
             AlertsEnabled = settings.System.AlertsEnabled;
             AutoUpdate = settings.System.AutoUpdate;
+            AppWindowsInScreenshots = settings.System.AppWindowsInScreenshots;
             SiteUrl.Set(settings.Site.DatabaseUrl);
             SiteApiKey.Set(settings.Site.ApiKey);
             SiteEmail.Set(settings.Site.DeviceEmail);

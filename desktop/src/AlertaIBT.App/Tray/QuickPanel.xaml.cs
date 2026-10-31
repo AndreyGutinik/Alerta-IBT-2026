@@ -2,6 +2,8 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using AlertaIBT.App.Platform;
@@ -37,7 +39,7 @@ public partial class QuickPanel : Window, IQuickPanelWindow
         InitializeComponent();
 
         // The handle is made now, hidden: the panel is out of every screen capture before its first pixel (the LED is captured).
-        _policy.Exclude(this);
+        _policy.Protect(this);
 
         _progress = new DispatcherTimer(ProgressTick, DispatcherPriority.Background, (_, _) => _viewModel.RefreshProgress(), Dispatcher);
         _progress.Stop();
@@ -60,6 +62,7 @@ public partial class QuickPanel : Window, IQuickPanelWindow
         Opacity = 0;
         Show();
         PositionNearTray();
+        _policy.Reevaluate(this); // moved by code: the move events may not have fired yet
         Activate();
         NativeMethods.SetForegroundWindow(new WindowInteropHelper(this).Handle);
         AnimateIn();
@@ -103,6 +106,49 @@ public partial class QuickPanel : Window, IQuickPanelWindow
 
         _previousForeground = IntPtr.Zero;
         Hidden?.Invoke();
+    }
+
+    private void OnCopyImage(object sender, RoutedEventArgs e) => CopyPanelImage();
+
+    /// <summary>
+    /// Puts a picture of the panel (the card, without the shadow margin) on the clipboard, so it can be pasted in a chat: the tray panel closes when
+    /// another window (the Win+Shift+S overlay) takes the focus, so a screenshot of it by hotkey is not reliable. Works whatever the capture rule says.
+    /// </summary>
+    /// <returns>Whether the picture was copied (the clipboard may be locked by another program).</returns>
+    internal bool CopyPanelImage()
+    {
+        if (Card.ActualWidth < 1 || Card.ActualHeight < 1)
+        {
+            return false;
+        }
+
+        try
+        {
+            var dpi = VisualTreeHelper.GetDpi(this);
+            var width = Card.ActualWidth;
+            var height = Card.ActualHeight;
+            var visual = new DrawingVisual();
+            using (var context = visual.RenderOpen())
+            {
+                context.DrawRectangle(new VisualBrush(Card) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null, new Rect(0, 0, width, height));
+            }
+
+            var bitmap = new RenderTargetBitmap(
+                (int)Math.Ceiling(width * dpi.DpiScaleX),
+                (int)Math.Ceiling(height * dpi.DpiScaleY),
+                96 * dpi.DpiScaleX,
+                96 * dpi.DpiScaleY,
+                PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            Clipboard.SetImage(bitmap);
+            CopyImageButton.ToolTip = "Imagem copiada: cole com Ctrl+V";
+            return true;
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.ExternalException or InvalidOperationException)
+        {
+            CopyImageButton.ToolTip = "N\U000000E3o consegui copiar: tente de novo";
+            return false;
+        }
     }
 
     private void FocusInput()

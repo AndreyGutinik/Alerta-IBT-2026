@@ -104,7 +104,7 @@ public sealed class QuickPanelWindowTests
     }
 
     [Fact]
-    public void The_panel_is_excluded_from_capture_before_it_is_ever_shown()
+    public void The_panel_is_capturable_by_default_and_excluded_when_the_setting_is_off_or_it_is_over_the_LED()
     {
         WpfTestHost.Run(() =>
         {
@@ -113,7 +113,43 @@ public sealed class QuickPanelWindowTests
             var handle = new System.Windows.Interop.WindowInteropHelper(rig.Window).Handle;
             Assert.NotEqual(IntPtr.Zero, handle);
             Assert.False(rig.Window.IsVisible);
-            Assert.True(CaptureExclusion.IsExcluded(handle));
+            Assert.False(CaptureExclusion.IsExcluded(handle)); // "janela pequena": the owner can screenshot it
+
+            var primary = Platform.PolicyFakes.Primary();
+            using var hidden = new Rig(Platform.PolicyFakes.Policy(null, [primary], (0, 0), () => false));
+            Assert.True(CaptureExclusion.IsExcluded(new System.Windows.Interop.WindowInteropHelper(hidden.Window).Handle));
+
+            var led = Platform.PolicyFakes.FakeLed();
+            var overLed = Platform.PolicyFakes.Policy(led, [primary, led], (0, 0));
+            using var onLed = new Rig(overLed);
+            var onLedHandle = new System.Windows.Interop.WindowInteropHelper(onLed.Window).Handle;
+            Platform.PolicyFakes.MoveTo(onLedHandle, led.X + 20, led.Y + 20);
+            overLed.Refresh();
+            Assert.True(CaptureExclusion.IsExcluded(onLedHandle));
+        });
+    }
+
+    [Fact]
+    public void Copy_image_puts_a_bitmap_of_the_panel_on_the_clipboard()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig();
+            rig.Window.ShowPanel();
+            try
+            {
+                rig.Window.UpdateLayout();
+                var copied = rig.Window.CopyPanelImage();
+
+                Assert.True(copied);
+                Assert.True(System.Windows.Clipboard.ContainsImage());
+                var image = Assert.IsAssignableFrom<System.Windows.Media.Imaging.BitmapSource>(System.Windows.Clipboard.GetImage());
+                Assert.True(image.PixelWidth > 200 && image.PixelHeight > 100);
+            }
+            finally
+            {
+                rig.Window.HidePanel();
+            }
         });
     }
 
@@ -177,7 +213,7 @@ public sealed class QuickPanelWindowTests
         {
             using var rig = new Rig();
 
-            var buttons = rig.Find<Button>().ToList();
+            var buttons = rig.Find<Button>().Where(b => b.Name != "CopyImageButton").ToList(); // the copy-image icon is a separate row above the box
 
             Assert.Equal(4, buttons.Count);
             var bounds = buttons.Select(rig.BoundsOf).ToList();

@@ -152,6 +152,7 @@
 
     <!-- The 12 px around the card hold its shadow; they also keep the panel off the screen edge. -->
     <Border
+        x:Name="Card"
         Margin="12"
         Padding="16"
         Background="{StaticResource IbtSurfaceBrush}"
@@ -287,17 +288,34 @@
                         Data="{StaticResource LucideMessageSquare}"
                         Style="{StaticResource IbtRowIcon}"
                         ToolTip="Novo aviso" />
-                    <Border
+                    <StackPanel
                         HorizontalAlignment="Right"
-                        AutomationProperties.Name="Dicas"
-                        Style="{StaticResource SectionInfo}"
-                        ToolTip="{Binding InfoTip}">
-                        <Path
-                            Width="15"
-                            Height="15"
-                            Data="{StaticResource LucideInfo}"
-                            Style="{StaticResource LucideIcon}" />
-                    </Border>
+                        Orientation="Horizontal">
+                        <!-- Win+Shift+S makes the panel lose focus (it closes), so the panel copies its own picture to the clipboard instead. -->
+                        <Button
+                            x:Name="CopyImageButton"
+                            Margin="0,-5,8,-5"
+                            AutomationProperties.Name="Copiar imagem do painel"
+                            Click="OnCopyImage"
+                            Style="{StaticResource IbtToolButton}"
+                            ToolTip="Copiar imagem do painel (para colar numa conversa)">
+                            <Path
+                                Width="16"
+                                Height="16"
+                                Data="{StaticResource LucideCamera}"
+                                Style="{StaticResource LucideIcon}" />
+                        </Button>
+                        <Border
+                            AutomationProperties.Name="Dicas"
+                            Style="{StaticResource SectionInfo}"
+                            ToolTip="{Binding InfoTip}">
+                            <Path
+                                Width="15"
+                                Height="15"
+                                Data="{StaticResource LucideInfo}"
+                                Style="{StaticResource LucideIcon}" />
+                        </Border>
+                    </StackPanel>
                 </Grid>
 
                 <Grid Margin="0,6,0,0">

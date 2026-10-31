@@ -194,7 +194,7 @@ public sealed class MainWindowTests
     }
 
     [Fact]
-    public void The_window_is_excluded_from_capture_before_it_is_ever_shown()
+    public void The_window_is_capturable_by_default_and_excluded_when_the_setting_is_off_or_it_is_over_the_LED()
     {
         WpfTestHost.Run(() =>
         {
@@ -203,7 +203,22 @@ public sealed class MainWindowTests
             var handle = new System.Windows.Interop.WindowInteropHelper(rig.Window).Handle;
             Assert.NotEqual(IntPtr.Zero, handle);
             Assert.False(rig.Window.IsVisible);
-            Assert.True(CaptureExclusion.IsExcluded(handle));
+            Assert.False(CaptureExclusion.IsExcluded(handle)); // the owner can screenshot the app
+
+            var primary = PolicyFakes.Primary();
+            using var hidden = new Rig(policy: PolicyFakes.Policy(null, [primary], (0, 0), () => false));
+            Assert.True(CaptureExclusion.IsExcluded(new System.Windows.Interop.WindowInteropHelper(hidden.Window).Handle));
+
+            var led = PolicyFakes.FakeLed();
+            var overLed = PolicyFakes.Policy(led, [primary, led], (0, 0));
+            using var onLed = new Rig(policy: overLed);
+            var onLedHandle = new System.Windows.Interop.WindowInteropHelper(onLed.Window).Handle;
+            PolicyFakes.MoveTo(onLedHandle, led.X + 20, led.Y + 20);
+            overLed.Refresh();
+            Assert.True(CaptureExclusion.IsExcluded(onLedHandle));
+            PolicyFakes.MoveTo(onLedHandle, primary.X + 20, primary.Y + 20);
+            overLed.Refresh();
+            Assert.False(CaptureExclusion.IsExcluded(onLedHandle));
         });
     }
 
@@ -1116,8 +1131,9 @@ public sealed class MainWindowTests
             Assert.Contains("Modelo do Gemini", texts);
             Assert.Contains("Sistema", texts);
             Assert.Contains("Atalho", texts);
-            Assert.Contains("Esconder da live (OBS e NDI)", texts);
+            Assert.Contains("Barra sempre fora do OBS e do NDI", texts);
             Assert.Contains("sempre ligado", texts);
+            Assert.Contains("Janelas do app aparecem em prints", texts);
             Assert.Contains("Diagn\U000000F3stico", texts);
             Assert.Contains("M\U000000E9dia \U000000B7 56 px", texts);
             Assert.Equal("Ctrl+Alt+Espa\U000000E7o", rig.Window.Settings.HotkeyBox.Text);

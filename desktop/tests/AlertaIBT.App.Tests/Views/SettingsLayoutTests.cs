@@ -307,6 +307,7 @@ public sealed class SettingsLayoutTests
                 (page.ModelBox, page.GeminiSection),
                 (page.ResetModelButton, page.GeminiSection),
                 (page.HideFromLiveRow, page.SystemSection),
+                (page.ScreenshotsSwitch, page.SystemSection),
                 (page.SiteStatusRow, page.SystemSection),
             };
             foreach (var (control, section) in expected)
@@ -316,9 +317,9 @@ public sealed class SettingsLayoutTests
 
             // The settings that are a row, in the order of the page, each in its card and each with an icon.
             var rows = rig.Find<SettingRow>().ToList();
-            Assert.Equal(11, rows.Count);
+            Assert.Equal(12, rows.Count);
             Assert.Equal(
-                ["Barra no LED", "Alertas", "Mouse", "Mouse", "Mouse", "Painel r\U000000E1pido", "Hist\U000000F3rico", "Atualiza\U000000E7\U000000F5es", "Atualiza\U000000E7\U000000F5es", "Sistema", "Sistema"],
+                ["Barra no LED", "Alertas", "Mouse", "Mouse", "Mouse", "Painel r\U000000E1pido", "Hist\U000000F3rico", "Atualiza\U000000E7\U000000F5es", "Atualiza\U000000E7\U000000F5es", "Sistema", "Sistema", "Sistema"],
                 rows.Select(r => (string)SectionOf(r)!.Header));
             Assert.All(rows, r => Assert.NotNull(r.Icon));
         });
@@ -511,7 +512,7 @@ public sealed class SettingsLayoutTests
             using var rig = new Rig(1100);
             var page = rig.Page;
 
-            foreach (var row in new[] { page.AlertsRow, page.MouseLockRow, page.MouseLockHotkeyRow, page.TripleCtrlRow, page.QuickPanelHotkeyRow, page.ClearHistoryRow, page.AutoUpdateRow })
+            foreach (var row in new[] { page.AlertsRow, page.MouseLockRow, page.MouseLockHotkeyRow, page.TripleCtrlRow, page.QuickPanelHotkeyRow, page.ClearHistoryRow, page.AutoUpdateRow, page.ScreenshotsRow })
             {
                 var icon = IconOf(row);
                 Assert.Equal(Visibility.Visible, icon.Visibility);

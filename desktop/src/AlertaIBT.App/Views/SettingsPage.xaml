@@ -1066,9 +1066,10 @@
                         Icon="{StaticResource LucideShieldCheck}"
                         Style="{StaticResource IbtCardSectionStyle}">
                         <StackPanel Margin="0,0,0,-8">
+                            <!-- The bar of the LED is always hidden from OBS and NDI; the other windows follow this switch (and hide over the LED anyway). -->
                             <local:SettingRow
                                 x:Name="HideFromLiveRow"
-                                Title="Esconder da live (OBS e NDI)"
+                                Title="Barra sempre fora do OBS e do NDI"
                                 Icon="{StaticResource LucideEye}"
                                 Style="{StaticResource SettingRowStyle}">
                                 <StackPanel Orientation="Horizontal">
@@ -1085,6 +1086,19 @@
                                         Foreground="{StaticResource IbtOkBrush}"
                                         Text="sempre ligado" />
                                 </StackPanel>
+                            </local:SettingRow>
+
+                            <local:SettingRow
+                                x:Name="ScreenshotsRow"
+                                Title="Janelas do app aparecem em prints"
+                                Icon="{StaticResource LucideCamera}"
+                                Info="Ligado: a janela principal, o painel rápido e as caixas de diálogo aparecem em Win+Shift+S e Print Screen.&#10;Mesmo ligado, uma janela que passa pelo monitor do LED fica escondida da captura (o OBS e o NDI mostram o LED).&#10;Desligado: todas as janelas do app ficam sempre escondidas. A barra do LED fica escondida sempre."
+                                Style="{StaticResource SettingRowStyle}">
+                                <ToggleButton
+                                    x:Name="ScreenshotsSwitch"
+                                    AutomationProperties.Name="Janelas do app aparecem em prints"
+                                    IsChecked="{Binding AppWindowsInScreenshots, Mode=TwoWay}"
+                                    Style="{StaticResource IbtSwitch}" />
                             </local:SettingRow>
 
                             <local:SettingRow

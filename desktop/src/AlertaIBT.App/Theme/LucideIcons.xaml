@@ -175,4 +175,7 @@
     <!-- Holyrics card: clipboard-paste, drawn from memory; check it by eye. -->
     <Geometry x:Key="LucideClipboardPaste">M 11 14 H 21 M 16 4 H 18 A 2 2 0 0 1 20 6 V 7.344 M 17 18 L 21 14 L 17 10 M 8 4 H 6 A 2 2 0 0 0 4 6 V 20 A 2 2 0 0 0 6 22 H 18 A 2 2 0 0 0 19.793 20.887 M 9 2 H 15 A 1 1 0 0 1 16 3 V 5 A 1 1 0 0 1 15 6 H 9 A 1 1 0 0 1 8 5 V 3 A 1 1 0 0 1 9 2 Z</Geometry>
 
+    <!-- Prints card and the panel's "copy image" button. -->
+    <Geometry x:Key="LucideCamera">M 14.5 4 H 9.5 L 7 7 H 4 A 2 2 0 0 0 2 9 V 18 A 2 2 0 0 0 4 20 H 20 A 2 2 0 0 0 22 18 V 9 A 2 2 0 0 0 20 7 H 17 L 14.5 4 Z M 9 13 A 3 3 0 1 0 15 13 A 3 3 0 1 0 9 13</Geometry>
+
 </ResourceDictionary>
