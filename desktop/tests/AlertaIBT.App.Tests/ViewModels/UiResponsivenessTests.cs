@@ -11,6 +11,7 @@ namespace AlertaIBT.App.Tests.ViewModels;
 /// UI thread: no call may keep it more than 100 ms and the heartbeat must not wait long. The local diagnostic at the end reads the owner's real
 /// folder (enumerating and measuring only, never a write) and skips when the folder is not there.
 /// </summary>
+[Collection(RealDesktopCollection.Name)]
 public sealed class UiResponsivenessTests
 {
     private const double LimitMs = 100;

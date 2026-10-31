@@ -50,6 +50,7 @@ internal sealed class PlainWindow : Window
 {
 }
 
+[Collection(RealDesktopCollection.Name)]
 public sealed class AppWindowPolicyTests
 {
     [Fact]

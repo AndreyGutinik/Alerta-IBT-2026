@@ -423,15 +423,50 @@ public sealed class SomLayoutTests
         });
     }
 
+    // The biggest a window can be on this PC (Windows' own limit: the screen plus the frame): 2560x768 virtual monitor -> about 788 tall.
+    private static (double Width, double Height) LargestWindow(Window window)
+    {
+        var dpi = VisualTreeHelper.GetDpi(window);
+        return (GetSystemMetrics(59) / dpi.DpiScaleX, GetSystemMetrics(60) / dpi.DpiScaleY); // SM_CXMAXTRACK, SM_CYMAXTRACK
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern int GetSystemMetrics(int index);
+
     [Fact]
-    public void The_window_opens_around_1100_by_860_and_works_from_900()
+    public void The_window_is_designed_for_1100_by_860_and_works_from_900_and_is_never_bigger_than_the_screen_allows()
     {
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig(1100);
-            Assert.Equal(1100, rig.Window.Width);
-            Assert.Equal(860, rig.Window.Height);
+            var (maxWidth, maxHeight) = LargestWindow(rig.Window);
+            Assert.Equal(Math.Min(1100, maxWidth), rig.Window.Width, 1); // 1100x860 where the screen is big enough, the screen's limit where it is not
+            Assert.Equal(Math.Min(860, maxHeight), rig.Window.Height, 1);
             Assert.Equal(900, rig.Window.MinWidth);
+            Assert.Equal(600, rig.Window.MinHeight);
+        });
+    }
+
+    [Theory]
+    [InlineData(2000.0)] // a tall monitor: the design height fits
+    [InlineData(1392.0)] // the owner's desktop monitor (2560x1440, taskbar off)
+    [InlineData(720.0)] // the 2560x768 LED / virtual monitor (work area 720): as tall as the work area
+    [InlineData(500.0)] // smaller than the window's own minimum: the minimum wins
+    public void The_first_opening_is_the_design_height_or_as_tall_as_the_work_area_but_never_below_the_minimum(double workAreaHeight)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(1100);
+            var designHeight = rig.Window.Height; // 860, or what this PC's screen allows (see the test above)
+            rig.Window.WorkAreaHeight = () => workAreaHeight;
+
+            rig.Window.PlaceBeforeShow();
+
+            Assert.Equal(Math.Max(rig.Window.MinHeight, Math.Min(designHeight, workAreaHeight)), rig.Window.Height, 1);
+            if (workAreaHeight >= 860 && designHeight >= 860)
+            {
+                Assert.Equal(860, rig.Window.Height, 1);
+            }
         });
     }
 

@@ -71,6 +71,9 @@ public partial class MainWindow : FluentWindow, IMainWindow
     /// <summary>The Som page (for tests).</summary>
     internal SomPage Som => SomPage;
 
+    /// <summary>The height of the work area the first opening fits into; a test seam (a test sets a tall or a short one), the real work area otherwise.</summary>
+    internal Func<double> WorkAreaHeight { get; set; } = () => SystemParameters.WorkArea.Height;
+
     /// <summary>The NDI page (for tests).</summary>
     internal NdiPage Ndi => NdiPage;
 
@@ -123,7 +126,7 @@ public partial class MainWindow : FluentWindow, IMainWindow
         // It opens at about 1100 x 860; on a screen that is not that tall it is as tall as the work area (never off the bottom).
         if (!_placed)
         {
-            Height = Math.Max(MinHeight, Math.Min(Height, SystemParameters.WorkArea.Height));
+            Height = Math.Max(MinHeight, Math.Min(Height, WorkAreaHeight()));
         }
 
         _policy.KeepOffLed(this, neverPlaced: !_placed);

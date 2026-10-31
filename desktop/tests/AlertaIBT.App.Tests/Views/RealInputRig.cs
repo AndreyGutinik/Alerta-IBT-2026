@@ -31,6 +31,39 @@ internal sealed class RealInputRig : IDisposable
 
     private readonly SomRig _som;
     private Native.Point _cursor;
+    private Native.Point? _placed; // where this rig last put the real cursor
+
+    private static int _interference;
+
+    /// <summary>How many times, in this process, the real cursor was found away from where a rig had put it (a person moved the mouse during a test).</summary>
+    public static int Interference => Volatile.Read(ref _interference);
+
+    /// <summary>
+    /// Runs a test body that drives the real cursor on the WPF thread. The real cursor is shared with whoever sits at the PC: when they move
+    /// the mouse in the middle of a body, WPF re-reads that position and the interaction goes wrong. A failed attempt during which the
+    /// cursor was found moved by someone else is tried again (a few times, with a fresh rig); a failure without any interference, or the
+    /// last one, is thrown as it is, so nothing passes silently.
+    /// </summary>
+    public static void Run(Action body, int attempts = 5)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var before = Interference;
+            try
+            {
+                WpfTestHost.Run(body);
+                return;
+            }
+            catch (Exception) when (attempt < attempts && Interference != before)
+            {
+                Thread.Sleep(300); // let the person finish moving, the display wake
+            }
+            catch (Exception ex) when (Interference != before)
+            {
+                throw new InvalidOperationException($"Failed {attempts} times with the real desktop in the way ({LastCover ?? "the cursor was moved by someone else"}): {ex.Message}", ex);
+            }
+        }
+    }
 
     public RealInputRig(bool playing = true, bool paused = false, double width = 1100, double height = 1400)
     {
@@ -79,8 +112,8 @@ internal sealed class RealInputRig : IDisposable
         Window = new MainWindow(ViewModel, null)
         {
             WindowStartupLocation = WindowStartupLocation.Manual,
-            Left = 40,
-            Top = 20,
+            Left = SystemParameters.WorkArea.Left + 40, // fully inside the work area of the primary monitor, whatever its size
+            Top = SystemParameters.WorkArea.Top + 20,
             Width = Math.Min(width, SystemParameters.WorkArea.Width - 80),
             Height = Math.Min(height, SystemParameters.WorkArea.Height - 60),
             ShowActivated = false,
@@ -163,8 +196,6 @@ internal sealed class RealInputRig : IDisposable
 
     // WPF ignores mouse window messages that do not come from the system queue, so the report that the Win32 provider would make is made here and
     // handed to the same input site (hit testing, over, capture and routing are the real ones from there on).
-    private readonly HashSet<Window> _activated = [];
-
     private void Send(uint message, nint wParam, Point windowPoint)
     {
         var hwnd = new WindowInteropHelper(Target).Handle;
@@ -173,14 +204,19 @@ internal sealed class RealInputRig : IDisposable
         var x = (int)Math.Round(device.X);
         var y = (int)Math.Round(device.Y);
         var screen = Target.PointToScreen(windowPoint);
-        SetCursorPos((int)Math.Round(screen.X), (int)Math.Round(screen.Y)); // WPF re-reads the real cursor when the capture changes
+        CheckCursor();
+        CheckNotCovered(screen);
+        var wanted = new Native.Point { X = (int)Math.Round(screen.X), Y = (int)Math.Round(screen.Y) };
+        SetCursorPos(wanted.X, wanted.Y); // WPF re-reads the real cursor when the capture changes
+        _placed = wanted;
         var bf = BindingFlags.NonPublic | BindingFlags.Instance;
         var provider = typeof(HwndSource).GetField("_mouse", bf)!.GetValue(source)!;
         var site = provider.GetType().GetField("_site", bf)!.GetValue(provider)!;
-        if (_activated.Add(Target))
-        {
-            Report(site, source, "Activate", x, y);
-        }
+        // Always announce the window as the active mouse target first (it costs nothing when it already is): the real cursor really moves to
+        // the places clicked (SetCursorPos), and when it goes over a window of another kind (a list box's popup is a window of its own) Windows
+        // sends the main window a real WM_MOUSELEAVE; WPF then treats the mouse as gone and ignores every later move until the next Activate.
+        // That is why a click on a list box worked on a tall window and failed from the next list box on whenever the popup went past the window.
+        Report(site, source, "Activate", x, y);
 
         var action = message switch
         {
@@ -201,10 +237,54 @@ internal sealed class RealInputRig : IDisposable
         site.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Single(m => m.Name == "ReportInput" && m.GetParameters().Length == 1).Invoke(site, [report]);
     }
 
+    // A window of some other process on top of the test window (the Windows dim overlay of an idle PC, somebody's always-on-top window) takes the
+    // mouse from WPF. Counted like a moved cursor, so the attempt is repeated (after a nudge that wakes the display), and named when it keeps failing.
+    private void CheckNotCovered(Point screen)
+    {
+        var hit = WindowFromPoint(new Native.Point { X = (int)Math.Round(screen.X), Y = (int)Math.Round(screen.Y) });
+        if (hit == 0)
+        {
+            return;
+        }
+
+        var root = GetAncestor(hit, 2); // GA_ROOT
+        GetWindowThreadProcessId(root, out var pid);
+        if (pid == (uint)Environment.ProcessId)
+        {
+            return;
+        }
+
+        var name = new System.Text.StringBuilder(128);
+        GetClassName(root, name, name.Capacity);
+        Interlocked.Increment(ref _interference);
+        Volatile.Write(ref _cover, $"a window of another program is over the test window: {name} (process {pid}) at {screen}");
+        DesktopAwake.Poke();
+    }
+
+    private static string? _cover;
+
+    /// <summary>What covered the test window when the last attempt was repeated, or null.</summary>
+    public static string? LastCover => Volatile.Read(ref _cover);
+
+    /// <summary>Notes (for <see cref="Run"/>) when the real cursor is not where this rig left it.</summary>
+    public void CheckCursor()
+    {
+        if (_placed is { } placed && GetCursorPos(out var now) && (Math.Abs(now.X - placed.X) > 1 || Math.Abs(now.Y - placed.Y) > 1))
+        {
+            Interlocked.Increment(ref _interference);
+            _placed = null;
+        }
+    }
+
     public void Dispose()
     {
         Window.Hide();
-        SetCursorPos(_cursor.X, _cursor.Y);
+        CheckCursor();
+        if (_placed is not null)
+        {
+            SetCursorPos(_cursor.X, _cursor.Y); // only when nobody moved it meanwhile: never yank the mouse from a person's hand
+        }
+
         ViewModel.Dispose();
         _som.Dispose();
     }
@@ -217,6 +297,18 @@ internal sealed class RealInputRig : IDisposable
             public int Y;
         }
     }
+
+    [DllImport("user32.dll")]
+    private static extern nint WindowFromPoint(Native.Point point);
+
+    [DllImport("user32.dll")]
+    private static extern nint GetAncestor(nint hwnd, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint hwnd, out uint processId);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(nint hwnd, System.Text.StringBuilder text, int max);
 
     [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out Native.Point point);

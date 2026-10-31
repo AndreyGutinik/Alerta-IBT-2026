@@ -7,6 +7,7 @@ namespace AlertaIBT.App.Tests.Views;
 
 // Every list box (ComboBox) of the Som tab clicked with the real input path in a real, shown window. The owner's bug: "os menus em cascata nao
 // estao clicaveis, eu clico e nao aparece nada mesmo tendo a lista cadastrada".
+[Collection(RealDesktopCollection.Name)]
 public sealed class RealMouseComboBoxTests
 {
     private static IEnumerable<T> Descendants<T>(DependencyObject parent) where T : DependencyObject
@@ -38,7 +39,7 @@ public sealed class RealMouseComboBoxTests
     [Fact]
     public void The_Som_page_has_the_expected_list_boxes_and_they_all_have_items()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig();
             var combos = Combos(rig);
@@ -52,7 +53,7 @@ public sealed class RealMouseComboBoxTests
     [Fact]
     public void A_click_opens_every_list_box_shows_its_items_and_a_click_on_an_item_chooses_it_and_closes()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig();
             foreach (var combo in Combos(rig))
@@ -87,7 +88,7 @@ public sealed class RealMouseComboBoxTests
     [Fact]
     public void Assistive_technology_can_expand_and_collapse_every_list_box()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig();
             foreach (var combo in Combos(rig))
@@ -105,7 +106,7 @@ public sealed class RealMouseComboBoxTests
     [Fact]
     public void Escape_and_a_click_outside_close_an_open_list_box()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig();
             var combo = Combos(rig).First(c => c.Name == "PlayerOutputCombo");
@@ -132,7 +133,7 @@ public sealed class RealMouseComboBoxTests
     [Fact]
     public void A_long_list_shows_eight_rows_then_scrolls_and_the_row_under_the_mouse_and_the_chosen_one_are_marked()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig();
             var combo = new ComboBox

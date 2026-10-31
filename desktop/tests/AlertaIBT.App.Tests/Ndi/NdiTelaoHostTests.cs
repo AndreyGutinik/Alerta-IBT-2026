@@ -7,6 +7,7 @@ using AlertaIBT.Core.Settings;
 
 namespace AlertaIBT.App.Tests.Ndi;
 
+[Collection(RealDesktopCollection.Name)]
 public sealed class NdiTelaoHostTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "alertaibt-host-" + Guid.NewGuid().ToString("N"));
@@ -92,7 +93,7 @@ public sealed class NdiTelaoHostTests : IDisposable
 
     private static bool WaitFor(Func<bool> condition)
     {
-        var end = Environment.TickCount64 + 5000;
+        var end = Environment.TickCount64 + 20000;
         while (Environment.TickCount64 < end)
         {
             if (WpfTestHost.Run(condition))

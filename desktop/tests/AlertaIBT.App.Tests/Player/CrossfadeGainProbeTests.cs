@@ -9,6 +9,7 @@ namespace AlertaIBT.App.Tests.Player;
 // track B a constant 880 Hz tone that starts with a very quiet head. A Goertzel filter reads the level of each tone apart every 50 ms across the
 // whole transition: A must fall from 1 to 0 as the cosine of the overlap, B must rise from 0 to 1 as the sine, simultaneously, with no step at the
 // boundaries of the overlap.
+[Collection(RealDesktopCollection.Name)]
 public sealed class CrossfadeGainProbeTests : IDisposable
 {
     private const double Amp = 0.5;

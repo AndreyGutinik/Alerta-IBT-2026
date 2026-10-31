@@ -5,6 +5,7 @@ namespace AlertaIBT.App.Tests.Views;
 // The timeline of the player driven by the real input path (hit testing, mouse capture, routing) in a real, shown window. The owner's bug:
 // dragging the timeline did not seek to where the thumb was let go, the thumb snapped back and the music stayed where the press began.
 // (Release asked the capture to go before the seek was committed, and the lost capture was taken for a cancelled drag.)
+[Collection(RealDesktopCollection.Name)]
 public sealed class RealMouseSeekTests
 {
     // The sound card pulls a little sound and the player's position timer ticks a few times: whatever would rewrite the thumb gets its chance.
@@ -35,7 +36,7 @@ public sealed class RealMouseSeekTests
     [Fact]
     public void Press_at_20_percent_move_to_70_and_release_seeks_to_70_and_the_thumb_stays_there()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig();
             var slider = rig.Page.SeekSlider;
@@ -60,7 +61,7 @@ public sealed class RealMouseSeekTests
     [Fact]
     public void A_click_jumps_to_that_place()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig();
             var slider = rig.Page.SeekSlider;
@@ -75,7 +76,7 @@ public sealed class RealMouseSeekTests
     [Fact]
     public void A_drag_while_paused_seeks_and_the_paused_thumb_stays_where_it_was_let_go()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig(playing: false, paused: true);
             var slider = rig.Page.SeekSlider;
@@ -98,7 +99,7 @@ public sealed class RealMouseSeekTests
     [Fact]
     public void Dragging_past_the_right_end_goes_to_the_end()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig();
             var slider = rig.Page.SeekSlider;
@@ -123,7 +124,7 @@ public sealed class RealMouseSeekTests
     [Fact]
     public void Dragging_past_the_left_end_goes_to_the_start()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig();
             var slider = rig.Page.SeekSlider;
@@ -145,7 +146,7 @@ public sealed class RealMouseSeekTests
     [Fact]
     public void Letting_go_outside_the_window_part_of_the_slider_still_seeks_where_the_pointer_was()
     {
-        WpfTestHost.Run(() =>
+        RealInputRig.Run(() =>
         {
             using var rig = new RealInputRig();
             var slider = rig.Page.SeekSlider;

@@ -11,6 +11,7 @@ namespace AlertaIBT.App.Tests.Ndi;
 /// Real windows, real Win32 calls: the styles of the camera window, its place in the z-order against a topmost window (the alert bar) and a normal one
 /// (Holyrics' output), and the pixels the Direct3D renderer really puts on the screen. They show small windows on the primary monitor for a moment.
 /// </summary>
+[Collection(RealDesktopCollection.Name)]
 public sealed class NdiVideoWindowTests
 {
     [DllImport("user32.dll")]
@@ -206,6 +207,21 @@ public sealed class NdiVideoWindowTests
         return renderer.FramesPresented >= atLeast;
     }
 
+    // The screen is read until it shows what is expected (up to 5 s): the window and the presented frame reach the screen a moment after the
+    // renderer says "presented" (a half-faded 141,0,0 red was seen on a busy PC); what is left after the wait is what is asserted.
+    private static (int R, int G, int B) WaitPixel(int x, int y, Func<(int R, int G, int B), bool> expected)
+    {
+        var end = Environment.TickCount64 + 5000;
+        var color = Rgb(Pixel(x, y));
+        while (!expected(color) && Environment.TickCount64 < end)
+        {
+            Thread.Sleep(25);
+            color = Rgb(Pixel(x, y));
+        }
+
+        return color;
+    }
+
     [Fact]
     public void The_renderer_crops_fill_and_the_vertical_position_picks_the_band_on_the_real_screen()
     {
@@ -234,21 +250,21 @@ public sealed class NdiVideoWindowTests
 
             var midY = Spot.Y + Spot.Height / 2;
             var x = Spot.X + 100;
-            var top = Rgb(Pixel(x, midY));
+            var top = WaitPixel(x, midY, c => c.R > 200 && c.B < 60);
             Assert.SkipWhen(top == (0, 0, 0), "a captura da tela devolveu preto (sessao bloqueada?)");
             Assert.True(top.R > 200 && top.B < 60, $"posicao 0: o meio da faixa deve ser vermelho, veio {top}");
 
             renderer1.SetPosition(100); // bottom of the picture: the middle of the window is now blue
             Assert.True(WaitPresented(renderer1, renderer1.FramesPresented + 1));
             Thread.Sleep(150);
-            var bottom = Rgb(Pixel(x, midY));
+            var bottom = WaitPixel(x, midY, c => c.B > 200 && c.R < 60);
             Assert.True(bottom.B > 200 && bottom.R < 60, $"posicao 100: o meio da faixa deve ser azul, veio {bottom}");
 
             // The bands meet at 50% of the picture: at position 0 the visible 53.3% shows red for 93.75% of the window then blue.
             renderer1.SetPosition(0);
             Assert.True(WaitPresented(renderer1, renderer1.FramesPresented + 1));
             Thread.Sleep(150);
-            var nearBottom = Rgb(Pixel(x, Spot.Y + Spot.Height - 3));
+            var nearBottom = WaitPixel(x, Spot.Y + Spot.Height - 3, c => c.B > 200);
             Assert.True(nearBottom.B > 200, $"posicao 0: a borda de baixo ja deve ser azul, veio {nearBottom}");
         }
         finally

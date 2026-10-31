@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace AlertaIBT.App.Tests.Platform;
 
 // How the next start learns that the previous run died: the marker file, and the watchdog on a real dispatcher thread.
+[Collection(RealDesktopCollection.Name)]
 public sealed class SessionMarkerTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "alerta-ibt-session-" + Guid.NewGuid().ToString("N"));
@@ -108,9 +109,9 @@ public sealed class SessionMarkerTests : IDisposable
         Thread.Sleep(600); // a few healthy pings first
         Assert.Empty(log.Messages);
 
-        dispatcher!.BeginInvoke(() => Thread.Sleep(2800)); // the "freeze"
+        dispatcher!.BeginInvoke(() => Thread.Sleep(4000)); // the "freeze": well past the 2 s threshold, so a late timer tick on a busy PC still sees it
         var waited = System.Diagnostics.Stopwatch.StartNew();
-        while (waited.Elapsed < TimeSpan.FromSeconds(8) && !log.Messages.Any(m => m.Contains("voltou a responder", StringComparison.Ordinal)))
+        while (waited.Elapsed < TimeSpan.FromSeconds(30) && !log.Messages.Any(m => m.Contains("voltou a responder", StringComparison.Ordinal)))
         {
             Thread.Sleep(50);
         }
@@ -118,7 +119,7 @@ public sealed class SessionMarkerTests : IDisposable
         dispatcher.InvokeShutdown();
         Assert.Contains(log.Messages, m => m.StartsWith("Interface parada ha ", StringComparison.Ordinal) && m.Contains("player: Play", StringComparison.Ordinal) && m.Contains("GDI", StringComparison.Ordinal));
         Assert.Contains(log.Messages, m => m.StartsWith("Interface voltou a responder", StringComparison.Ordinal));
-        Assert.InRange(watchdog.LongestStall.TotalSeconds, 2.0, 8.0);
+        Assert.InRange(watchdog.LongestStall.TotalSeconds, 2.0, 30.0); // at least the threshold; the top only guards against a runaway
     }
 
     private sealed class ListLogger : ILogger
