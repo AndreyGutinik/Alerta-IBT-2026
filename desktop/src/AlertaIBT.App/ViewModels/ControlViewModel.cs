@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Net;
 using AlertaIBT.Core.Control;
+using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Settings;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -283,7 +284,16 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
     /// <param name="confirm">Asks a yes/no question (title, text); true is yes.</param>
     /// <param name="post">Runs an action on the UI thread; runs it at once when null (tests).</param>
     /// <param name="logger">Receives the log lines.</param>
-    public ControlViewModel(SettingsService settings, ControlService service, Func<string, string, bool> confirm, Action<Action>? post = null, ILogger? logger = null)
+    /// <param name="holyrics">The Holyrics connection (the card with host, port, token and "Testar"); null leaves the card inactive (tests).</param>
+    /// <param name="protector">Protects the Holyrics token (DPAPI in the app).</param>
+    public ControlViewModel(
+        SettingsService settings,
+        ControlService service,
+        Func<string, string, bool> confirm,
+        Action<Action>? post = null,
+        ILogger? logger = null,
+        HolyricsClient? holyrics = null,
+        ISecretProtector? protector = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(service);
@@ -298,6 +308,7 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
         UniverseBox = new IntegerField(0, 32768, allowBlank: false, value => Update(c => c with { Universe = value ?? c.Universe }), () => { });
         AddRowCommand = new RelayCommand(AddRow);
         RestoreCommand = new RelayCommand(Restore);
+        (HolyricsPort, HolyricsToken, TestHolyricsCommand) = CreateHolyrics(holyrics, protector);
         Load();
         _settings.Changed += OnSettingsChanged;
         _service.Changed += OnServiceChanged;
@@ -488,6 +499,10 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
         _disposed = true;
         _settings.Changed -= OnSettingsChanged;
         _service.Changed -= OnServiceChanged;
+        if (_holyricsClient is not null)
+        {
+            _holyricsClient.StatusChanged -= OnHolyricsChanged;
+        }
     }
 
     partial void OnSourceIpTextChanged(string value)
@@ -637,6 +652,7 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
             }
 
             OnPropertyChanged(nameof(HasDuplicates));
+            LoadHolyrics();
         }
         finally
         {

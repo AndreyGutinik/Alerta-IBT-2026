@@ -302,8 +302,10 @@ A grandMA2 onPC (2.0.0.2) controla o app por Art-Net (universo 100 na MA2). Pass
 - [ ] **Faders e pickup**: os faders 17 a 21 (posição da prévia, posição do no ar, volume do Windows, do Holyrics e do player): o fader **só assume** depois de cruzar o valor atual do app (ampulheta amarela, depois visto verde); mexer o controle deslizante na tela e depois o fader exige cruzar de novo. Com "Suavizar mudança de volume" ligado na aba Som, os volumes sobem e descem suaves.
 - [ ] **Sem sinal**: parar a MA2 (ou tirar o cabo) por 4 s: o chip fica amarelo **Sem sinal** e o app mantém tudo como está; ao voltar, nada dispara pelos valores que a MA2 já segura.
 - [ ] **Porta em uso**: abrir outro programa que use a porta 6454 de forma exclusiva: o chip fica vermelho **Porta 6454 em uso** e o app não cai; fechar o outro programa: ele volta sozinho em até 3 s.
-- [ ] **Testar** (raio) em cada linha roda a ação uma vez sem a MA2. As linhas 13 a 16 (Holyrics) dizem **em breve** e não rodam.
+- [ ] **Testar** (raio) em cada linha roda a ação uma vez sem a MA2. As linhas 13 a 16 (Holyrics) rodam pelo token do cartão Holyrics.
 - [ ] **Rede**: a placa 2.x do PC e o nó DMX não conflitam (o universo 100 não está mapeado no nó). A aba não aparece nas configurações de backup (não entra no backup).
+- [ ] **Holyrics (cartão da aba Controle)**: colar o token (Arquivo > Configurações > API Server), endereço 127.0.0.1 e porta 8091, **Testar**: chip **conectado** (e, se faltar permissão, **token sem permissão para X**). Com uma apresentação aberta: linhas 13 e 14 na MA2 (ou o raio de cada linha) passam e voltam o slide; linha 15 toca e pausa o vídeo de avisos; linha 16 mostra e esconde o logo (**conferir na tela se mostrar/esconder bate com o Ctrl+K**; se ficar invertido, usar o modo **Estado**). Sem apresentação aberta, nada acontece e nada dá erro.
+- [ ] **Setas do painel rápido**: abrir o painel da bandeja, digitar um aviso e apertar **Seta direita** e **Seta esquerda**: o slide anda no Holyrics e o cursor do texto **não** mexe; segurar a seta não dispara em sequência; fora da caixa do painel as setas não fazem nada no Holyrics. Desligar **Setas do painel rápido controlam o Holyrics**: as setas movem o cursor de novo.
 
 ## 22. Backup e restauração das configurações
 

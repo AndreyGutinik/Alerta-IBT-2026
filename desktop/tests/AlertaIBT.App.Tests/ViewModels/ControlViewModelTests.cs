@@ -136,7 +136,7 @@ public sealed class ControlViewModelTests
         Assert.Equal(new ControlCommand(8, ControlAction.Take, ControlCommandKind.Trigger), rig.Targets.Ran[0]);
         Assert.Equal(new ControlCommand(3, ControlAction.SelectCamera, ControlCommandKind.Select, Parameter: 3), rig.Targets.Ran[1]);
         Assert.False(rig.Vm.Rows[20].CanTest);
-        Assert.False(rig.Vm.Rows[12].CanTest); // Holyrics: em breve
+        Assert.True(rig.Vm.Rows[12].CanTest); // Holyrics: slide next is a real action now
     }
 
     [Fact]
@@ -257,15 +257,18 @@ public sealed class ControlViewModelTests
     }
 
     [Fact]
-    public void Holyrics_rows_are_soon_and_cannot_be_turned_on()
+    public void Holyrics_rows_are_active_and_can_be_turned_off_and_on()
     {
         using var rig = new ControlRig();
 
         var row = rig.Vm.Rows[12];
-        row.Enabled = true;
+        Assert.False(row.IsSoon);
+        Assert.True(row.Enabled);
 
-        Assert.True(row.IsSoon);
+        row.Enabled = false;
         Assert.False(rig.Control.Rows[12].Enabled);
+        rig.Vm.Rows[12].Enabled = true;
+        Assert.True(rig.Control.Rows[12].Enabled);
     }
 
     [Fact]
@@ -286,7 +289,7 @@ public sealed class ControlViewModelTests
 
         Assert.Equal(16, rig.Vm.HelpMap.Count); // 1-6 in one line, then channels 7..21 (15 lines)
         Assert.Contains(rig.Vm.HelpMap, line => line.StartsWith("1 a 6", StringComparison.Ordinal));
-        Assert.Contains(rig.Vm.HelpMap, line => line.StartsWith("16 ", StringComparison.Ordinal) && line.Contains("em breve", StringComparison.Ordinal));
+        Assert.Contains(rig.Vm.HelpMap, line => line.StartsWith("16 ", StringComparison.Ordinal) && line.Contains("Logo do Holyrics", StringComparison.Ordinal) && !line.Contains("em breve", StringComparison.Ordinal));
         Assert.Contains(rig.Vm.HelpMap, line => line.StartsWith("21 ", StringComparison.Ordinal));
     }
 }

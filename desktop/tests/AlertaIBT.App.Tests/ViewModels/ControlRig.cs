@@ -1,6 +1,7 @@
 using System.Net;
 using AlertaIBT.App.ViewModels;
 using AlertaIBT.Core.Control;
+using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Settings;
 
 namespace AlertaIBT.App.Tests.ViewModels;
@@ -80,12 +81,22 @@ internal sealed class ControlRig : IDisposable
         Chrome = new SettingsRig(initial);
         Service = new ControlService(Chrome.Settings, Targets, () => Socket, clock: Chrome.Clock);
         Service.Start();
-        Vm = new ControlViewModel(Chrome.Settings, Service, (title, text) =>
-        {
-            Asked.Add(title);
-            return Answer;
-        });
+        Holyrics = new HolyricsClient(Chrome.Settings, Chrome.Protector, handler: HolyricsHandler, minInterval: TimeSpan.Zero);
+        Vm = new ControlViewModel(
+            Chrome.Settings,
+            Service,
+            (title, text) =>
+            {
+                Asked.Add(title);
+                return Answer;
+            },
+            holyrics: Holyrics,
+            protector: Chrome.Protector);
     }
+
+    public StubHolyricsHandler HolyricsHandler { get; } = new();
+
+    public HolyricsClient Holyrics { get; }
 
     public SettingsRig Chrome { get; }
 
@@ -123,6 +134,7 @@ internal sealed class ControlRig : IDisposable
     public void Dispose()
     {
         Vm.Dispose();
+        Holyrics.Dispose();
         Service.Dispose();
         Chrome.Dispose();
     }

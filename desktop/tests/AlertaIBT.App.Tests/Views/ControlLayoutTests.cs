@@ -121,6 +121,89 @@ public sealed class ControlLayoutTests
         }
     }
 
+    private static void WithToken(ControlRig engine)
+    {
+        engine.Vm.PasteHolyricsToken("TOKEN-FOR-LAYOUT-TESTS");
+        engine.Vm.ApplyPendingToken();
+        engine.TurnOn();
+        engine.Vm.SetActive(true);
+    }
+
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void The_holyrics_card_sits_between_the_header_and_the_map_and_nothing_runs_past_it(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width, WithToken);
+
+            var header = rig.BoundsOf(rig.Named<CardSection>("HeaderCard"));
+            var card = rig.BoundsOf(rig.Named<CardSection>("HolyricsCard"));
+            var map = rig.BoundsOf(rig.Named<CardSection>("MapCard"));
+            Assert.True(header.Bottom <= card.Top && card.Bottom <= map.Top);
+            Assert.Equal(header.Width, card.Width, 1);
+
+            var blocks = new[] { "HolyricsAddressBlock", "HolyricsTokenBlock", "HolyricsArrowsBlock" }.Select(n => rig.BoundsOf(rig.Named<Border>(n))).ToList();
+            Assert.All(blocks, b => Assert.True(b.Width >= 320 && b.Left >= card.Left - 0.5 && b.Right <= card.Right + 0.5, $"a block {b}"));
+            var grid = rig.Named<AdaptiveGrid>("HolyricsGrid");
+            if (width >= 1100)
+            {
+                Assert.Equal(2, grid.Columns);
+            }
+
+            foreach (var name in new[] { "HolyricsHostBox", "HolyricsPortBox", "TokenLockedBox", "TokenLockButton", "HolyricsTestButton", "HolyricsArrowsSwitch", "HolyricsChip" })
+            {
+                var element = rig.Named<FrameworkElement>(name);
+                var bounds = rig.BoundsOf(element);
+                Assert.True(bounds.Width > 0 && bounds.Right <= card.Right + 0.5, name + " " + bounds);
+            }
+
+            // The paste and Trocar buttons are 32 px and keep inside their block.
+            Assert.True(rig.BoundsOf(rig.Named<Button>("TokenPasteButton")).Height >= 32);
+            Assert.True(rig.BoundsOf(rig.Named<Button>("TokenPasteButton")).Right <= blocks[1].Right);
+            rig.Snapshot($"holyrics-{width}-guardado");
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void The_holyrics_card_without_a_token_and_when_the_test_fails_render(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using (var empty = new Rig(width, e => e.Vm.SetActive(true)))
+            {
+                Assert.True(empty.BoundsOf(empty.Named<TextBox>("TokenEntryBox")).Width > 0);
+                empty.Snapshot($"holyrics-{width}-sem-token");
+            }
+
+            using var failed = new Rig(width, e =>
+            {
+                WithToken(e);
+                e.HolyricsHandler.Down = true;
+                e.Vm.TestHolyricsCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            });
+            Assert.Equal("sem resposta", failed.Vm.HolyricsStatusText);
+            failed.Snapshot($"holyrics-{width}-sem-resposta");
+
+            using var denied = new Rig(width, e =>
+            {
+                WithToken(e);
+                e.HolyricsHandler.Reply = _ => (System.Net.HttpStatusCode.Unauthorized, "{\"status\":\"error\",\"error\":{\"unauthorized_actions\":\"SetLogo,MediaPlayerAction\"}}");
+                e.Vm.TestHolyricsCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            });
+            denied.Snapshot($"holyrics-{width}-sem-permissao");
+
+            using var ok = new Rig(width, e =>
+            {
+                WithToken(e);
+                e.HolyricsHandler.Reply = a => (System.Net.HttpStatusCode.OK, a == "GetMediaPlayerInfo" ? "{\"status\":\"ok\",\"data\":{\"playing\":false}}" : "{\"status\":\"ok\"}");
+                e.Vm.TestHolyricsCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            });
+            ok.Snapshot($"holyrics-{width}-conectado");
+        });
+    }
+
     // A console that is on: the first packet (baseline), then channel 7 ON, camera 2 ON and the faders at different places.
     private static void Live(ControlRig engine)
     {
@@ -274,7 +357,7 @@ public sealed class ControlLayoutTests
                 }
 
                 Assert.False(string.IsNullOrEmpty(AutomationProperties.GetName(button)), "a button without a name: " + button.Name);
-                Assert.NotNull(button.ToolTip);
+                Assert.True(button.ToolTip is not null, "a button without a tooltip: " + button.Name + " " + AutomationProperties.GetName(button));
             }
         });
     }
@@ -298,7 +381,7 @@ public sealed class ControlLayoutTests
     }
 
     [Fact]
-    public void Holyrics_rows_show_em_breve_and_a_dimmed_line()
+    public void No_row_shows_em_breve_now_that_the_holyrics_actions_exist()
     {
         WpfTestHost.Run(() =>
         {
@@ -307,7 +390,7 @@ public sealed class ControlLayoutTests
             var list = rig.Named<ItemsControl>("RowList");
             var chips = list.Descendants<Border>().Where(b => b.Name == "SoonChip" && b.Visibility == Visibility.Visible).ToList();
 
-            Assert.Equal(4, chips.Count);
+            Assert.Empty(chips);
         });
     }
 

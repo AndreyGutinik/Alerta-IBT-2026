@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 using AlertaIBT.App.ViewModels;
 
@@ -54,6 +55,37 @@ public partial class ControlPage : UserControl
         {
             number.Normalize();
         }
+    }
+
+    // "Colar": the clipboard text becomes the new token (the field opens first when it was locked). A clipboard that cannot be read is simply ignored.
+    private void OnPasteTokenClick(object sender, RoutedEventArgs e)
+    {
+        string? text = null;
+        try
+        {
+            text = Clipboard.ContainsText() ? Clipboard.GetText() : null;
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            // the clipboard was busy: nothing to paste now
+        }
+
+        ViewModel?.PasteHolyricsToken(text);
+    }
+
+    // "Trocar" opens the token box: the keyboard goes into it so a paste works at once (Click comes before the command runs, so the box is looked at afterwards).
+    private void OnTokenLockClick(object sender, RoutedEventArgs e)
+    {
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Input,
+            () =>
+            {
+                if (ViewModel is { HolyricsToken.IsEditing: true })
+                {
+                    TokenEntryBox.Focus();
+                    Keyboard.Focus(TokenEntryBox);
+                }
+            });
     }
 
     private void UpdateActive()

@@ -105,6 +105,51 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
+        <!-- The dot of the Holyrics chip: green connected, amber token without permission, red no answer, gray not tested. -->
+        <Style x:Key="HolyricsDot" BasedOn="{StaticResource IbtStatusDot}" TargetType="Ellipse">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Fill" Value="{StaticResource IbtMutedBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HolyricsTone}" Value="ok">
+                    <Setter Property="Fill" Value="{StaticResource IbtOkBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HolyricsTone}" Value="warn">
+                    <Setter Property="Fill" Value="{StaticResource IbtWarnBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HolyricsTone}" Value="bad">
+                    <Setter Property="Fill" Value="{StaticResource IbtBadBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The host box turns red when what is typed cannot be an address. -->
+        <Style
+            x:Key="HostBox"
+            BasedOn="{StaticResource IbtFieldInput}"
+            TargetType="TextBox">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HolyricsHostInvalid}" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource IbtBadBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- The hint inside the empty token box. -->
+        <Style x:Key="TokenPlaceholder" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource IbtMutedBrush}" />
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="Margin" Value="11,8,0,0" />
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Text.Length, ElementName=TokenEntryBox}" Value="0">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- The box of an IP address turns red when what is typed is not one. -->
         <Style
             x:Key="SourceBox"
@@ -244,7 +289,7 @@
                             x:Name="SoonChip"
                             HorizontalAlignment="Left"
                             Style="{StaticResource SoonChip}"
-                            ToolTip="As ações do Holyrics chegam na próxima versão. A linha já está no mapa, mas não roda."
+                            ToolTip="Esta ação ainda não está disponível."
                             Visibility="Collapsed">
                             <StackPanel Orientation="Horizontal">
                                 <Path
@@ -524,6 +569,224 @@
                         </Grid>
                     </Border>
                 </theme:AdaptiveGrid>
+            </local:CardSection>
+
+            <!-- ===== (1b) Holyrics: where its API is, the token, the test ===== -->
+            <local:CardSection
+                x:Name="HolyricsCard"
+                Margin="0,16,0,0"
+                Header="Holyrics"
+                Icon="{StaticResource LucidePresentation}"
+                Style="{StaticResource IbtCardSectionStyle}"
+                Info="O app manda ao Holyrics, pela API HTTP dele (nada de teclas simuladas): slide próximo e anterior, play/pausa do vídeo e o logo. Valem para as linhas 13 a 16 do mapa (a MA2) e para as setas do painel rápido. No Holyrics: Arquivo > Configurações > API Server, ligue o servidor e crie um token com permissão para ActionNext, ActionPrevious, MediaPlayerAction, GetMediaPlayerInfo e SetLogo. O token fica guardado protegido (DPAPI) e nunca aparece no log. Para um Holyrics em outro PC, troque o endereço.">
+                <local:CardSection.HeaderActions>
+                    <StackPanel Orientation="Horizontal">
+                        <Border
+                            x:Name="HolyricsChip"
+                            MinHeight="32"
+                            Padding="10,0,12,0"
+                            Background="{StaticResource IbtSurfaceRaisedBrush}"
+                            BorderBrush="{StaticResource IbtBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="16"
+                            ToolTip="{Binding HolyricsStatusTip}"
+                            ToolTipService.InitialShowDelay="150"
+                            ToolTipService.ShowDuration="30000">
+                            <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                <Ellipse Margin="0,0,8,0" Style="{StaticResource HolyricsDot}" />
+                                <TextBlock
+                                    x:Name="HolyricsStatusLabel"
+                                    MaxWidth="260"
+                                    FontSize="12.5"
+                                    Text="{Binding HolyricsStatusText}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Border>
+                        <Button
+                            x:Name="HolyricsTestButton"
+                            Margin="8,0,0,0"
+                            AutomationProperties.Name="Testar"
+                            Command="{Binding TestHolyricsCommand}"
+                            Style="{StaticResource IbtToolButton}"
+                            ToolTip="Testar: confere se o Holyrics responde e se o token pode fazer o que o app precisa. Não muda nada no Holyrics.">
+                            <Path
+                                Width="14"
+                                Height="14"
+                                Data="{StaticResource LucideZap}"
+                                Style="{StaticResource LucideIcon}" />
+                        </Button>
+                    </StackPanel>
+                </local:CardSection.HeaderActions>
+
+                <StackPanel>
+                <theme:AdaptiveGrid
+                    x:Name="HolyricsGrid"
+                    Gap="16"
+                    MaxColumns="2"
+                    MinColumnWidth="320">
+                    <!-- Where Holyrics listens: host and port. -->
+                    <Border
+                        x:Name="HolyricsAddressBlock"
+                        MinHeight="56"
+                        Style="{StaticResource IbtBlock}"
+                        ToolTip="Endereço do servidor da API do Holyrics. 127.0.0.1 é este PC; para um Holyrics em outro PC, use o IP dele. A porta padrão é 8091."
+                        ToolTipService.InitialShowDelay="150"
+                        ToolTipService.ShowDuration="30000">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Path
+                                Width="18"
+                                Height="18"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource LucideNetwork}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBox
+                                x:Name="HolyricsHostBox"
+                                Grid.Column="1"
+                                MinWidth="96"
+                                AutomationProperties.Name="Endereço do Holyrics"
+                                Style="{StaticResource HostBox}"
+                                Text="{Binding HolyricsHostText, UpdateSourceTrigger=PropertyChanged}" />
+                            <TextBlock
+                                Grid.Column="2"
+                                Margin="8,0,8,0"
+                                Style="{StaticResource IbtSecondaryText}"
+                                Text=":" />
+                            <TextBox
+                                x:Name="HolyricsPortBox"
+                                Grid.Column="3"
+                                Width="72"
+                                AutomationProperties.Name="Porta do Holyrics"
+                                LostFocus="OnFieldLostFocus"
+                                Style="{StaticResource IbtNumberBox}"
+                                Tag="{Binding HolyricsPort}"
+                                Text="{Binding HolyricsPort.Text, UpdateSourceTrigger=PropertyChanged}"
+                                TextAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- The token: dots once stored, paste and Trocar at the right. -->
+                    <Border
+                        x:Name="HolyricsTokenBlock"
+                        MinHeight="56"
+                        Style="{StaticResource IbtBlock}"
+                        ToolTip="Token da API do Holyrics (Arquivo > Configurações > API Server > gerenciar permissões). Fica protegido neste PC e nunca aparece de novo, só os pontos."
+                        ToolTipService.InitialShowDelay="150"
+                        ToolTipService.ShowDuration="30000">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Path
+                                Width="18"
+                                Height="18"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource LucideKeyRound}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <Grid Grid.Column="1" Margin="0,0,8,0">
+                                <TextBox
+                                    x:Name="TokenLockedBox"
+                                    AutomationProperties.Name="Token do Holyrics (guardado)"
+                                    IsEnabled="False"
+                                    IsReadOnly="True"
+                                    Style="{StaticResource IbtFieldInput}"
+                                    Text="{x:Static vm:SecretFieldViewModel.Mask}"
+                                    Visibility="{Binding HolyricsToken.IsLocked, Converter={StaticResource BoolToVisibility}}" />
+                                <Grid Visibility="{Binding HolyricsToken.IsEditing, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBox
+                                        x:Name="TokenEntryBox"
+                                        AutomationProperties.Name="Novo token do Holyrics"
+                                        Style="{StaticResource IbtFieldInput}"
+                                        Text="{Binding HolyricsToken.Entry, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Style="{StaticResource TokenPlaceholder}" Text="Cole o token aqui" />
+                                </Grid>
+                            </Grid>
+                            <Button
+                                x:Name="TokenPasteButton"
+                                Grid.Column="2"
+                                Margin="0,0,8,0"
+                                AutomationProperties.Name="Colar o token"
+                                Click="OnPasteTokenClick"
+                                Style="{StaticResource IbtToolButton}"
+                                ToolTip="Colar: pega o token da área de transferência">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{StaticResource LucideClipboardPaste}"
+                                    Style="{StaticResource LucideIcon}" />
+                            </Button>
+                            <Button
+                                x:Name="TokenLockButton"
+                                Grid.Column="3"
+                                AutomationProperties.Name="{Binding HolyricsToken.LockButtonText}"
+                                Click="OnTokenLockClick"
+                                Command="{Binding HolyricsToken.ToggleLockCommand}"
+                                Style="{StaticResource IbtToolButton}"
+                                ToolTip="{Binding HolyricsToken.LockButtonText}"
+                                Visibility="{Binding HolyricsToken.CanLock, Converter={StaticResource BoolToVisibility}}">
+                                <Path
+                                    Width="16"
+                                    Height="16"
+                                    Data="{Binding HolyricsToken.LockIconKey, Converter={StaticResource GeometryKey}}"
+                                    Style="{StaticResource LucideIcon}" />
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- The arrows of the quick panel. -->
+                    <Border
+                        x:Name="HolyricsArrowsBlock"
+                        MinHeight="56"
+                        Style="{StaticResource IbtBlock}"
+                        ToolTip="Setas do painel rápido controlam o Holyrics: enquanto você digita um aviso na caixa do painel rápido (a janelinha da bandeja), Seta direita passa o slide e Seta esquerda volta o slide no Holyrics. Só vale com o cursor nessa caixa, nunca no resto do Windows. Preço: as setas deixam de mover o cursor do texto (use o mouse, Home e End para corrigir uma palavra). Sem token do Holyrics, as setas funcionam normalmente."
+                        ToolTipService.InitialShowDelay="150"
+                        ToolTipService.ShowDuration="30000">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Path
+                                Width="18"
+                                Height="18"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource LucideKeyboard}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Margin="0,0,10,0"
+                                Style="{StaticResource IbtRowLabel}"
+                                Text="Setas do painel rápido controlam o Holyrics" />
+                            <ToggleButton
+                                x:Name="HolyricsArrowsSwitch"
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="Setas do painel rápido controlam o Holyrics"
+                                IsChecked="{Binding HolyricsArrows, Mode=TwoWay}"
+                                ToolTip="Seta direita passa o slide e seta esquerda volta o slide no Holyrics enquanto você digita na caixa do painel rápido. As setas deixam de mover o cursor do texto."
+                                Style="{StaticResource IbtSwitch}" />
+                        </Grid>
+                    </Border>
+                </theme:AdaptiveGrid>
+
+                <TextBlock
+                    Margin="0,8,0,0"
+                    Style="{StaticResource IbtHint}"
+                    Text="{Binding HolyricsToken.Hint}"
+                    Visibility="{Binding HolyricsToken.HasHint, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
             </local:CardSection>
 
             <!-- ===== (2) The map ===== -->

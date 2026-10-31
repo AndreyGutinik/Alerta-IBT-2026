@@ -23,7 +23,7 @@ A grandMA2 onPC (em outro PC, ligado por switch) manda **Art-Net** na rede 2.x e
 | 10 | Parar a música | Botão |
 | 11 | Avançar a música | Botão |
 | 12 | Voltar a música | Botão |
-| 13 a 16 | Slide próximo, slide anterior, play/pausa do vídeo, logo do Holyrics | Botão — **em breve** (linhas existem, desligadas) |
+| 13 a 16 | Slide próximo, slide anterior, play/pausa do vídeo, logo do Holyrics | Botão (ver a parte 3b) |
 | 17 | Posição vertical da PRÉVIA (0 a 100 %) | Fader |
 | 18 | Posição vertical do NO AR | Fader |
 | 19 | Volume do Windows | Fader |
@@ -41,6 +41,31 @@ Modos: **Botão** roda a ação (valor 128 ou mais é "ligado"; "Qualquer mudan�
 5. **App:** aba **Controle**: ligue **Controle pela MA2**, confira o **universo 100** com o **+1** ligado e, se quiser, escreva **2.0.0.2** em **IP da MA2**. O chip deve ficar verde (**Sinal ok**); a barra de cada linha mostra o valor que chega.
 
 **Rede e a saída DMX física:** o universo 100 só vai para o cabo/nó DMX se estiver mapeado na saída do nó; se o universo 100 não for mapeado no nó, ele não conflita com a iluminação. Confirme isso no onPC.
+
+## 3b. Holyrics (linhas 13 a 16 e setas do painel rápido)
+
+O app controla o Holyrics **só pela API HTTP dele** (nada de teclas simuladas na janela). Cartão **Holyrics** da aba Controle:
+
+1. No Holyrics: *Arquivo > Configurações > API Server*: ligue o servidor, anote a porta (padrão **8091**) e crie um **token** com permissão para `ActionNext`, `ActionPrevious`, `MediaPlayerAction`, `GetMediaPlayerInfo` e `SetLogo`.
+2. No app: endereço (**127.0.0.1** se o Holyrics está neste PC; o IP dele se for outro PC), porta, token (**Colar**; fica protegido por DPAPI, só aparecem pontos) e o raio **Testar**. O chip diz **conectado**, **token sem permissão para X**, **token não aceito** ou **sem resposta** (2 s). Testar só pergunta (`CheckPermissions` e `GetMediaPlayerInfo`), não muda nada no Holyrics.
+3. Sem token nada é enviado; as linhas 13 a 16 falham no log com "Holyrics sem token".
+
+| Canal | Ação | O que o app manda (`POST /api/AÇÃO?token=...`, corpo JSON) |
+| --- | --- | --- |
+| 13 | Slide próximo | `ActionNext` `{}` |
+| 14 | Slide anterior | `ActionPrevious` `{}` |
+| 15 | Play/pausa do vídeo | `GetMediaPlayerInfo`; se `playing` é verdadeiro, `MediaPlayerAction {"action":"pause"}`, senão `{"action":"play"}` |
+| 16 | Logo | ligado: `SetLogo {"enable":true,"hide":false}`; desligado: `SetLogo {"enable":false,"hide":true}` |
+
+**Logo.** O Holyrics **não tem como ler** o estado do logo (a API só escreve), então o app guarda o dele (começa escondido). Modo **Botão** (padrão da linha 16, "qualquer mudança"): cada mudança do canal **alterna** o estado do app, igual ao Ctrl+K. Se alguém mexer no logo direto no Holyrics, o app perde a conta e a próxima mudança pode ficar invertida. Modo **Estado**: o canal É o logo (ligado mostra, desligado esconde), sem deriva, recomendado se a macro segura o canal. **Inferência (não confirmada em tela):** `enable` liga a função Logo do menu Ferramentas e `hide` mostra/oculta (a documentação diz "enable/disable functionality" e "show/hide functionality"); o desligado do app é o estado em que o Holyrics do dono foi encontrado (desligado e escondido).
+
+**Sem apresentação aberta**, `ActionNext`/`ActionPrevious` respondem `{"status":"error","error":"No presentation available"}` (HTTP 200): o app trata como "nada para mover", não como falha da conexão.
+
+**Anti-inundação:** um botão segurado não sobrecarrega o Holyrics: as chamadas saem uma de cada vez em segundo plano, no máximo uma de cada tipo esperando, a mesma ação não repete em menos de 150 ms e a chamada nunca trava o app (nem a fila da MA2). O Holyrics fora do ar não enche o log (1 aviso por tipo a cada 5 s). Não entra no backup.
+
+**Setas do painel rápido:** com a chave **Setas do painel rápido controlam o Holyrics** ligada (padrão) e o token configurado, enquanto você digita o aviso na caixa do painel da bandeja, **Seta direita = slide próximo** e **Seta esquerda = slide anterior**. Só vale com o cursor nessa caixa (nunca no resto do Windows), sem Shift/Ctrl/Alt, tecla segurada não repete, e as setas **não movem mais o cursor do texto** (use mouse, Home e End). Sem token ou com a chave desligada elas movem o cursor normalmente. Funciona igual com ou sem a MA2.
+
+**Macros da MA2 (lista):** canal 13 = slide próximo, 14 = slide anterior, 15 = play/pausa do vídeo, 16 = logo; cada macro põe o dimmer em 100 e 0 como as outras. Passos da MA2 continuam a confirmar no onPC.
 
 ## 4. Riscos conhecidos
 

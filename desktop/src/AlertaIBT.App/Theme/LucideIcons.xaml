@@ -172,4 +172,7 @@
     <!-- Controle (tab): gamepad-2, drawn from memory; check it by eye. -->
     <Geometry x:Key="LucideGamepad2">M 6 11 H 10 M 8 9 V 13 M 15 12 H 15.01 M 18 10 H 18.01 M 17.32 5 H 6.68 A 4 4 0 0 0 2.702 8.59 C 2.696 8.642 2.692 8.691 2.685 8.742 C 2.604 9.416 2 14.456 2 16 A 3 3 0 0 0 5 19 C 6 19 6.5 18.5 7 18 L 8.414 16.586 A 2 2 0 0 1 9.828 16 H 14.172 A 2 2 0 0 1 15.586 16.586 L 17 18 C 17.5 18.5 18 19 19 19 A 3 3 0 0 0 22 16 C 22 14.455 21.396 9.416 21.315 8.742 C 21.308 8.692 21.304 8.642 21.298 8.591 A 4 4 0 0 0 17.32 5 Z</Geometry>
 
+    <!-- Holyrics card: clipboard-paste, drawn from memory; check it by eye. -->
+    <Geometry x:Key="LucideClipboardPaste">M 11 14 H 21 M 16 4 H 18 A 2 2 0 0 1 20 6 V 7.344 M 17 18 L 21 14 L 17 10 M 8 4 H 6 A 2 2 0 0 0 4 6 V 20 A 2 2 0 0 0 6 22 H 18 A 2 2 0 0 0 19.793 20.887 M 9 2 H 15 A 1 1 0 0 1 16 3 V 5 A 1 1 0 0 1 15 6 H 9 A 1 1 0 0 1 8 5 V 3 A 1 1 0 0 1 9 2 Z</Geometry>
+
 </ResourceDictionary>
