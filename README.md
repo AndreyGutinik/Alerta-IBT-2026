@@ -2,7 +2,7 @@
 
 (Antes chamado Alerta-IBT. O identificador interno, a pasta `%AppData%AlertaIBT`, o repositório e o site `alertaibt.web.app` continuam com o nome antigo, para a atualização automática e as configurações seguirem funcionando.)
 
-Aplicativo do PC do telão da igreja. Mostra avisos (principalmente de carros no estacionamento) numa **barra no topo do LED 2560x768**, sem aparecer na transmissão (OBS, NDI ou print do Windows).
+Aplicativo do PC do telão da igreja. Mostra avisos (principalmente de carros no estacionamento) numa **barra no topo do LED 2560x768**, sem aparecer na transmissão (OBS, NDI ou print do Windows). A barra fica **sempre** fora da captura; a janela principal, o painel rápido e as caixas do app aparecem em prints (Win+Shift+S, Print Screen) enquanto estão longe do monitor do LED (Configurações > Sistema > "Janelas do app aparecem em prints", ligado por padrão). Para o painel rápido, que fecha ao perder o foco, use o ícone de câmera dentro do painel ("Copiar imagem do painel") e cole com Ctrl+V.
 
 Os avisos chegam pelo **Telegram** (grupo com o bot, mensagens que começam com `#`) ou são digitados no próprio PC. Antes de ir para o telão, o texto é corrigido (Gemini grátis, com corretor offline de reserva), colocado no padrão e entra numa fila.
 
