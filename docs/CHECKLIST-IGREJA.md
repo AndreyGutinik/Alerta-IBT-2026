@@ -1,4 +1,4 @@
-# Checklist do teste na igreja (IBT Controller 8.0.4)
+# Checklist do teste na igreja (IBT Controller 8.0.5)
 
 Roteiro para testar o app novo no **PC do telão** (o PC do Holyrics, com o LED 2560x768). Marque cada item. Se algo falhar, anote o que viu e copie o log em **Configurações > Diagnóstico > Copiar logs**.
 
@@ -291,7 +291,21 @@ A aba **NDI** manda uma câmera da rede (NDI) para o LED, **por baixo** da letra
 - [ ] **Câmeras e IPs fixos**: o lápis de cada botão muda o nome e a fonte (lista das fontes achadas ou o IP digitado, `192.168.1.50` ou `192.168.1.50:5961`); o **+** adiciona até 6 câmeras; a lixeira pede confirmação. O ícone de rede abre os **IPs fixos** (para câmeras em outra rede).
 - [ ] **Rede**: cada câmera chega com ~125 Mbps e há duas conectadas (Prévia e No ar): só em cabo gigabit, nunca por Wi-Fi.
 
-## 21. Backup e restauração das configurações
+## 21. Controle pela MA2 (aba Controle)
+
+A grandMA2 onPC (2.0.0.2) controla o app por Art-Net (universo 100 na MA2). Passo a passo em [CONTROLE-MA2.md](CONTROLE-MA2.md) (os passos da MA2 foram escritos de memória: **confirmar no onPC**). A chave **vem desligada**.
+
+- [ ] **Ligar e ver o sinal**: aba Controle, ligar **Controle pela MA2** (universo 100, **+1** ligado): o chip fica verde (**Sinal ok**) com "último pacote há 0,x s" e o IP 2.0.0.2. Desligar a chave: o chip diz **Desligado** e o app deixa de escutar.
+- [ ] **Linha de base**: com a MA2 segurando um botão ligado (por exemplo Cortar), ligar a chave: **nada dispara** na conexão. Só mudanças depois disso.
+- [ ] **Câmeras e corte**: botões das câmeras 1 a 6 na MA2 escolhem a câmera na **Prévia**; o botão de Cortar corta; o canal 7 liga e desliga a câmera no telão.
+- [ ] **Música**: canais 9 a 12 (tocar/pausar, parar, avançar, voltar) agem como os botões da aba Som.
+- [ ] **Faders e pickup**: os faders 17 a 21 (posição da prévia, posição do no ar, volume do Windows, do Holyrics e do player): o fader **só assume** depois de cruzar o valor atual do app (ampulheta amarela, depois visto verde); mexer o controle deslizante na tela e depois o fader exige cruzar de novo. Com "Suavizar mudança de volume" ligado na aba Som, os volumes sobem e descem suaves.
+- [ ] **Sem sinal**: parar a MA2 (ou tirar o cabo) por 4 s: o chip fica amarelo **Sem sinal** e o app mantém tudo como está; ao voltar, nada dispara pelos valores que a MA2 já segura.
+- [ ] **Porta em uso**: abrir outro programa que use a porta 6454 de forma exclusiva: o chip fica vermelho **Porta 6454 em uso** e o app não cai; fechar o outro programa: ele volta sozinho em até 3 s.
+- [ ] **Testar** (raio) em cada linha roda a ação uma vez sem a MA2. As linhas 13 a 16 (Holyrics) dizem **em breve** e não rodam.
+- [ ] **Rede**: a placa 2.x do PC e o nó DMX não conflitam (o universo 100 não está mapeado no nó). A aba não aparece nas configurações de backup (não entra no backup).
+
+## 22. Backup e restauração das configurações
 
 O backup guarda **só o que é difícil de refazer**: token e grupo do Telegram, chave e modelo do Gemini, atalhos (painel, mouse, Ctrl 3 vezes, atalhos do NDI, teclas de mídia), barra (tamanho, velocidade, posição, tela do LED), conexão com o site (endereço, chave da API, e-mail e senha do PC, e o interruptor "Site ligado"), regras fixas, "Alertas ligados" e a limpeza semanal. **Não** guarda playlists, câmeras, volumes, saídas, player, despertadores nem a janela. Fica num arquivo `.ibtbackup` criptografado com a senha que você escolher (sem a senha ninguém abre, nem o dono: anote a senha).
 
@@ -315,7 +329,7 @@ O backup guarda **só o que é difícil de refazer**: token e grupo do Telegram,
 4. Conferir a bolinha Telegram, Site e Gemini no Início. Playlists, câmeras, volumes e despertadores precisam ser feitos de novo (não estão no backup).
 5. A cópia automática do PC antigo **não** vai junto: ligar de novo no PC novo (a senha dela fica protegida só no usuário do Windows de cada PC).
 
-## 22. Depois que tudo passou
+## 23. Depois que tudo passou
 
 - [ ] **Desinstalar o Alerta-IBT antigo (Electron)**: Configurações do Windows > Aplicativos > "Avisos de Estacionamento - IBT" (Alerta-IBT).
 - [ ] Conferir que o `AlertaIBT` continua no início do Windows e que o antigo não aparece mais lá.
