@@ -36,6 +36,9 @@ public enum ControlAction
     /// <summary>Shows or hides the logo of Holyrics.</summary>
     LogoToggle,
 
+    /// <summary>Turns the presentation mode (the pastor's remote on the Holyrics slides) on or off. Available in the list, never in the default map.</summary>
+    PresentationMode,
+
     /// <summary>The vertical position (0 to 100 %) of the camera that is in Preview.</summary>
     PreviewVertical,
 
@@ -115,6 +118,7 @@ public static class ControlCatalog
         new(ControlAction.SlidePrevious, "Slide anterior", "LucidePresentation", ButtonOnly, true),
         new(ControlAction.VideoPlayPause, "Play/pausa do v\U000000EDdeo do Holyrics", "LucideVideo", ButtonOnly, true),
         new(ControlAction.LogoToggle, "Logo do Holyrics", "LucideEye", ButtonOrState, true),
+        new(ControlAction.PresentationMode, "Modo apresentação (controle do pastor)", "LucideKeyboard", ButtonOrState, true),
         new(ControlAction.PreviewVertical, "Posi\U000000E7\U000000E3o da pr\U000000E9via", "LucideMoveVertical", FaderOnly, true),
         new(ControlAction.ProgramVertical, "Posi\U000000E7\U000000E3o do no ar", "LucideMoveVertical", FaderOnly, true),
         new(ControlAction.VolumeWindows, "Volume do Windows", "LucideVolume2", FaderOnly, true),

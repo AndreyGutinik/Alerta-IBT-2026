@@ -87,12 +87,14 @@ public sealed class ControlTargets : IControlTargets
     private readonly IPlayerControl _player;
     private readonly IControlVolumes _volumes;
     private readonly IHolyricsRemote? _holyrics;
+    private readonly IPresentationControl? _presentation;
 
     /// <param name="ndi">The NDI engine.</param>
     /// <param name="player">The music player.</param>
     /// <param name="volumes">The volume controls.</param>
     /// <param name="holyrics">The Holyrics connection; without one the Holyrics actions fail with a clear message.</param>
-    public ControlTargets(IControlNdi ndi, IPlayerControl player, IControlVolumes volumes, IHolyricsRemote? holyrics = null)
+    /// <param name="presentation">The presentation mode; without one that action fails with a clear message.</param>
+    public ControlTargets(IControlNdi ndi, IPlayerControl player, IControlVolumes volumes, IHolyricsRemote? holyrics = null, IPresentationControl? presentation = null)
     {
         ArgumentNullException.ThrowIfNull(ndi);
         ArgumentNullException.ThrowIfNull(player);
@@ -102,6 +104,7 @@ public sealed class ControlTargets : IControlTargets
         _player = player;
         _volumes = volumes;
         _holyrics = holyrics;
+        _presentation = presentation;
     }
 
     /// <inheritdoc />
@@ -159,6 +162,17 @@ public sealed class ControlTargets : IControlTargets
                 return Holyrics(command.Kind == ControlCommandKind.SetState
                     ? new HolyricsCommand(HolyricsActionKind.LogoSet, command.On)
                     : new HolyricsCommand(HolyricsActionKind.LogoToggle));
+
+            case ControlAction.PresentationMode:
+                // "Estado": the channel is the mode (ON turns it on, OFF off). "Botao": every change flips it.
+                if (_presentation is null)
+                {
+                    return ControlResult.Fail("modo apresenta\U000000E7\U000000E3o indispon\U000000EDvel");
+                }
+
+                var wanted = command.Kind == ControlCommandKind.SetState ? command.On : !_presentation.IsOn;
+                var outcome = _presentation.SetOn(wanted);
+                return outcome.Success ? ControlResult.Ok : ControlResult.Fail(outcome.Message ?? "falhou");
 
             default:
                 return ControlResult.Fail("a\U000000E7\U000000E3o desconhecida");

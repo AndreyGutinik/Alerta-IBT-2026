@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Http;
 using AlertaIBT.Core.Ndi;
 using AlertaIBT.Core.Player;
@@ -44,6 +45,7 @@ public sealed class HttpControlServer : IDisposable
     private readonly IOverlayControl _overlay;
     private readonly IPlayerControl? _player;
     private readonly INdiControl? _ndi;
+    private readonly IPresentationControl? _presentation;
     private readonly Func<string?>? _nextAlarm;
     private readonly Func<bool>? _alertsOn;
     private readonly StatusHub? _hub;
@@ -64,6 +66,7 @@ public sealed class HttpControlServer : IDisposable
     /// <param name="player">What the <c>/player/...</c> routes drive; without it they answer 404 like any unknown route.</param>
     /// <param name="nextAlarm">The "next alarm" line for <c>/player/status</c>; may be <c>null</c>.</param>
     /// <param name="ndi">What the <c>/ndi/...</c> routes drive (the telao camera); without it they answer 404. Independent of <paramref name="alertsOn"/>.</param>
+    /// <param name="presentation">What the <c>/holyrics/presentation/...</c> routes drive (the presentation mode); without it they answer 404.</param>
     /// <param name="alertsOn">Whether the alerts are on (the master switch); the <c>/overlay/...</c> routes answer "alertas desligados" while it says no. Always on when <c>null</c>.</param>
     public HttpControlServer(
         IOverlayControl overlay,
@@ -74,7 +77,8 @@ public sealed class HttpControlServer : IDisposable
         IPlayerControl? player = null,
         Func<string?>? nextAlarm = null,
         Func<bool>? alertsOn = null,
-        INdiControl? ndi = null)
+        INdiControl? ndi = null,
+        IPresentationControl? presentation = null)
     {
         ArgumentNullException.ThrowIfNull(overlay);
         ArgumentNullException.ThrowIfNull(logger);
@@ -84,6 +88,7 @@ public sealed class HttpControlServer : IDisposable
         _overlay = overlay;
         _player = player;
         _ndi = ndi;
+        _presentation = presentation;
         _nextAlarm = nextAlarm;
         _alertsOn = alertsOn;
         _hub = hub;
@@ -278,6 +283,13 @@ public sealed class HttpControlServer : IDisposable
                 return Task.CompletedTask;
             }
 
+            // The presentation mode (the pastor's remote on the Holyrics slides) owns /holyrics; it does not depend on the alerts switch either.
+            if (_presentation is not null && PresentationIntent.IsHolyricsPath(rawUrl))
+            {
+                HandlePresentation(context.Response, method, rawUrl, _presentation);
+                return Task.CompletedTask;
+            }
+
             var intent = OverlayIntent.Parse(method, rawUrl);
             if (intent != OverlayIntentKind.NotFound && _alertsOn is not null && !_alertsOn())
             {
@@ -367,6 +379,33 @@ public sealed class HttpControlServer : IDisposable
 
         // 200 whether it worked or not: success:false with the reason is the answer (for example "runtime NDI ausente").
         Respond(response, HttpStatusCode.OK, NdiIntent.Execute(intent, ndi));
+    }
+
+    private void HandlePresentation(HttpListenerResponse response, string method, string rawUrl, IPresentationControl presentation)
+    {
+        var intent = PresentationIntent.Parse(method, rawUrl);
+        if (intent == PresentationIntentKind.NotFound)
+        {
+            _logger.LogInformation("HTTP {Method} {Url}: rota desconhecida", method, rawUrl);
+            Respond(
+                response,
+                HttpStatusCode.NotFound,
+                new Dictionary<string, object?>
+                {
+                    ["success"] = false,
+                    ["error"] = "not_found",
+                    ["received"] = new Dictionary<string, object?> { ["method"] = method, ["url"] = rawUrl },
+                });
+            return;
+        }
+
+        if (intent != PresentationIntentKind.Status)
+        {
+            _logger.LogInformation("HTTP {Method} {Url}: modo apresentacao {Intent}", method, rawUrl, intent);
+        }
+
+        // 200 whether it worked or not: success:false with the reason is the answer (for example "Holyrics sem token").
+        Respond(response, HttpStatusCode.OK, PresentationIntent.Execute(intent, presentation));
     }
 
     private void HandlePlayer(HttpListenerResponse response, string method, string rawUrl, IPlayerControl player)

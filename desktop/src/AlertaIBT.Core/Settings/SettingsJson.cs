@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using AlertaIBT.Core.Correction;
+using AlertaIBT.Core.Holyrics;
 
 namespace AlertaIBT.Core.Settings;
 
@@ -199,6 +200,8 @@ public static partial class SettingsJson
                     Port = ReadInt(holyrics, "port") ?? defaults.Holyrics.Port,
                     TokenProtected = ReadString(holyrics, "tokenProtected"),
                     ArrowsEnabled = ReadBool(holyrics, "arrowsEnabled") ?? defaults.Holyrics.ArrowsEnabled,
+                    PresentationNext = ReadInts(holyrics, "presentationNext") ?? defaults.Holyrics.PresentationNext,
+                    PresentationPrevious = ReadInts(holyrics, "presentationPrevious") ?? defaults.Holyrics.PresentationPrevious,
                 },
                 Backup = new BackupSettings
                 {
@@ -339,6 +342,8 @@ public static partial class SettingsJson
                 ["port"] = n.Holyrics.Port,
                 ["tokenProtected"] = n.Holyrics.TokenProtected,
                 ["arrowsEnabled"] = n.Holyrics.ArrowsEnabled,
+                ["presentationNext"] = new JsonArray(n.Holyrics.PresentationNext.Select(key => (JsonNode)JsonValue.Create(key)!).ToArray()),
+                ["presentationPrevious"] = new JsonArray(n.Holyrics.PresentationPrevious.Select(key => (JsonNode)JsonValue.Create(key)!).ToArray()),
             },
             ["control"] = new JsonObject
             {
@@ -406,6 +411,10 @@ public static partial class SettingsJson
         var backup = s.Backup ?? d.Backup;
         var control = s.Control ?? d.Control;
         var holyrics = s.Holyrics ?? d.Holyrics;
+
+        // The keys of the presentation mode: a missing list gets the defaults, an emptied one stays empty; "next" wins when a key is in both.
+        var presentationNext = PresentationKeys.Clean(holyrics.PresentationNext ?? PresentationKeys.DefaultNext);
+        holyrics = holyrics with { PresentationPrevious = holyrics.PresentationPrevious ?? PresentationKeys.DefaultPrevious };
 
         return new AppSettings
         {
@@ -493,6 +502,8 @@ public static partial class SettingsJson
                 Port = holyrics.Port is >= 1 and <= 65535 ? holyrics.Port : HolyricsSettings.DefaultPort,
                 TokenProtected = NullIfBlank(holyrics.TokenProtected),
                 ArrowsEnabled = holyrics.ArrowsEnabled,
+                PresentationNext = presentationNext,
+                PresentationPrevious = PresentationKeys.Clean(holyrics.PresentationPrevious, presentationNext),
             },
             Backup = new BackupSettings
             {
@@ -725,6 +736,12 @@ public static partial class SettingsJson
 
         return result;
     }
+
+    // A list of whole numbers (key codes); null when it is missing or not a list (the default then applies).
+    private static List<int>? ReadInts(JsonElement section, string name) =>
+        Find(section, name) is { ValueKind: JsonValueKind.Array } list
+            ? list.EnumerateArray().Where(n => n.ValueKind == JsonValueKind.Number && n.TryGetInt32(out _)).Select(n => n.GetInt32()).ToList()
+            : null;
 
     // A list of strings; null when it is missing or not a list (the default then applies).
     private static List<string>? ReadStrings(JsonElement section, string name) =>

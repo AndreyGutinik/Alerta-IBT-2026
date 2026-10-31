@@ -1,3 +1,5 @@
+using AlertaIBT.Core.Holyrics;
+
 namespace AlertaIBT.Core.Settings;
 
 /// <summary>What <see cref="HolyricsSettings.ParseHostEntry"/> made of the address box.</summary>
@@ -30,6 +32,25 @@ public sealed record HolyricsSettings
 
     /// <summary>"Setas do painel rápido controlam o Holyrics": while the text box of the tray panel has the focus, Left and Right are slide back and next.</summary>
     public bool ArrowsEnabled { get; init; } = true;
+
+    /// <summary>The keys that mean "next slide" in the presentation mode (virtual-key codes); Page Down and the right arrow by default. The mode itself is never saved: it is off at every start.</summary>
+    public IReadOnlyList<int> PresentationNext { get; init; } = PresentationKeys.DefaultNext;
+
+    /// <summary>The keys that mean "previous slide" in the presentation mode (virtual-key codes); Page Up and the left arrow by default.</summary>
+    public IReadOnlyList<int> PresentationPrevious { get; init; } = PresentationKeys.DefaultPrevious;
+
+    /// <summary>Value equality, with the two key lists compared one by one (a list is otherwise compared by reference).</summary>
+    public bool Equals(HolyricsSettings? other) =>
+        other is not null
+        && Host == other.Host
+        && Port == other.Port
+        && TokenProtected == other.TokenProtected
+        && ArrowsEnabled == other.ArrowsEnabled
+        && PresentationNext.SequenceEqual(other.PresentationNext)
+        && PresentationPrevious.SequenceEqual(other.PresentationPrevious);
+
+    /// <inheritdoc />
+    public override int GetHashCode() => HashCode.Combine(Host, Port, TokenProtected, ArrowsEnabled, PresentationNext.Count, PresentationPrevious.Count);
 
     /// <summary>
     /// Reads what the owner typed in the address box and cleans it: spaces around it, a leading <c>http://</c> or <c>https://</c>, a path or trailing slash, a trailing dot,
