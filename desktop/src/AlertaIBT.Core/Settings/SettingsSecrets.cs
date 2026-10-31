@@ -24,6 +24,24 @@ public static class SettingsSecrets
         return protector.Unprotect(settings.Correction.GeminiKeyProtected);
     }
 
+    /// <summary>The Holyrics API token in clear, or <c>null</c> when there is none or it cannot be read.</summary>
+    public static string? GetHolyricsToken(this AppSettings settings, ISecretProtector protector)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(protector);
+
+        return protector.Unprotect(settings.Holyrics.TokenProtected);
+    }
+
+    /// <summary>A copy with the Holyrics API token set (trimmed) or, when <paramref name="token"/> is blank, cleared.</summary>
+    public static AppSettings WithHolyricsToken(this AppSettings settings, string? token, ISecretProtector protector)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(protector);
+
+        return settings with { Holyrics = settings.Holyrics with { TokenProtected = protector.Protect(token?.Trim()) } };
+    }
+
     /// <summary>The password of the PC Firebase account in clear, or <c>null</c> when there is none or it cannot be read.</summary>
     public static string? GetSitePassword(this AppSettings settings, ISecretProtector protector)
     {

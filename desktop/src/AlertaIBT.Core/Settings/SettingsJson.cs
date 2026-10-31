@@ -75,6 +75,7 @@ public static partial class SettingsJson
             var audio = Section(root, "audio");
             var player = Section(root, "player");
             var control = Section(root, "control");
+            var holyrics = Section(root, "holyrics");
             var ndi = Section(root, "ndi");
             var backup = Section(root, "backup");
 
@@ -191,6 +192,13 @@ public static partial class SettingsJson
                     UniverseOffset = ReadBool(control, "universeOffset") ?? defaults.Control.UniverseOffset,
                     SourceIp = ReadString(control, "sourceIp") ?? defaults.Control.SourceIp,
                     Rows = ReadControlRows(control) ?? defaults.Control.Rows,
+                },
+                Holyrics = new HolyricsSettings
+                {
+                    Host = ReadString(holyrics, "host") ?? defaults.Holyrics.Host,
+                    Port = ReadInt(holyrics, "port") ?? defaults.Holyrics.Port,
+                    TokenProtected = ReadString(holyrics, "tokenProtected"),
+                    ArrowsEnabled = ReadBool(holyrics, "arrowsEnabled") ?? defaults.Holyrics.ArrowsEnabled,
                 },
                 Backup = new BackupSettings
                 {
@@ -325,8 +333,16 @@ public static partial class SettingsJson
                     ["lastFiredOn"] = alarm.LastFiredOn,
                 }).ToArray()),
             },
+            ["holyrics"] = new JsonObject
+            {
+                ["host"] = n.Holyrics.Host,
+                ["port"] = n.Holyrics.Port,
+                ["tokenProtected"] = n.Holyrics.TokenProtected,
+                ["arrowsEnabled"] = n.Holyrics.ArrowsEnabled,
+            },
             ["control"] = new JsonObject
             {
+                ["version"] = ControlFormatVersion,
                 ["enabled"] = n.Control.Enabled,
                 ["universe"] = n.Control.Universe,
                 ["universeOffset"] = n.Control.UniverseOffset,
@@ -389,6 +405,7 @@ public static partial class SettingsJson
         var ndi = s.Ndi ?? d.Ndi;
         var backup = s.Backup ?? d.Backup;
         var control = s.Control ?? d.Control;
+        var holyrics = s.Holyrics ?? d.Holyrics;
 
         return new AppSettings
         {
@@ -470,6 +487,13 @@ public static partial class SettingsJson
             Player = NormalizePlayer(player),
             Ndi = NormalizeNdi(ndi),
             Control = NormalizeControl(control),
+            Holyrics = new HolyricsSettings
+            {
+                Host = HolyricsSettings.IsValidHost(holyrics.Host) ? holyrics.Host!.Trim() : HolyricsSettings.DefaultHost,
+                Port = holyrics.Port is >= 1 and <= 65535 ? holyrics.Port : HolyricsSettings.DefaultPort,
+                TokenProtected = NullIfBlank(holyrics.TokenProtected),
+                ArrowsEnabled = holyrics.ArrowsEnabled,
+            },
             Backup = new BackupSettings
             {
                 AutoEnabled = backup.AutoEnabled,
@@ -541,8 +565,16 @@ public static partial class SettingsJson
             row.Enabled && info.Available);
     }
 
+    // Version 2 of the "control" section: the four Holyrics rows are real actions now. Files written before it kept them off (they could not run), so on
+    // the first load those rows come back on; from then on the file says 2 and an owner's choice to turn one off is kept.
+    private const int ControlFormatVersion = 2;
+
+    private static bool IsHolyricsAction(ControlAction action) =>
+        action is ControlAction.SlideNext or ControlAction.SlidePrevious or ControlAction.VideoPlayPause or ControlAction.LogoToggle;
+
     private static List<ControlRow>? ReadControlRows(JsonElement control)
     {
+        var legacy = (ReadInt(control, "version") ?? 1) < ControlFormatVersion;
         if (Find(control, "rows") is not { ValueKind: JsonValueKind.Array } list)
         {
             return null;
@@ -564,7 +596,7 @@ public static partial class SettingsJson
                 ControlCatalog.ParseTrigger(ReadString(item, "trigger")) ?? ControlTrigger.AnyChange,
                 ReadInt(item, "parameter") ?? 0,
                 ReadBool(item, "pickup") ?? true,
-                ReadBool(item, "enabled") ?? true));
+                (ReadBool(item, "enabled") ?? true) || (legacy && IsHolyricsAction(action))));
         }
 
         return rows;
