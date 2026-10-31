@@ -26,7 +26,7 @@ public sealed class TrayServiceTests
     }
 
     [Fact]
-    public void The_menu_has_Abrir_Pausar_the_mouse_lock_and_Sair_in_that_order_and_each_raises_its_event()
+    public void The_menu_has_Abrir_Pausar_the_mouse_lock_the_presentation_mode_and_Sair_in_that_order_and_each_raises_its_event()
     {
         WpfTestHost.Run(() =>
         {
@@ -35,17 +35,18 @@ public sealed class TrayServiceTests
             tray.MainWindowRequested += () => events.Add("open");
             tray.PauseToggleRequested += () => events.Add("pause");
             tray.MouseLockToggleRequested += () => events.Add("mouse");
+            tray.PresentationToggleRequested += () => events.Add("presentation");
             tray.ExitRequested += () => events.Add("exit");
 
             var items = tray.Menu.Items.OfType<MenuItem>().ToList();
-            Assert.Equal(["Abrir", "Pausar", "Travar o mouse na tela principal", "Sair"], items.Select(i => (string)i.Header));
+            Assert.Equal(["Abrir", "Pausar", "Travar o mouse na tela principal", TrayService.PresentationHeader, "Sair"], items.Select(i => (string)i.Header));
 
             foreach (var item in items)
             {
                 item.RaiseEvent(new System.Windows.RoutedEventArgs(MenuItem.ClickEvent));
             }
 
-            Assert.Equal(["open", "pause", "mouse", "exit"], events);
+            Assert.Equal(["open", "pause", "mouse", "presentation", "exit"], events);
         });
     }
 

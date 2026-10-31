@@ -43,12 +43,14 @@ public sealed class AppShell : IDisposable
     private readonly NdiService _ndi;
     private readonly NdiTelaoHost _ndiHost;
     private readonly Func<MessageWindow, INdiHotkeyRegistry> _ndiRegistryFactory;
+    private readonly PresentationModeController _presentation;
 
     private MessageWindow? _messages;
     private INdiHotkeyRegistry? _ndiRegistry;
     private NdiHotkeyController? _ndiHotkeys;
     private HotkeyService? _hotkeys;
     private HotkeyService? _mouseHotkeys;
+    private HotkeyService? _presentationHotkeys;
     private MouseLockSignals? _mouseSignals;
     private QuickPanelHotkey? _hotkey;
     private bool _exitDialogOpen;
@@ -73,8 +75,10 @@ public sealed class AppShell : IDisposable
         NdiTelaoHost ndiHost,
         Func<MessageWindow, INdiHotkeyRegistry> ndiRegistryFactory,
         LoudnessService loudness,
-        ControlService control)
+        ControlService control,
+        PresentationModeController presentation)
     {
+        _presentation = presentation;
         _logger = logger;
         _settings = settings;
         _tray = tray;
@@ -184,6 +188,11 @@ public sealed class AppShell : IDisposable
         _mouse.Start(_mouseHotkeys);
         _mouseSignals = new MouseLockSignals(_mouse, Application.Current.Dispatcher);
 
+        // The presentation mode (the pastor's remote on the Holyrics slides): Ctrl+Alt+P; the mode itself is OFF at every start and its keyboard hook exists only while it is on.
+        _presentationHotkeys = new HotkeyService(_messages, HotkeyService.PresentationHotkeyId);
+        _presentationHotkeys.Pressed += _presentation.Toggle;
+        _presentation.Start(_presentationHotkeys);
+
         // The music player: the playlists are scanned and the output is looked at; nothing plays by itself here.
         _player.Start();
         _loudness.Start(); // measures the music in the background, below normal priority; the player never waits for it
@@ -266,6 +275,8 @@ public sealed class AppShell : IDisposable
             PauseToggleRequested?.Invoke();
         };
         _tray.MouseLockToggleRequested += _mouse.Toggle;
+        _tray.PresentationToggleRequested += _presentation.Toggle;
+        _presentation.StateChanged += OnPresentationChanged;
         _mouse.LockedChanged += _tray.SetMouseLocked;
         _tray.ExitRequested += () => _ = ExitAsync();
     }
@@ -315,6 +326,8 @@ public sealed class AppShell : IDisposable
 
         // First: the cursor, the keyboard hook and the lock shortcut go back to Windows before anything slow runs.
         _mouseSignals?.Dispose();
+        _presentation.StateChanged -= OnPresentationChanged;
+        _presentation.Dispose(); // the swallowing keyboard hook goes back to Windows first of all
         _mouse.Dispose();
         _alarms.Dispose();
         _player.Dispose(); // the sound stops at once, before the slow parts
@@ -325,6 +338,7 @@ public sealed class AppShell : IDisposable
         (_ndiRegistry as IDisposable)?.Dispose();
         _ndiHost.Dispose(); // hides the camera window before anything slow runs
         _mouseHotkeys?.Dispose();
+        _presentationHotkeys?.Dispose();
         _overlay.Dispose(); // first: it ends the pass in progress, so stopping the alert service does not wait for the UI thread
         _runtime.Dispose();
         _led.Dispose();
@@ -332,6 +346,9 @@ public sealed class AppShell : IDisposable
         _hotkeys?.Dispose();
         _messages?.Dispose();
     }
+
+    // The mode turned on or off (the shortcut, the switch, the API, or by itself after a failure): the tray menu and tooltip follow.
+    private void OnPresentationChanged() => _tray.SetPresentation(_presentation.IsOn);
 
     private void RaiseQuickPanel()
     {

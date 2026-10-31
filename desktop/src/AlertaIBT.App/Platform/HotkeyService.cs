@@ -14,6 +14,9 @@ public sealed class HotkeyService : IHotkeyRegistrar, IDisposable
     /// <summary>The id of the mouse-lock hotkey.</summary>
     public const int MouseLockHotkeyId = 0xB12;
 
+    /// <summary>The id of the presentation-mode hotkey (Ctrl+Alt+P).</summary>
+    public const int PresentationHotkeyId = 0xB13;
+
     private readonly MessageWindow _window;
     private readonly int _id;
     private bool _registered;

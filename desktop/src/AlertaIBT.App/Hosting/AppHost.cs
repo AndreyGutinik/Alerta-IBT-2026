@@ -204,11 +204,21 @@ public static class AppHost
             provider.GetRequiredService<ISecretProtector>(),
             provider.GetRequiredService<ILogger<HolyricsClient>>()));
         services.AddSingleton<IHolyricsRemote>(provider => provider.GetRequiredService<HolyricsClient>());
+        // The presentation mode (the pastor's remote on the Holyrics slides): its own swallowing keyboard hook, which exists only while the mode is on. Off at every start.
+        services.AddSingleton<IKeyboardGate, SwallowingKeyboardHook>();
+        services.AddSingleton(provider => new PresentationModeController(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<IHolyricsRemote>(),
+            provider.GetRequiredService<IKeyboardGate>(),
+            InvokeOnUi,
+            provider.GetRequiredService<ILogger<PresentationModeController>>()));
+        services.AddSingleton<IPresentationControl>(provider => provider.GetRequiredService<PresentationModeController>());
         services.AddSingleton<IControlTargets>(provider => new ControlTargets(
             new NdiControlAdapter(provider.GetRequiredService<NdiService>()),
             provider.GetRequiredService<MusicPlayer>(),
             provider.GetRequiredService<IControlVolumes>(),
-            provider.GetRequiredService<IHolyricsRemote>()));
+            provider.GetRequiredService<IHolyricsRemote>(),
+            provider.GetRequiredService<IPresentationControl>()));
         services.AddSingleton(provider => new ControlService(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<IControlTargets>(),
@@ -396,7 +406,12 @@ public static class AppHost
             PostToUi,
             provider.GetRequiredService<ILogger<ControlViewModel>>(),
             provider.GetRequiredService<HolyricsClient>(),
-            provider.GetRequiredService<ISecretProtector>()));
+            provider.GetRequiredService<ISecretProtector>(),
+            provider.GetRequiredService<PresentationModeController>())
+        {
+            // "Adicionar tecla" of the presentation mode: a small dialog that waits for the key of the pastor's remote.
+            KeyRecorder = setName => KeyCaptureDialog.Ask(setName, provider.GetRequiredService<AppWindowPolicy>()),
+        });
         services.AddSingleton(provider => new MainViewModel(
             provider.GetRequiredService<StatusHub>(),
             provider.GetRequiredService<HomeViewModel>(),
@@ -463,6 +478,17 @@ public static class AppHost
         {
             // No browser to open: nothing to do (the address is written on the screen).
         }
+    }
+
+    // Runs work on the UI thread and waits for its answer (at most 2 s): the API and the map turn the presentation mode on from other threads, and the keyboard hook must be installed on the UI thread.
+    private static PresentationResult InvokeOnUi(Func<PresentationResult> work)
+    {
+        if (Application.Current?.Dispatcher is not { } dispatcher || dispatcher.CheckAccess())
+        {
+            return work();
+        }
+
+        return dispatcher.Invoke(work, System.Windows.Threading.DispatcherPriority.Normal, CancellationToken.None, TimeSpan.FromSeconds(2));
     }
 
     private static void PostToUi(Action action)
@@ -664,7 +690,8 @@ public static class AppHost
             provider.GetRequiredService<MusicPlayer>(),
             () => provider.GetRequiredService<AlarmScheduler>().NextAlarmText,
             () => provider.GetRequiredService<SettingsService>().Current.System.AlertsEnabled,
-            provider.GetRequiredService<NdiService>()));
+            provider.GetRequiredService<NdiService>(),
+            provider.GetRequiredService<IPresentationControl>()));
         services.AddSingleton<AlertRuntime>();
     }
 }

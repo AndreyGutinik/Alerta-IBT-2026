@@ -24,7 +24,9 @@ public sealed class TrayService : IDisposable
     private readonly MenuItem _exitItem;
     private readonly MenuItem _openItem;
     private readonly MenuItem _mouseLockItem;
+    private readonly MenuItem _presentationItem;
     private bool _paused;
+    private bool _presentation;
     private bool _mouseLocked;
     private string? _hotkeyWarning;
     private string? _updateNotice;
@@ -50,6 +52,18 @@ public sealed class TrayService : IDisposable
             _mouseLockItem.IsChecked = _mouseLocked; // the check shows what really happened (the lock may have been refused)
         };
 
+        _presentationItem = new MenuItem
+        {
+            Header = PresentationHeader,
+            IsCheckable = true,
+            Icon = LucideIcon("LucidePresentation"),
+        };
+        _presentationItem.Click += (_, _) =>
+        {
+            PresentationToggleRequested?.Invoke();
+            _presentationItem.IsChecked = _presentation; // the check shows what really happened (the mode may have been refused)
+        };
+
         _exitItem = new MenuItem { Header = "Sair", Icon = LucideIcon("LucidePower") };
         _exitItem.Click += (_, _) => ExitRequested?.Invoke();
 
@@ -58,6 +72,7 @@ public sealed class TrayService : IDisposable
         Menu.Items.Add(_openItem);
         Menu.Items.Add(_pauseItem);
         Menu.Items.Add(_mouseLockItem);
+        Menu.Items.Add(_presentationItem);
         Menu.Items.Add(new Separator());
         Menu.Items.Add(_exitItem);
 
@@ -89,11 +104,20 @@ public sealed class TrayService : IDisposable
     /// <summary>Raised by the menu's "Travar o mouse na tela principal".</summary>
     public event Action? MouseLockToggleRequested;
 
+    /// <summary>Raised by the menu's "Modo apresentacao (Ctrl+Alt+P)".</summary>
+    public event Action? PresentationToggleRequested;
+
     /// <summary>Raised by the menu's Sair.</summary>
     public event Action? ExitRequested;
 
     /// <summary>The text of the mouse-lock menu item.</summary>
     public const string MouseLockHeader = "Travar o mouse na tela principal";
+
+    /// <summary>The text of the presentation-mode menu item.</summary>
+    public const string PresentationHeader = "Modo apresentação (Ctrl+Alt+P)";
+
+    /// <summary>The tooltip line while the presentation mode is on.</summary>
+    public const string PresentationOnText = "Modo apresentação ligado";
 
     /// <summary>The tooltip suffix while the mouse is locked.</summary>
     public const string MouseLockedSuffix = "mouse travado";
@@ -134,6 +158,14 @@ public sealed class TrayService : IDisposable
         UpdateToolTip();
     }
 
+    /// <summary>Shows whether the presentation mode is on: the menu item is checked and the tooltip says so (no pop-up, no notification).</summary>
+    public void SetPresentation(bool on)
+    {
+        _presentation = on;
+        _presentationItem.IsChecked = on;
+        UpdateToolTip();
+    }
+
     /// <summary>
     /// Tells the tooltip that the quick-panel hotkey does not work (<c>null</c> when it does), so the user finds out without
     /// opening anything; the click on the icon always opens the panel.
@@ -162,6 +194,12 @@ public sealed class TrayService : IDisposable
 
     /// <summary>Whether the icon shows the mouse lock on (the menu item is checked).</summary>
     public bool IsMouseLocked => _mouseLocked;
+
+    /// <summary>Whether the icon shows the presentation mode on (the menu item is checked).</summary>
+    public bool IsPresentationOn => _presentation;
+
+    /// <summary>The presentation-mode menu item, for tests.</summary>
+    internal MenuItem PresentationItem => _presentationItem;
 
     /// <summary>The mouse-lock menu item, for tests.</summary>
     internal MenuItem MouseLockItem => _mouseLockItem;
@@ -216,6 +254,11 @@ public sealed class TrayService : IDisposable
         if (_mouseLocked)
         {
             text += $" - {MouseLockedSuffix}";
+        }
+
+        if (_presentation)
+        {
+            text += "\n" + PresentationOnText;
         }
 
         if (_hotkeyWarning is not null)
