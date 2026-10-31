@@ -36,6 +36,9 @@ public sealed record AppSettings
     /// <summary>The NDI camera on the telao (receive only).</summary>
     public NdiSettings Ndi { get; init; } = new();
 
+    /// <summary>The control of the app by a grandMA2 over Art-Net (receive only). Not part of a backup.</summary>
+    public ControlSettings Control { get; init; } = new();
+
     /// <summary>The automatic copy of the critical settings (see <c>AlertaIBT.Core.Backup</c>). It is not part of a backup itself.</summary>
     public BackupSettings Backup { get; init; } = new();
 }

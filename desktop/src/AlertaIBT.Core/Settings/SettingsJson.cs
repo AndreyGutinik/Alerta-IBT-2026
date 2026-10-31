@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Control;
 using System.Globalization;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -73,6 +74,7 @@ public static partial class SettingsJson
             var mouseLock = Section(root, "mouseLock");
             var audio = Section(root, "audio");
             var player = Section(root, "player");
+            var control = Section(root, "control");
             var ndi = Section(root, "ndi");
             var backup = Section(root, "backup");
 
@@ -181,6 +183,14 @@ public static partial class SettingsJson
                     MonitorLocked = ReadBool(ndi, "monitorLocked") ?? defaults.Ndi.MonitorLocked,
                     MonitorDeviceName = ReadString(ndi, "monitorDeviceName") ?? defaults.Ndi.MonitorDeviceName,
                     HideFromCapture = ReadBool(ndi, "hideFromCapture") ?? defaults.Ndi.HideFromCapture,
+                },
+                Control = new ControlSettings
+                {
+                    Enabled = ReadBool(control, "enabled") ?? defaults.Control.Enabled,
+                    Universe = ReadInt(control, "universe") ?? defaults.Control.Universe,
+                    UniverseOffset = ReadBool(control, "universeOffset") ?? defaults.Control.UniverseOffset,
+                    SourceIp = ReadString(control, "sourceIp") ?? defaults.Control.SourceIp,
+                    Rows = ReadControlRows(control) ?? defaults.Control.Rows,
                 },
                 Backup = new BackupSettings
                 {
@@ -315,6 +325,23 @@ public static partial class SettingsJson
                     ["lastFiredOn"] = alarm.LastFiredOn,
                 }).ToArray()),
             },
+            ["control"] = new JsonObject
+            {
+                ["enabled"] = n.Control.Enabled,
+                ["universe"] = n.Control.Universe,
+                ["universeOffset"] = n.Control.UniverseOffset,
+                ["sourceIp"] = n.Control.SourceIp,
+                ["rows"] = new JsonArray(n.Control.Rows.Select(row => (JsonNode)new JsonObject
+                {
+                    ["channel"] = row.Channel,
+                    ["action"] = ControlCatalog.ToText(row.Action),
+                    ["mode"] = ControlCatalog.ToText(row.Mode),
+                    ["trigger"] = ControlCatalog.ToText(row.Trigger),
+                    ["parameter"] = row.Parameter,
+                    ["pickup"] = row.Pickup,
+                    ["enabled"] = row.Enabled,
+                }).ToArray()),
+            },
             ["backup"] = new JsonObject
             {
                 ["autoEnabled"] = n.Backup.AutoEnabled,
@@ -361,6 +388,7 @@ public static partial class SettingsJson
         var player = s.Player ?? d.Player;
         var ndi = s.Ndi ?? d.Ndi;
         var backup = s.Backup ?? d.Backup;
+        var control = s.Control ?? d.Control;
 
         return new AppSettings
         {
@@ -441,6 +469,7 @@ public static partial class SettingsJson
             },
             Player = NormalizePlayer(player),
             Ndi = NormalizeNdi(ndi),
+            Control = NormalizeControl(control),
             Backup = new BackupSettings
             {
                 AutoEnabled = backup.AutoEnabled,
@@ -477,6 +506,68 @@ public static partial class SettingsJson
             MonitorDeviceName = NullIfBlank(n.MonitorDeviceName) ?? string.Empty,
             HideFromCapture = n.HideFromCapture,
         };
+    }
+
+    // The control part held usable: a universe in range, the source a plain IPv4 address (or none), every row valid (the mode one the action accepts, a
+    // camera 1..6 for the camera rows, a Holyrics row never active while its engine does not exist). A missing (null) list gets the defaults; an empty one stays empty.
+    private static ControlSettings NormalizeControl(ControlSettings c)
+    {
+        var d = new ControlSettings();
+        var offset = c.UniverseOffset;
+        var rows = c.Rows is null ? d.Rows : c.Rows.Select(NormalizeControlRow).Take(ControlSettings.MaxRows).ToList();
+        return new ControlSettings
+        {
+            Enabled = c.Enabled,
+            Universe = Math.Clamp(c.Universe, offset ? 1 : 0, offset ? 32768 : 32767),
+            UniverseOffset = offset,
+            SourceIp = System.Net.IPAddress.TryParse(c.SourceIp?.Trim(), out var ip) && ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                ? ip.ToString()
+                : string.Empty,
+            Rows = rows,
+        };
+    }
+
+    private static ControlRow NormalizeControlRow(ControlRow row)
+    {
+        var info = ControlCatalog.Get(row.Action);
+        var mode = info.Modes.Contains(row.Mode) ? row.Mode : info.DefaultMode;
+        return new ControlRow(
+            Math.Clamp(row.Channel, 1, ControlSettings.ChannelCount),
+            row.Action,
+            mode,
+            Enum.IsDefined(row.Trigger) ? row.Trigger : ControlTrigger.AnyChange,
+            row.Action == ControlAction.SelectCamera ? Math.Clamp(row.Parameter, 1, NdiSettings.SlotCount) : 0,
+            row.Pickup,
+            row.Enabled && info.Available);
+    }
+
+    private static List<ControlRow>? ReadControlRows(JsonElement control)
+    {
+        if (Find(control, "rows") is not { ValueKind: JsonValueKind.Array } list)
+        {
+            return null;
+        }
+
+        var rows = new List<ControlRow>();
+        foreach (var item in list.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object || ControlCatalog.ParseAction(ReadString(item, "action")) is not { } action)
+            {
+                continue; // a row of an action this version does not know is dropped
+            }
+
+            var info = ControlCatalog.Get(action);
+            rows.Add(new ControlRow(
+                ReadInt(item, "channel") ?? 1,
+                action,
+                ControlCatalog.ParseMode(ReadString(item, "mode")) ?? info.DefaultMode,
+                ControlCatalog.ParseTrigger(ReadString(item, "trigger")) ?? ControlTrigger.AnyChange,
+                ReadInt(item, "parameter") ?? 0,
+                ReadBool(item, "pickup") ?? true,
+                ReadBool(item, "enabled") ?? true));
+        }
+
+        return rows;
     }
 
     private static List<NdiCameraSlot>? ReadCameras(JsonElement ndi)
