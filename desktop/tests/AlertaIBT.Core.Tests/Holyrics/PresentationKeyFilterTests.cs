@@ -13,9 +13,9 @@ public sealed class PresentationKeyFilterTests
 
     private static PresentationKeyFilter On() => new() { On = true, Configured = true };
 
-    private static PresentationKeyEvent Down(int key, bool modifier = false, bool own = false) => new(key, true, modifier, own);
+    private static PresentationKeyEvent Down(int key, bool modifier = false, bool panel = false) => new(key, true, modifier, panel);
 
-    private static PresentationKeyEvent Up(int key, bool modifier = false, bool own = false) => new(key, false, modifier, own);
+    private static PresentationKeyEvent Up(int key, bool modifier = false, bool panel = false) => new(key, false, modifier, panel);
 
     [Theory]
     [InlineData(PageDown, PresentationKeyAction.Next)]
@@ -76,10 +76,22 @@ public sealed class PresentationKeyFilterTests
     }
 
     [Fact]
-    public void The_own_window_in_front_keeps_its_keys()
+    public void A_key_the_quick_panel_already_handles_passes_so_a_slide_is_never_sent_twice()
     {
-        // The quick panel has its own arrows: the hook leaves this app's windows alone, so a slide is never sent twice.
-        Assert.Equal(PresentationVerdict.Pass, On().Decide(Down(Right, own: true)));
+        // Left/Right in the text box of the quick panel (arrows switch on): the panel's own path sends; the hook stays out.
+        Assert.Equal(PresentationVerdict.Pass, On().Decide(Down(Right, panel: true)));
+        Assert.Equal(PresentationVerdict.Pass, On().Decide(Down(Left, panel: true)));
+    }
+
+    [Fact]
+    public void The_app_windows_are_like_any_other_window_for_every_key_the_panel_does_not_handle()
+    {
+        // The owner types an alert in the quick panel while the pastor presses Page Down: the event says the panel does not handle that key.
+        var filter = On();
+        Assert.Equal(PresentationKeyAction.Next, filter.Decide(Down(PageDown, panel: false)).Action);
+        Assert.True(filter.Decide(Up(PageDown)).Consume);
+        // Right in another box of the app (not the quick panel): consumed as usual.
+        Assert.Equal(PresentationKeyAction.Next, filter.Decide(Down(Right, panel: false)).Action);
     }
 
     [Fact]
@@ -112,7 +124,7 @@ public sealed class PresentationKeyFilterTests
         filter.Decide(Down(Right));
         filter.On = false;
 
-        Assert.True(filter.Decide(Up(Right, modifier: true, own: true)).Consume);
+        Assert.True(filter.Decide(Up(Right, modifier: true, panel: true)).Consume);
     }
 
     [Fact]

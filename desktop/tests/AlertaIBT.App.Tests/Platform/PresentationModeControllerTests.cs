@@ -78,7 +78,7 @@ public sealed class PresentationModeControllerTests
     }
 
     [Fact]
-    public void Other_keys_a_modifier_and_the_own_window_pass_through()
+    public void Other_keys_a_modifier_and_the_arrows_of_the_focused_quick_panel_pass_through()
     {
         using var rig = new PresentationRig();
         rig.Controller.SetOn(true);
@@ -91,12 +91,30 @@ public sealed class PresentationModeControllerTests
         Assert.False(rig.Gate.Press(Right, false));
         rig.ModifierHeld = false;
 
-        rig.OwnForeground = true; // the quick panel handles its own arrows
+        rig.PanelFocused = true; // the quick panel handles its own arrows: only one path sends
         Assert.False(rig.Gate.Press(Right, true));
         Assert.False(rig.Gate.Press(Right, false));
 
         Thread.Sleep(50);
         Assert.Empty(rig.Remote.Posted);
+    }
+
+    [Fact]
+    public void With_the_quick_panel_in_front_page_keys_and_other_boxes_are_still_taken()
+    {
+        using var rig = new PresentationRig();
+        rig.Controller.SetOn(true);
+        rig.PanelFocused = true; // the owner is typing an alert in the quick panel
+
+        Assert.True(rig.Gate.Press(PageDown, true)); // the text box does not use Page Down: the global hook takes it
+        Assert.True(rig.Gate.Press(PageDown, false));
+        Assert.True(rig.Remote.WaitFor(1));
+        Assert.Equal(HolyricsActionKind.SlideNext, rig.Remote.Posted[0].Kind);
+
+        rig.PanelFocused = false; // Right in another box of the app (not the quick panel): taken as usual
+        Assert.True(rig.Gate.Press(Right, true));
+        Assert.True(rig.Gate.Press(Right, false));
+        Assert.True(rig.Remote.WaitFor(2));
     }
 
     [Fact]

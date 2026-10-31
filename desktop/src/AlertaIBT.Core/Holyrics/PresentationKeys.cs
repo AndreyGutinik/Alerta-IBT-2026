@@ -117,8 +117,8 @@ public static class PresentationKeys
 /// <param name="VirtualKey">The virtual-key code.</param>
 /// <param name="KeyDown">True for a key going down, false for it coming up.</param>
 /// <param name="ModifierHeld">Whether Ctrl, Alt, Shift or a Windows key is held (the key then passes through untouched).</param>
-/// <param name="ForegroundIsOwn">Whether the window in front belongs to this app (its own text boxes keep their keys; the quick panel has its own arrows).</param>
-public readonly record struct PresentationKeyEvent(int VirtualKey, bool KeyDown, bool ModifierHeld, bool ForegroundIsOwn);
+/// <param name="PanelHandlesKey">Whether the quick panel's own arrow path already handles this very key (Left/Right with its text box focused and the arrows switch on): then only that path sends, so a slide is never sent twice. Any other window of this app does not count.</param>
+public readonly record struct PresentationKeyEvent(int VirtualKey, bool KeyDown, bool ModifierHeld, bool PanelHandlesKey);
 
 /// <summary>What to do with a key event.</summary>
 /// <param name="Consume">True: the hook swallows the event and the program in front never sees it.</param>
@@ -131,7 +131,7 @@ public readonly record struct PresentationVerdict(bool Consume, PresentationKeyA
 
 /// <summary>
 /// The decision of the presentation mode, pure and fast (it runs inside the keyboard hook: no allocation, no lock, no call out). It swallows the chosen keys while the
-/// mode is on and Holyrics is configured, and only when no modifier is held and the window in front is not this app. A swallowed key-down is remembered so its
+/// mode is on and Holyrics is configured, and only when no modifier is held and the quick panel's own arrow path is not already handling that key (any window of this app, the quick panel included, otherwise works like any other window). A swallowed key-down is remembered so its
 /// key-up is swallowed too (always, even if the mode was turned off in between): the program in front never sees half a key press. An auto-repeat of a held key is
 /// swallowed and sends nothing: one press, one command.
 /// </summary>
@@ -205,7 +205,7 @@ public sealed class PresentationKeyFilter
             return new PresentationVerdict(true, PresentationKeyAction.None); // auto-repeat of a swallowed key: still swallowed, sends nothing
         }
 
-        if (!On || !Configured || e.ModifierHeld || e.ForegroundIsOwn)
+        if (!On || !Configured || e.ModifierHeld || e.PanelHandlesKey)
         {
             return PresentationVerdict.Pass;
         }

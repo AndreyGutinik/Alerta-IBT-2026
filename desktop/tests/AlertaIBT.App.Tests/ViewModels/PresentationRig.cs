@@ -128,17 +128,17 @@ internal sealed class FakeRegistrar : IHotkeyRegistrar
 /// <summary>Real settings and the real presentation controller over a fake hook and a fake Holyrics, plus the Controle view-model that shows them.</summary>
 internal sealed class PresentationRig : IDisposable
 {
-    public PresentationRig(bool configured = true, bool ownForeground = false)
+    public PresentationRig(bool configured = true, bool panelFocused = false)
     {
         Chrome = new SettingsRig();
         Remote = new FakeHolyricsRemote { IsConfigured = configured };
-        OwnForeground = ownForeground;
+        PanelFocused = panelFocused;
         Controller = new PresentationModeController(
             Chrome.Settings,
             Remote,
             Gate,
             work => work(),
-            foregroundIsOwn: () => OwnForeground,
+            panelHandlesKey: key => PanelFocused && key is 0x25 or 0x27,
             modifierHeld: () => ModifierHeld,
             clock: Chrome.Clock);
         Registrar = new FakeRegistrar();
@@ -161,7 +161,8 @@ internal sealed class PresentationRig : IDisposable
 
     public ControlViewModel Vm { get; }
 
-    public bool OwnForeground { get; set; }
+    /// <summary>The text box of the quick panel has the focus (and the arrows switch is on): the panel itself handles Left and Right.</summary>
+    public bool PanelFocused { get; set; }
 
     public bool ModifierHeld { get; set; }
 

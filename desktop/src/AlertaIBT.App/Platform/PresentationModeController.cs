@@ -43,7 +43,7 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
     private readonly IKeyboardGate _gate;
     private readonly Func<Func<PresentationResult>, PresentationResult> _invoke;
     private readonly ILogger? _logger;
-    private readonly Func<bool> _foregroundIsOwn;
+    private readonly Func<int, bool> _panelHandlesKey;
     private readonly Func<bool> _modifierHeld;
     private readonly TimeProvider _clock;
     private readonly PresentationKeyFilter _filter = new();
@@ -61,7 +61,7 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
     /// <param name="gate">The swallowing keyboard hook.</param>
     /// <param name="invoke">Runs a piece of work on the UI thread and returns its result (at once when already there). Tests run it in place.</param>
     /// <param name="logger">Receives what happens (never a key).</param>
-    /// <param name="foregroundIsOwn">Whether the window in front is this app's; the real check when null.</param>
+    /// <param name="panelHandlesKey">Whether the quick panel's own arrow path handles this key now (the real check when null).</param>
     /// <param name="modifierHeld">Whether Ctrl, Alt, Shift or Win is held; the real check when null.</param>
     /// <param name="clock">Times the hook refresh.</param>
     public PresentationModeController(
@@ -70,7 +70,7 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
         IKeyboardGate gate,
         Func<Func<PresentationResult>, PresentationResult> invoke,
         ILogger? logger = null,
-        Func<bool>? foregroundIsOwn = null,
+        Func<int, bool>? panelHandlesKey = null,
         Func<bool>? modifierHeld = null,
         TimeProvider? clock = null)
     {
@@ -84,7 +84,7 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
         _gate = gate;
         _invoke = invoke;
         _logger = logger;
-        _foregroundIsOwn = foregroundIsOwn ?? ForegroundIsOwnWindow;
+        _panelHandlesKey = panelHandlesKey ?? QuickPanelHandles;
         _modifierHeld = modifierHeld ?? AnyModifierHeld;
         _clock = clock ?? TimeProvider.System;
         _consumer = OnKey;
@@ -307,7 +307,7 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
                 return false;
             }
 
-            var verdict = _filter.Decide(new PresentationKeyEvent(virtualKey, keyDown, keyDown && _modifierHeld(), keyDown && _foregroundIsOwn()));
+            var verdict = _filter.Decide(new PresentationKeyEvent(virtualKey, keyDown, keyDown && _modifierHeld(), keyDown && _panelHandlesKey(virtualKey)));
             if (verdict.Action != PresentationKeyAction.None)
             {
                 _queue?.Writer.TryWrite(verdict.Action);
@@ -388,11 +388,23 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
 
     private static bool IsDown(int virtualKey) => (NativeMethods.GetAsyncKeyState(virtualKey) & 0x8000) != 0;
 
-    private static bool ForegroundIsOwnWindow()
+    // Left/Right with the text box of the quick panel focused and the arrows switch on: the panel itself sends the slide (and handles the key), so the hook stays out of it.
+    // Every other key, and every other box of this app, is taken like in any other window. Runs on the UI thread (the hook's thread): reading the focus is cheap.
+    private bool QuickPanelHandles(int virtualKey)
     {
-        var window = NativeMethods.GetForegroundWindow();
-        return window != IntPtr.Zero
-            && NativeMethods.GetWindowThreadProcessId(window, out var pid) != 0
-            && pid == (uint)Environment.ProcessId;
+        if (virtualKey is not (0x25 or 0x27) || !_remote.ArrowsActive)
+        {
+            return false;
+        }
+
+        foreach (var window in System.Windows.Application.Current?.Windows.OfType<AlertaIBT.App.Tray.QuickPanel>() ?? [])
+        {
+            if (window.IsVisible && window.InputHasFocus())
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
