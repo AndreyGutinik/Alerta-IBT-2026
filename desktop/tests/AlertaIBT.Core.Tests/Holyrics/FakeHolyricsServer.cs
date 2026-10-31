@@ -118,7 +118,11 @@ internal sealed class FakeHolyricsServer : IDisposable
             }
 
             HolyricsReply reply;
-            if (token != AcceptedToken)
+            if (!string.Equals(context.Request.ContentType, "application/json", StringComparison.Ordinal))
+            {
+                reply = new HolyricsReply(415, "{}"); // the real Holyrics refuses a charset (or any other type) here, even with a wrong token
+            }
+            else if (token != AcceptedToken)
             {
                 reply = HolyricsReply.Unauthorized;
             }

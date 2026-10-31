@@ -74,7 +74,7 @@ public sealed class HolyricsClientTests : IDisposable
             Assert.Equal("POST", r.Method);
             Assert.Equal(FakeHolyricsServer.GoodToken, r.Token);
             Assert.Equal("{}", r.Body);
-            Assert.StartsWith("application/json", r.ContentType, StringComparison.Ordinal);
+            Assert.Equal("application/json", r.ContentType);
         });
     }
 
@@ -315,7 +315,7 @@ public sealed class HolyricsClientTests : IDisposable
         var result = await Client.TestAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HolyricsLink.Unauthorized, result.Link);
-        Assert.Equal("token sem permiss\U000000E3o para SetLogo, MediaPlayerAction", result.Message);
+        Assert.Equal("permiss\U000000E3o pendente no Holyrics para SetLogo, MediaPlayerAction", result.Message);
         Assert.Equal(["SetLogo", "MediaPlayerAction"], result.MissingPermissions);
     }
 
@@ -327,7 +327,7 @@ public sealed class HolyricsClientTests : IDisposable
         var result = await Client.TestAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HolyricsLink.Unauthorized, result.Link);
-        Assert.Equal("token n\U000000E3o aceito", result.Message);
+        Assert.Equal("token n\U000000E3o aceito (HTTP 401)", result.Message);
     }
 
     [Fact]
@@ -338,7 +338,7 @@ public sealed class HolyricsClientTests : IDisposable
         var result = await Client.TestAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HolyricsLink.Unreachable, result.Link);
-        Assert.Equal("sem resposta", result.Message);
+        Assert.StartsWith("sem resposta: conex\U000000E3o recusada em 127.0.0.1:", result.Message, StringComparison.Ordinal);
     }
 
     [Fact]
