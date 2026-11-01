@@ -35,7 +35,7 @@ Nao ha acao para iniciar o cronometro "pronto" do dono (item de lista) sem criar
 Core: `CountdownWatcherTests` (67: gatilho 10..0 = 1x em 2 e nao em 3, nao duas vezes, rearma (some/sobe/recomeco), comeca em 1, limiar de 1..10; unidades "0:10","1:02","1:00:05", lixo; ritmo e recuo; relogio falso no loop; player tocando/nao tocando/recusa/excecao; interruptor desligado e sem conexao nao perguntam; piscar nao redispara; chip; cliente contra o servidor falso (painel, negativo, escondido, progressivo, apresentacao, tipo que nao e contagem, dois cronometros = menor, 10 s roteirizado pelo cliente real, 401 do painel, 401 da apresentacao perguntado 1x, Holyrics desligado sem encher o log e sem tocar no chip, token nunca no log); configuracao ida e volta, migracao, limite 1..10). `FakeHolyricsServer` ganhou `Live` (respostas calculadas). `PersistedSwitchesTests` ganhou a linha do novo interruptor. App: `CountdownViewModelTests` (7), layout `PresentationLayoutTests` (+3 larguras), `ControlLayoutTests` ajustado ao novo bloco.
 
 ### Build/testes
-(ver mensagem final; numeros conferidos no fim)
+Build `--no-incremental`: 0 avisos, 0 erros. Core 4205 (0 falhas, 6 ignorados). App 1225: duas rodadas completas, nas duas so falharam 3 testes de `RealMouseComboBoxTests` (mouse real; janelas do dono por cima da area clicada); a classe sozinha: 5/5 verdes. Nada mais falhou.
 
 ## Nao verificado / riscos
 1. **Tela do Holyrics vs numero da API** no cronometro do painel: a API da `trunc(restante)`; se a tela mostrar `ceil` o "00:02" da tela aparece quando a API ja diz 1 (a musica pararia ~1 s mais cedo ou mais tarde que o esperado). Na apresentacao o numero da API e o texto da tela (`current_time`), sem ambiguidade. Conferir na igreja (checklist).
