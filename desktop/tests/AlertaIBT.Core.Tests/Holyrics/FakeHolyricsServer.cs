@@ -51,6 +51,9 @@ internal sealed class FakeHolyricsServer : IDisposable
     /// <summary>Answers per action name; an action without one gets <see cref="HolyricsReply.Ok"/>.</summary>
     public Dictionary<string, HolyricsReply> Replies { get; } = [];
 
+    /// <summary>Answers computed at each request (a countdown that ticks): wins over <see cref="Replies"/>.</summary>
+    public Dictionary<string, Func<HolyricsReply>> Live { get; } = [];
+
     public IReadOnlyList<HolyricsRequest> Requests
     {
         get
@@ -125,6 +128,10 @@ internal sealed class FakeHolyricsServer : IDisposable
             else if (token != AcceptedToken)
             {
                 reply = HolyricsReply.Unauthorized;
+            }
+            else if (Live.TryGetValue(action, out var live))
+            {
+                reply = live();
             }
             else if (Replies.TryGetValue(action, out var custom))
             {

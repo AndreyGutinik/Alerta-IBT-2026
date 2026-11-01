@@ -136,7 +136,7 @@ public interface IHolyricsRemote
 /// start). ON is <c>{"enable":true,"hide":false}</c>; OFF is <c>{"enable":false,"hide":true}</c>, the state the owner's Holyrics was found in.
 /// </para>
 /// </remarks>
-public sealed class HolyricsClient : IHolyricsRemote, IDisposable
+public sealed class HolyricsClient : IHolyricsRemote, IHolyricsCountdownSource, IDisposable
 {
     /// <summary>The time a request may take.</summary>
     public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(2);
@@ -145,7 +145,7 @@ public sealed class HolyricsClient : IHolyricsRemote, IDisposable
     public static readonly TimeSpan PermissionTimeout = TimeSpan.FromSeconds(15);
 
     /// <summary>The permissions the app needs, as <c>CheckPermissions</c> takes them.</summary>
-    public const string RequiredActions = "ActionNext,ActionPrevious,MediaPlayerAction,GetMediaPlayerInfo,SetLogo";
+    public const string RequiredActions = "ActionNext,ActionPrevious,MediaPlayerAction,GetMediaPlayerInfo,SetLogo,GetCPInfo,GetCurrentPresentation";
 
     private static readonly TimeSpan WarnEvery = TimeSpan.FromSeconds(5);
 
@@ -298,6 +298,63 @@ public sealed class HolyricsClient : IHolyricsRemote, IDisposable
 
         _ = Task.Run(DrainAsync);
         return true;
+    }
+
+    /// <summary>
+    /// Looks at the countdowns Holyrics shows, read-only: <c>GetCPInfo</c> for the countdown of the communication panel (<c>countdown_show</c>, <c>countdown_time</c> in whole seconds,
+    /// which keeps counting below zero until it is stopped) and <c>GetCurrentPresentation</c> for a countdown presentation (<c>type</c> "countdown", <c>current_time</c> "M:SS"). The stopwatch is not read.
+    /// With both on display the smaller time wins. Only <c>GetCPInfo</c> must answer: a token that may not read the presentation just never sees that kind. A failure is
+    /// logged with the usual coalescing and does not touch the status chip of the connection.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the requests.</param>
+    public async Task<CountdownReading> ReadCountdownAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsConfigured)
+        {
+            return new CountdownReading(HolyricsOutcome.NotConfigured, Message: "falta o token");
+        }
+
+        var cp = await CallAsync("GetCPInfo", "{}", cancellationToken).ConfigureAwait(false);
+        if (!cp.Success)
+        {
+            LogFailure("cronômetro", cp.Outcome, cp.Message, cp.Detail);
+            // A 401 here means the token may not read the countdown (or is not accepted): say which action, so the owner knows what to approve in Holyrics.
+            return new CountdownReading(cp.Outcome, Message: cp.Outcome == HolyricsOutcome.Unauthorized ? "token sem permissão para GetCPInfo" : cp.Message);
+        }
+
+        double? seconds = null;
+        var kind = CountdownKind.None;
+        if (cp.Data is { ValueKind: JsonValueKind.Object } data
+            && data.TryGetProperty("countdown_show", out var show) && show.ValueKind == JsonValueKind.True
+            && data.TryGetProperty("countdown_time", out var time) && time.ValueKind == JsonValueKind.Number && time.TryGetDouble(out var panel))
+        {
+            seconds = panel;
+            kind = CountdownKind.Panel;
+        }
+
+        // A token that may not read the presentation is told once; it is not asked again until the connection changes (no warning every few seconds).
+        var presentation = _presentationDenied ? new Reply(HolyricsOutcome.NoPresentation, null, [], null) : await CallAsync("GetCurrentPresentation", "{}", cancellationToken).ConfigureAwait(false);
+        if (presentation.Outcome == HolyricsOutcome.Unauthorized)
+        {
+            _presentationDenied = true;
+        }
+
+        if (presentation.Success
+            && presentation.Data is { ValueKind: JsonValueKind.Object } item
+            && item.TryGetProperty("type", out var type) && type.ValueKind == JsonValueKind.String && type.GetString() == "countdown"
+            && item.TryGetProperty("current_time", out var current) && current.ValueKind == JsonValueKind.String
+            && CountdownText.Parse(current.GetString()) is { } shown
+            && (seconds is null || shown < seconds))
+        {
+            seconds = shown;
+            kind = CountdownKind.Presentation;
+        }
+        else if (!presentation.Success && presentation.Outcome != HolyricsOutcome.NoPresentation)
+        {
+            LogFailure("cronômetro (apresentação)", presentation.Outcome, presentation.Message, presentation.Detail);
+        }
+
+        return new CountdownReading(HolyricsOutcome.Ok, kind, seconds);
     }
 
     /// <summary>Sends one command now and says how it ended (the background worker and the tests use it; the app's own callers use <see cref="Post"/>).</summary>
@@ -935,6 +992,7 @@ public sealed class HolyricsClient : IHolyricsRemote, IDisposable
             }
 
             _lastSeen = next;
+            _presentationDenied = false;
             _status = new HolyricsStatus(HolyricsLink.Unknown, string.Empty);
         }
 
@@ -942,6 +1000,7 @@ public sealed class HolyricsClient : IHolyricsRemote, IDisposable
     }
 
     private HolyricsSettings? _lastSeen;
+    private volatile bool _presentationDenied;
 
     private sealed record Reply(HolyricsOutcome Outcome, string? Message, IReadOnlyList<string> Unauthorized, JsonElement? Data, string? Detail = null, string? RequestStatus = null)
     {

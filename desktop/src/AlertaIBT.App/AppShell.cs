@@ -7,6 +7,7 @@ using AlertaIBT.App.Services;
 using AlertaIBT.App.Tray;
 using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Control;
+using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Loudness;
 using AlertaIBT.Core.Ndi;
@@ -38,6 +39,7 @@ public sealed class AppShell : IDisposable
     private readonly MusicPlayer _player;
     private readonly LoudnessService _loudness;
     private readonly ControlService _control;
+    private readonly CountdownWatcher _countdown;
     private readonly AlarmScheduler _alarms;
     private readonly AudioController _audio;
     private readonly NdiService _ndi;
@@ -78,8 +80,10 @@ public sealed class AppShell : IDisposable
         LoudnessService loudness,
         ControlService control,
         PresentationModeController presentation,
-        AppWindowPolicy windowPolicy)
+        AppWindowPolicy windowPolicy,
+        CountdownWatcher countdown)
     {
+        _countdown = countdown;
         _windowPolicy = windowPolicy;
         _presentation = presentation;
         _logger = logger;
@@ -235,6 +239,9 @@ public sealed class AppShell : IDisposable
             _logger.LogWarning(ex, "Nao foi possivel iniciar o controle pela MA2");
         }
 
+        // The Holyrics countdown watch (stops the music at N s): in the background, it asks nothing while Holyrics is not configured or the switch is off.
+        Guarded("o cronometro do Holyrics", _countdown.Start);
+
         // Last: every service exists and listens, so the switches the owner left on can be put back through the real code paths.
         RestoreSavedSwitches();
 
@@ -365,6 +372,7 @@ public sealed class AppShell : IDisposable
         _loudness.Dispose(); // cancels the measurement or the tag write in progress and saves the cache
         _audio.Dispose();
         _control.Dispose(); // closes the Art-Net socket
+        _countdown.Dispose();
         _ndiHotkeys?.Dispose();
         (_ndiRegistry as IDisposable)?.Dispose();
         _ndiHost.Dispose(); // hides the camera window before anything slow runs

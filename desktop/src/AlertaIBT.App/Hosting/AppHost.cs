@@ -209,6 +209,13 @@ public static class AppHost
             provider.GetRequiredService<ISecretProtector>(),
             provider.GetRequiredService<ILogger<HolyricsClient>>()));
         services.AddSingleton<IHolyricsRemote>(provider => provider.GetRequiredService<HolyricsClient>());
+        // "Parar a musica quando o cronometro chegar a N s": watches the Holyrics countdown (read-only) and pauses the player, with the owner's fade-out, like /player/pause.
+        services.AddSingleton<IHolyricsCountdownSource>(provider => provider.GetRequiredService<HolyricsClient>());
+        services.AddSingleton(provider => new CountdownWatcher(
+            provider.GetRequiredService<SettingsService>(),
+            provider.GetRequiredService<IHolyricsCountdownSource>(),
+            provider.GetRequiredService<MusicPlayer>(),
+            provider.GetRequiredService<ILogger<CountdownWatcher>>()));
         // The presentation mode (the pastor's remote on the Holyrics slides): its own swallowing keyboard hook, which exists only while the mode is on. The mode comes back as it was at the last close.
         services.AddSingleton<IKeyboardGate, SwallowingKeyboardHook>();
         services.AddSingleton(provider => new PresentationModeController(
