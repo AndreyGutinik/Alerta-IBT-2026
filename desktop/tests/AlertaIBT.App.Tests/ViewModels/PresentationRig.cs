@@ -144,8 +144,20 @@ internal sealed class PresentationRig : IDisposable
         Registrar = new FakeRegistrar();
         Controller.Start(Registrar);
         Service = new ControlService(Chrome.Settings, new RecordingTargets(), () => new FakeArtNet(), clock: Chrome.Clock);
-        Vm = new ControlViewModel(Chrome.Settings, Service, (_, _) => true, protector: Chrome.Protector, presentation: Controller);
+        CountdownSource = new FakeCountdownSource { IsConfigured = configured };
+        Player = new CountingPlayer();
+        Countdown = new CountdownWatcher(Chrome.Settings, CountdownSource, Player, clock: Chrome.Clock);
+        Vm = new ControlViewModel(Chrome.Settings, Service, (_, _) => true, protector: Chrome.Protector, presentation: Controller, countdown: Countdown);
     }
+
+    public FakeCountdownSource CountdownSource { get; }
+
+    public CountingPlayer Player { get; }
+
+    public CountdownWatcher Countdown { get; }
+
+    /// <summary>Makes the watcher look once at what <see cref="CountdownSource"/> holds (the loop of the app does this by itself).</summary>
+    public void Look() => Countdown.PollOnceAsync().GetAwaiter().GetResult();
 
     public SettingsRig Chrome { get; }
 
@@ -169,6 +181,7 @@ internal sealed class PresentationRig : IDisposable
     public void Dispose()
     {
         Vm.Dispose();
+        Countdown.Dispose();
         Controller.Dispose();
         Service.Dispose();
         Chrome.Dispose();

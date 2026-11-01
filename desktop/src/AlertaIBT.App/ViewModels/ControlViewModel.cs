@@ -296,7 +296,8 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
         ILogger? logger = null,
         HolyricsClient? holyrics = null,
         ISecretProtector? protector = null,
-        PresentationModeController? presentation = null)
+        PresentationModeController? presentation = null,
+        CountdownWatcher? countdown = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(service);
@@ -313,6 +314,7 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
         RestoreCommand = new RelayCommand(Restore);
         (HolyricsPort, HolyricsToken, TestHolyricsCommand) = CreateHolyrics(holyrics, protector);
         CreatePresentation(presentation);
+        AttachCountdown(countdown);
         Load();
         _settings.Changed += OnSettingsChanged;
         _service.Changed += OnServiceChanged;
@@ -503,6 +505,7 @@ public sealed partial class ControlViewModel : ObservableObject, IDisposable
         _disposed = true;
         _settings.Changed -= OnSettingsChanged;
         _service.Changed -= OnServiceChanged;
+        DetachCountdown();
         if (_presentation is not null)
         {
             _presentation.StateChanged -= OnPresentationChanged;

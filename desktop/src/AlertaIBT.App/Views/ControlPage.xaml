@@ -659,7 +659,7 @@
                 Header="Holyrics"
                 Icon="{StaticResource LucidePresentation}"
                 Style="{StaticResource IbtCardSectionStyle}"
-                Info="O app manda ao Holyrics, pela API HTTP dele (nada de teclas simuladas): slide próximo e anterior, play/pausa do vídeo e o logo. Valem para as linhas 13 a 16 do mapa (a MA2) e para as setas do painel rápido. No Holyrics: Arquivo > Configurações > API Server, ligue o servidor e crie um token com permissão para ActionNext, ActionPrevious, MediaPlayerAction, GetMediaPlayerInfo e SetLogo. O token fica guardado protegido (DPAPI) e nunca aparece no log. Para um Holyrics em outro PC, troque o endereço.">
+                Info="O app manda ao Holyrics, pela API HTTP dele (nada de teclas simuladas): slide próximo e anterior, play/pausa do vídeo e o logo. Valem para as linhas 13 a 16 do mapa (a MA2) e para as setas do painel rápido. Também olha o cronômetro (leitura apenas) para parar a música quando ele chega a N segundos. No Holyrics: Arquivo > Configurações > API Server, ligue o servidor e crie um token com permissão para ActionNext, ActionPrevious, MediaPlayerAction, GetMediaPlayerInfo, SetLogo, GetCPInfo e GetCurrentPresentation. O token fica guardado protegido (DPAPI) e nunca aparece no log. Para um Holyrics em outro PC, troque o endereço.">
                 <local:CardSection.HeaderActions>
                     <StackPanel Orientation="Horizontal">
                         <Border
@@ -861,6 +861,82 @@
                                 IsChecked="{Binding HolyricsArrows, Mode=TwoWay}"
                                 ToolTip="Seta direita passa o slide e seta esquerda volta o slide no Holyrics enquanto você digita na caixa do painel rápido. As setas deixam de mover o cursor do texto."
                                 Style="{StaticResource IbtSwitch}" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Stop the music when the Holyrics countdown reaches N s: the switch, the seconds and a live chip with the countdown (only while one is shown). -->
+                    <Border
+                        x:Name="CountdownStopBlock"
+                        theme:BalancedColumns.Side="0"
+                        MinHeight="56"
+                        Style="{StaticResource IbtBlock}"
+                        ToolTip="{Binding CountdownTip}"
+                        ToolTipService.InitialShowDelay="150"
+                        ToolTipService.ShowDuration="30000">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Path
+                                Width="18"
+                                Height="18"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Data="{StaticResource LucideHourglass}"
+                                Style="{StaticResource IbtRowIcon}" />
+                            <TextBlock
+                                x:Name="CountdownStopLabel"
+                                Grid.Column="1"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Style="{StaticResource IbtRowLabel}"
+                                Text="Parar a música em"
+                                TextTrimming="CharacterEllipsis" />
+                            <Border
+                                x:Name="CountdownLiveChip"
+                                Grid.Column="2"
+                                Margin="0,0,10,0"
+                                Padding="8,2"
+                                VerticalAlignment="Center"
+                                Background="{StaticResource IbtAccentWashBrush}"
+                                BorderBrush="{StaticResource IbtAccentBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                ToolTip="O cronômetro que o Holyrics mostra agora."
+                                Visibility="{Binding HasCountdownLive, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock
+                                    x:Name="CountdownLiveText"
+                                    FontSize="12.5"
+                                    Foreground="{StaticResource IbtTextBrush}"
+                                    Text="{Binding CountdownLiveText}"
+                                    Typography.NumeralAlignment="Tabular" />
+                            </Border>
+                            <ComboBox
+                                x:Name="CountdownStopAtCombo"
+                                Grid.Column="3"
+                                Width="72"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="Segundos do cronômetro para parar a música"
+                                IsEnabled="{Binding CountdownStopEnabled}"
+                                ItemStringFormat="{}{0} s"
+                                ItemsSource="{Binding CountdownChoices}"
+                                SelectedItem="{Binding CountdownStopAt, Mode=TwoWay}"
+                                Style="{StaticResource IbtComboBox}"
+                                ToolTip="Quantos segundos faltando no cronômetro do Holyrics a música para (1 a 10; padrão 2)."
+                                ToolTipService.ShowOnDisabled="True" />
+                            <ToggleButton
+                                x:Name="CountdownStopSwitch"
+                                Grid.Column="4"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="Parar a música quando o cronômetro do Holyrics chegar ao tempo escolhido"
+                                IsChecked="{Binding CountdownStopEnabled, Mode=TwoWay}"
+                                Style="{StaticResource IbtSwitch}"
+                                ToolTip="{Binding CountdownTip}" />
                         </Grid>
                     </Border>
 
@@ -1087,6 +1163,13 @@
                     Style="{StaticResource IbtHint}"
                     Text="{Binding HolyricsReasonText}"
                     Visibility="{Binding HasHolyricsReason, Converter={StaticResource BoolToVisibility}}" />
+                <!-- Why the countdown watch cannot read Holyrics (the token may not read the countdown). -->
+                <TextBlock
+                    x:Name="CountdownProblemLine"
+                    Margin="0,8,0,0"
+                    Style="{StaticResource IbtHint}"
+                    Text="{Binding CountdownProblem}"
+                    Visibility="{Binding HasCountdownProblem, Converter={StaticResource BoolToVisibility}}" />
                 <!-- What was fixed in the address box, or why it is refused. -->
                 <TextBlock
                     x:Name="HolyricsHostHintLine"

@@ -419,7 +419,8 @@ public static class AppHost
             provider.GetRequiredService<ILogger<ControlViewModel>>(),
             provider.GetRequiredService<HolyricsClient>(),
             provider.GetRequiredService<ISecretProtector>(),
-            provider.GetRequiredService<PresentationModeController>())
+            provider.GetRequiredService<PresentationModeController>(),
+            provider.GetRequiredService<CountdownWatcher>())
         {
             // "Adicionar tecla" of the presentation mode: a small dialog that waits for the key of the pastor's remote.
             KeyRecorder = setName => KeyCaptureDialog.Ask(setName, provider.GetRequiredService<AppWindowPolicy>()),

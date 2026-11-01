@@ -167,6 +167,70 @@ public sealed class PresentationLayoutTests
 
     [Theory]
     [MemberData(nameof(WindowWidths))]
+    public void The_countdown_stop_block_shows_the_switch_the_seconds_and_a_live_chip_only_while_a_countdown_is_shown(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width, setup: r => r.Vm.SetActive(true));
+            var card = rig.BoundsOf(rig.Named<CardSection>("HolyricsCard"));
+            var block = rig.Named<Border>("CountdownStopBlock");
+            var chip = rig.Named<Border>("CountdownLiveChip");
+
+            Assert.Equal(Visibility.Collapsed, chip.Visibility); // nothing is shown by Holyrics: no chip
+            var blockBounds = rig.BoundsOf(block);
+            Assert.True(blockBounds.Width >= 320 && blockBounds.Height >= 56 && blockBounds.Left >= card.Left - 0.5 && blockBounds.Right <= card.Right + 0.5, $"block {blockBounds}");
+            rig.Snapshot($"countdown-{width}-sem-cronometro");
+
+            // A countdown of 7 s is on display in Holyrics: the chip appears with 00:07.
+            rig.Engine.CountdownSource.Next = new AlertaIBT.Core.Holyrics.CountdownReading(AlertaIBT.Core.Holyrics.HolyricsOutcome.Ok, AlertaIBT.Core.Holyrics.CountdownKind.Panel, 7);
+            rig.Engine.Look();
+            rig.Layout(width);
+            Assert.Equal(Visibility.Visible, chip.Visibility);
+            Assert.Equal("00:07", rig.Named<TextBlock>("CountdownLiveText").Text);
+
+            var names = new[] { "CountdownStopLabel", "CountdownLiveChip", "CountdownStopAtCombo", "CountdownStopSwitch" };
+            var bounds = names.Select(n => rig.BoundsOf(rig.Named<FrameworkElement>(n))).ToList();
+            var inner = rig.BoundsOf(block);
+            Assert.All(bounds, b => Assert.True(b.Width > 0 && b.Left >= inner.Left && b.Right <= inner.Right + 0.5, $"{b} in {inner}"));
+            for (var i = 1; i < bounds.Count; i++)
+            {
+                Assert.True(bounds[i].Left >= bounds[i - 1].Right - 0.5, $"{names[i]} does not overlap {names[i - 1]}");
+            }
+
+            var label = rig.Named<TextBlock>("CountdownStopLabel");
+            var shown = label.ActualWidth;
+            label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            Assert.True(shown >= label.DesiredSize.Width - 0.5, "the label is not trimmed: " + shown + " of " + label.DesiredSize.Width);
+            rig.Layout(width);
+            Assert.True(rig.BoundsOf(rig.Named<ComboBox>("CountdownStopAtCombo")).Height >= 32);
+            rig.Snapshot($"countdown-{width}-ao-vivo");
+
+            // The seconds list: 1 to 10, 2 chosen; the switch off freezes the list and hides the chip.
+            var combo = rig.Named<ComboBox>("CountdownStopAtCombo");
+            Assert.Equal(10, combo.Items.Count);
+            Assert.Equal(2, combo.SelectedItem);
+            rig.Engine.Vm.CountdownStopEnabled = false;
+            rig.Engine.Look();
+            rig.Layout(width);
+            Assert.False(combo.IsEnabled);
+            Assert.Equal(Visibility.Collapsed, chip.Visibility);
+            rig.Snapshot($"countdown-{width}-desligado");
+
+            // The token may not read the countdown: the reason shows whole under the card.
+            rig.Engine.Vm.CountdownStopEnabled = true;
+            rig.Engine.CountdownSource.Next = new AlertaIBT.Core.Holyrics.CountdownReading(AlertaIBT.Core.Holyrics.HolyricsOutcome.Unauthorized, Message: "token sem permissão para GetCPInfo");
+            rig.Engine.Look();
+            rig.Layout(width);
+            var problem = rig.Named<TextBlock>("CountdownProblemLine");
+            Assert.Equal(Visibility.Visible, problem.Visibility);
+            var pb = rig.BoundsOf(problem);
+            Assert.True(pb.Right <= card.Right + 0.5, "problem " + pb + " card " + card);
+            rig.Snapshot($"countdown-{width}-sem-permissao");
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
     public void The_states_on_without_token_refused_and_many_keys_render(double width)
     {
         WpfTestHost.Run(() =>

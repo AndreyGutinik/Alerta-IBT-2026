@@ -95,7 +95,7 @@ public sealed partial class ControlViewModel
             var tip = HolyricsLink switch
             {
                 HolyricsLink.Connected => "O Holyrics respondeu e o token pode fazer o que o app precisa." + (HolyricsDetail.Length > 0 ? " " + HolyricsDetail : string.Empty),
-                HolyricsLink.Unauthorized => "O Holyrics respondeu, mas n\U000000E3o aceitou o token ou a a\U000000E7\U000000E3o. No Holyrics: Arquivo > Configura\U000000E7\U000000F5es > API Server > gerenciar permiss\U000000F5es do token (ActionNext, ActionPrevious, MediaPlayerAction, GetMediaPlayerInfo, SetLogo). Um token novo pede aprova\U000000E7\U000000E3o na tela do Holyrics.",
+                HolyricsLink.Unauthorized => "O Holyrics respondeu, mas n\U000000E3o aceitou o token ou a a\U000000E7\U000000E3o. No Holyrics: Arquivo > Configura\U000000E7\U000000F5es > API Server > gerenciar permiss\U000000F5es do token (ActionNext, ActionPrevious, MediaPlayerAction, GetMediaPlayerInfo, SetLogo, GetCPInfo, GetCurrentPresentation). Um token novo pede aprova\U000000E7\U000000E3o na tela do Holyrics.",
                 HolyricsLink.Unreachable => "O Holyrics n\U000000E3o respondeu: " + HolyricsStatusText + ". Confira se ele est\U000000E1 aberto, o servidor da API ligado, o endere\U000000E7o e a porta (padr\U000000E3o 8091).",
                 HolyricsLink.Waiting => "O app est\U000000E1 esperando o Holyrics. Olhe a tela do Holyrics: pode haver um pedido para aprovar este token.",
                 HolyricsLink.Error => "O Holyrics respondeu com um erro (veja abaixo).",
@@ -323,6 +323,7 @@ public sealed partial class ControlViewModel
         OnPropertyChanged(nameof(HasHolyrics));
         NotifyHolyricsStatus();
         TestHolyricsCommand?.NotifyCanExecuteChanged();
+        LoadCountdown();
         LoadPresentation();
     }
 }

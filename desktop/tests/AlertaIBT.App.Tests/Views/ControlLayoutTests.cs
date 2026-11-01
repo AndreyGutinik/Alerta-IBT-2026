@@ -159,7 +159,7 @@ public sealed class ControlLayoutTests
                 var right = rig.BoundsOf(rig.Named<Border>("HolyricsTokenBlock")).Bottom;
                 var presentationBottoms = rig.Named<Border>("PresentationSwitchBlock").Visibility == System.Windows.Visibility.Visible
                     ? (rig.BoundsOf(rig.Named<Border>("PresentationSwitchBlock")).Bottom, rig.BoundsOf(rig.Named<Border>("PresentationKeysBlock")).Bottom)
-                    : (left, right);
+                    : (rig.BoundsOf(rig.Named<Border>("CountdownStopBlock")).Bottom, right);
                 Assert.True(Math.Abs(presentationBottoms.Item1 - presentationBottoms.Item2) <= 8, $"column bottoms {presentationBottoms}");
             }
             else
