@@ -151,7 +151,7 @@ Pedir a outra pessoa para mandar do grupo (e conferir as respostas do bot).
 - [ ] Chamar `/overlay/on`: volta ao normal, **sem** mensagem no grupo, fila vazia.
 - [ ] **No Holyrics, de verdade**: o slide da pregação dispara `/overlay/off` e o slide seguinte dispara `/overlay/on` (o gatilho do Holyrics não muda; as rotas são as mesmas do app antigo).
 - [ ] O botão **Pausar** do painel e da janela e o item do menu da bandeja mostram **o mesmo estado** nos três lugares. **Um clique = uma troca** (olhar o texto do menu da bandeja depois de cada clique).
-- [ ] Fechar o app com avisos na fila (**Sair**) e abrir de novo: os avisos pendentes **voltam e passam**. A pausa **não** é lembrada.
+- [ ] Fechar o app com avisos na fila (**Sair**) e abrir de novo: os avisos pendentes **voltam e passam**. A pausa **não** é lembrada: com a barra **pausada**, fechar o app e abrir de novo deve abrir **rodando** (pílula "Rodando", botão Pausar normal) e um aviso de teste passa na barra; é a única exceção da regra "interruptores voltam como estavam".
 
 ## 11. Convivência com os outros programas
 

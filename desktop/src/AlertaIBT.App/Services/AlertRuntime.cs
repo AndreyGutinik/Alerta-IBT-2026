@@ -131,14 +131,6 @@ public sealed class AlertRuntime : IDisposable
         Guarded("os alertas", _switch.Initialize); // the queue, Telegram and the site, unless "Alertas ligados" is off
         Guarded("a API local", () => _http.Start());
 
-        // "Pausar barra" comes back as it was (silently); only after that does a change of the pause write the setting, so the restore never rewrites it.
-        if (_settings.Current.System.BarPaused)
-        {
-            Guarded("a pausa salva", _alerts.RestorePause);
-        }
-
-        _hub.PropertyChanged += OnPauseChanged;
-
         // The first Gemini probe comes a few seconds later, so it does not compete with the work above.
         Guarded("o monitor do Gemini", _gemini.Start);
 
@@ -174,7 +166,6 @@ public sealed class AlertRuntime : IDisposable
 
         _settings.Changed -= OnSettingsChanged;
         _hub.PropertyChanged -= OnHubChanged;
-        _hub.PropertyChanged -= OnPauseChanged;
         _overlay.CaptureExcludedChanged -= OnCaptureExcludedChanged;
         _led.LedChanged -= UpdateLed;
         try
@@ -220,18 +211,6 @@ public sealed class AlertRuntime : IDisposable
 
         // A new key, model or correction switch is checked right away (debounced inside the monitor).
         Guarded("o monitor do Gemini", _gemini.OnSettingsChanged);
-    }
-
-    // The pause (tray, panels, Holyrics, Telegram) is the owner's last position: saved with the other settings, debounced.
-    private void OnPauseChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(StatusHub.Paused))
-        {
-            return;
-        }
-
-        var paused = _hub.Paused;
-        _settings.Update(s => s.System.BarPaused == paused ? s : s with { System = s.System with { BarPaused = paused } });
     }
 
     // The site came online: what the last clear left for it is done now, and a Monday that passed while it was offline is made up for.

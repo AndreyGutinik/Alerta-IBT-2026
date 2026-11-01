@@ -10,7 +10,6 @@ public sealed class PersistedSwitchesTests
 
     private static readonly Switch[] All =
     [
-        new("System.BarPaused", s => s.System.BarPaused, (s, v) => s with { System = s.System with { BarPaused = v } }, false),
         new("System.AlertsEnabled", s => s.System.AlertsEnabled, (s, v) => s with { System = s.System with { AlertsEnabled = v } }, true),
         new("System.ClearHistoryWeekly", s => s.System.ClearHistoryWeekly, (s, v) => s with { System = s.System with { ClearHistoryWeekly = v } }, true),
         new("System.AutoUpdate", s => s.System.AutoUpdate, (s, v) => s with { System = s.System with { AutoUpdate = v } }, true),
@@ -43,6 +42,7 @@ public sealed class PersistedSwitchesTests
         new("Control.Rows[0].Enabled", s => s.Control.Rows[0].Enabled, (s, v) => s with { Control = s.Control with { Rows = [s.Control.Rows[0] with { Enabled = v }, .. s.Control.Rows.Skip(1)] } }, true),
         new("Holyrics.ArrowsEnabled", s => s.Holyrics.ArrowsEnabled, (s, v) => s with { Holyrics = s.Holyrics with { ArrowsEnabled = v } }, true),
         new("Holyrics.PresentationMode", s => s.Holyrics.PresentationMode, (s, v) => s with { Holyrics = s.Holyrics with { PresentationMode = v } }, false),
+        new("Holyrics.CountdownStopEnabled", s => s.Holyrics.CountdownStopEnabled, (s, v) => s with { Holyrics = s.Holyrics with { CountdownStopEnabled = v } }, true),
         new("Backup.AutoEnabled", s => s.Backup.AutoEnabled, (s, v) => s with { Backup = s.Backup with { AutoEnabled = v } }, false),
     ];
 
@@ -82,10 +82,10 @@ public sealed class PersistedSwitchesTests
     {
         var sw = Find(name);
 
-        // A file from before batch 39: no key of the four new switches at all, every other switch set to the opposite of its default.
+        // A file from before batch 39: no key of the three new switches at all, every other switch set to the opposite of its default.
         var everything = All.Aggregate(new AppSettings(), (settings, one) => one.Set(settings, !one.FactoryDefault));
         var json = SettingsJson.Save(everything);
-        foreach (var key in new[] { "barPaused", "layerOn", "testPattern", "presentationMode" })
+        foreach (var key in new[] { "layerOn", "testPattern", "presentationMode", "countdownStopEnabled" })
         {
             json = System.Text.RegularExpressions.Regex.Replace(json, "\\s*\"" + key + "\"\\s*:\\s*(true|false),?", string.Empty);
         }
@@ -93,20 +93,30 @@ public sealed class PersistedSwitchesTests
         var (loaded, corrupt) = SettingsJson.Load(json);
 
         Assert.False(corrupt);
-        var isNew = name is "System.BarPaused" or "Ndi.LayerOn" or "Ndi.TestPattern" or "Holyrics.PresentationMode";
+        var isNew = name is "Holyrics.CountdownStopEnabled" or "Ndi.LayerOn" or "Ndi.TestPattern" or "Holyrics.PresentationMode";
         Assert.Equal(isNew ? sw.FactoryDefault : !sw.FactoryDefault, sw.Get(loaded));
     }
 
     [Fact]
     public void A_damaged_value_of_a_new_switch_falls_back_to_its_default_without_corrupting_the_file()
     {
-        var (settings, corrupt) = SettingsJson.Load("""{"system":{"barPaused":"sim"},"ndi":{"layerOn":1,"testPattern":null},"holyrics":{"presentationMode":"on"}}""");
+        var (settings, corrupt) = SettingsJson.Load("""{"ndi":{"layerOn":1,"testPattern":null},"holyrics":{"presentationMode":"on"}}""");
 
         Assert.False(corrupt);
-        Assert.False(settings.System.BarPaused);
         Assert.False(settings.Ndi.LayerOn);
         Assert.False(settings.Ndi.TestPattern);
         Assert.False(settings.Holyrics.PresentationMode);
+    }
+
+    [Fact]
+    public void The_bar_pause_is_the_one_switch_that_is_never_saved_an_old_barPaused_key_is_ignored_and_dropped()
+    {
+        // "Pausar barra" is the exception to the rule: the app always starts with the bar running, so the alerts work after the PC is turned on again.
+        var (loaded, corrupt) = SettingsJson.Load("""{"system":{"barPaused":true,"alertsEnabled":false}}""");
+
+        Assert.False(corrupt);
+        Assert.False(loaded.System.AlertsEnabled); // the rest of the old file still counts
+        Assert.DoesNotContain("barPaused", SettingsJson.Save(loaded));
     }
 
     [Theory]

@@ -39,6 +39,21 @@ public sealed record HolyricsSettings
     /// </summary>
     public bool PresentationMode { get; init; }
 
+    /// <summary>
+    /// "Parar a música quando o cronômetro chegar a N s": the app watches the Holyrics countdown and, when it shows <see cref="CountdownStopAt"/> seconds or less, fades the music out
+    /// and pauses it. On by default (and for an older settings file); it only works while the connection to Holyrics is configured.
+    /// </summary>
+    public bool CountdownStopEnabled { get; init; } = true;
+
+    /// <summary>The seconds left on the Holyrics countdown at which the music stops (1 to 10; 2 by default).</summary>
+    public int CountdownStopAt { get; init; } = DefaultCountdownStopAt;
+
+    /// <summary>The default for <see cref="CountdownStopAt"/>.</summary>
+    public const int DefaultCountdownStopAt = 2;
+
+    /// <summary>The least and the most seconds the owner can choose for <see cref="CountdownStopAt"/>.</summary>
+    public const int MinCountdownStopAt = 1, MaxCountdownStopAt = 10;
+
     /// <summary>The keys that mean "next slide" in the presentation mode (virtual-key codes); Page Down and the right arrow by default. The mode itself is saved in <see cref="PresentationMode"/>.</summary>
     public IReadOnlyList<int> PresentationNext { get; init; } = PresentationKeys.DefaultNext;
 
@@ -53,6 +68,8 @@ public sealed record HolyricsSettings
         && TokenProtected == other.TokenProtected
         && ArrowsEnabled == other.ArrowsEnabled
         && PresentationMode == other.PresentationMode
+        && CountdownStopEnabled == other.CountdownStopEnabled
+        && CountdownStopAt == other.CountdownStopAt
         && PresentationNext.SequenceEqual(other.PresentationNext)
         && PresentationPrevious.SequenceEqual(other.PresentationPrevious);
 

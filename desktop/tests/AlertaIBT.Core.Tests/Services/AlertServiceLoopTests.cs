@@ -185,28 +185,6 @@ public class AlertServiceLoopTests
     }
 
     [Fact]
-    public async Task A_restored_pause_is_silent_refuses_new_alerts_and_resume_still_works()
-    {
-        using var h = new ServiceHarness();
-
-        h.Service.RestorePause(); // the app starts with "Pausar barra" as the owner left it
-
-        Assert.True(h.Service.IsPaused);
-        Assert.True(h.Hub.Paused);
-        Assert.Equal(AlertPill.Paused, h.Hub.Pill);
-        Assert.Empty(h.Notifier.Sent); // the group was told when the sermon began, not at every start
-        h.Service.RestorePause();
-        Assert.Empty(h.Notifier.Sent);
-
-        var refused = await h.Telegram(Good);
-        Assert.Equal(SubmitKind.PausedRefused, refused.Kind);
-
-        h.Service.Resume();
-        Assert.False(h.Service.IsPaused);
-        Assert.False(h.Hub.Paused);
-    }
-
-    [Fact]
     public void A_pause_with_nothing_queued_still_tells_the_group_once()
     {
         using var h = new ServiceHarness();

@@ -9,7 +9,7 @@ namespace AlertaIBT.Core.Services;
 
 /// <summary>
 /// <c>queue.json</c>: the alerts still waiting and the history, saved after every change of the queue so a restart (or a
-/// crash) does not lose them. The pause is not in this file: it is a setting (<c>System.BarPaused</c>), put back at start by the alert runtime.
+/// crash) does not lose them. The pause is not saved anywhere: the app always starts with the bar running.
 /// </summary>
 /// <remarks>
 /// <para>

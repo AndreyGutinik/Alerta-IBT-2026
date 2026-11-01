@@ -89,7 +89,7 @@ O Holyrics chama a API local do app quando entra o slide da pregação:
 - `http://127.0.0.1:8787/overlay/on` volta ao normal (sem mensagem).
 - `http://127.0.0.1:8787/overlay/status` mostra o estado.
 
-São as mesmas rotas do app antigo; o gatilho do Holyrics não muda. O botão **Pausar** do painel e da janela faz a mesma coisa. A pausa é guardada e **volta como estava** ao abrir o app (sem repetir a mensagem do Telegram). Com os alertas desligados (Configurações > Sistema > Alertas) essas três rotas respondem `{"success":false,"disabled":true,"message":"alertas desligados"}`.
+São as mesmas rotas do app antigo; o gatilho do Holyrics não muda. O botão **Pausar** do painel e da janela faz a mesma coisa. A pausa vale só enquanto o app está aberto: **ao abrir o app a barra sempre começa rodando** (é o único interruptor que não volta como estava, para os avisos sempre funcionarem quando o PC liga). Com os alertas desligados (Configurações > Sistema > Alertas) essas três rotas respondem `{"success":false,"disabled":true,"message":"alertas desligados"}`.
 
 Para o fim da contagem regressiva do culto, o Holyrics também pode chamar `http://127.0.0.1:8787/player/pause`: a música do player desce em 5 s e para.
 

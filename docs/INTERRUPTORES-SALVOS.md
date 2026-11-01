@@ -8,7 +8,6 @@ Quando o interruptor depende de algo que não está lá (sem token do Holyrics, 
 
 | Interruptor | Onde | Padrão da 1ª instalação | Chave no `settings.json` | Aplicado no início por |
 | --- | --- | --- | --- | --- |
-| Pausar barra (pregação) | Início, painel rápido, bandeja, API do Holyrics, Telegram | desligado (barra rodando) | `system.barPaused` | `AlertRuntime.Start` (volta pausada em silêncio: o grupo do Telegram não é avisado de novo) |
 | Alertas ligados | Configurações | ligado | `system.alertsEnabled` | `AlertsSwitch` |
 | Correção automática | Início | ligado | `correction.enabled` | `StatusHub` / corretor |
 | Só offline (em vez do Gemini) | Início | Gemini | `correction.mode` | corretor |
@@ -44,6 +43,8 @@ Quando o interruptor depende de algo que não está lá (sem token do Holyrics, 
 | Cópia automática do backup | Configurações | desligada | `backup.autoEnabled` (a senha fica só protegida pelo Windows, em `backup.passwordProtected`) | `AutoBackupService.Start` (se a senha não puder ser lida neste Windows, a chave volta **desligada** com o motivo e a pasta é mantida) |
 
 Itens da bandeja (Pausar, Travar mouse, Modo apresentação) não têm valor próprio: mostram o estado do mesmo interruptor acima.
+
+**A única exceção: Pausar barra (pregação).** Ela **não é guardada**: o app sempre abre com a barra **rodando**, seja qual for o estado em que foi fechado (e um `settings.json` antigo com `barPaused` é ignorado; a chave some no próximo salvamento). Motivo: uma pausa esquecida na pregação bloquearia os avisos do domingo seguinte; depois de ligar o PC os avisos precisam sempre funcionar. Pausar e retomar continuam funcionando normalmente durante a sessão (Início, painel rápido, bandeja, API do Holyrics, Telegram).
 
 Não são interruptores e **não** entram nesta regra: o que está tocando agora, a posição da música, a câmera da Prévia e a do No ar, as listas (playlists), os volumes e os fades (esses já eram guardados).
 

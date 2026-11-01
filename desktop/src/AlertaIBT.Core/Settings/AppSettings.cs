@@ -374,12 +374,6 @@ public sealed record SystemSettings
     /// </summary>
     public bool AppWindowsInScreenshots { get; init; } = true;
 
-    /// <summary>
-    /// "Pausar barra" (the sermon): the bar refuses new alerts. It comes back as it was when the app starts (restored silently: the group is not told again).
-    /// Off by default, and for an older settings file.
-    /// </summary>
-    public bool BarPaused { get; init; }
-
     /// <summary>The version whose installation was attempted last, or <c>null</c> before the first attempt (see <see cref="UpdateAttemptPolicy"/>).</summary>
     public string? UpdateAttemptVersion { get; init; }
 
