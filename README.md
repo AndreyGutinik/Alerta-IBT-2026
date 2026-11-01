@@ -93,6 +93,8 @@ São as mesmas rotas do app antigo; o gatilho do Holyrics não muda. O botão **
 
 Para o fim da contagem regressiva do culto, o Holyrics também pode chamar `http://127.0.0.1:8787/player/pause`: a música do player desce em 5 s e para.
 
+**Música para sozinha no cronômetro (cartão Holyrics da aba Controle):** o app olha o cronômetro do Holyrics (só leitura, pela API) e, quando **qualquer** cronômetro chega a **2 s** (ajustável de 1 a 10), a música do player desce com o seu fade-out e fica pausada. Funciona com o cronômetro do painel de comunicação e com a apresentação de contagem regressiva. Interruptor ligado por padrão, com o tempo escolhido ao lado; uma etiqueta mostra o cronômetro (`00:07`) enquanto ele aparece no Holyrics. Precisa que o token tenha permissão para `GetCPInfo` e `GetCurrentPresentation`. Detalhes em `docs/CONTROLE-MA2.md` (Cronômetro do Holyrics).
+
 ## O que significam as bolinhas
 
 Na lateral da janela e nos ícones do painel rápido:

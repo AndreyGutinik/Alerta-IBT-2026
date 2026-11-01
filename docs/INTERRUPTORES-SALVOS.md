@@ -33,6 +33,7 @@ Quando o interruptor depende de algo que não está lá (sem token do Holyrics, 
 | Universo mostrado = Art-Net + 1 | Controle | ligado | `control.universeOffset` | `ControlService` |
 | Liga/desliga de cada linha do mapa | Controle | ligado | `control.rows[].enabled` | `ControlService` |
 | Setas do painel rápido controlam o Holyrics | Controle | ligado | `holyrics.arrowsEnabled` | `QuickPanelViewModel` |
+| Parar a música quando o cronômetro do Holyrics chegar a N s (e o N, de 1 a 10, padrão 2) | Controle (cartão Holyrics) | ligado, 2 s | `holyrics.countdownStopEnabled`, `holyrics.countdownStopAt` | `CountdownWatcher` (lê as configurações a cada leitura; só pergunta ao Holyrics com a conexão configurada) |
 | Modo apresentação (controle do pastor) | Controle, Ctrl+Alt+P, bandeja, API, MA2 | desligado | `holyrics.presentationMode` | `PresentationModeController.RestoreSavedState` (instala o gancho do teclado; sem token ou com o gancho recusado fica desligado e mostra o motivo; o desejo salvo continua para o próximo início) |
 | Travar o mouse | Configurações, Ctrl+Alt+M, bandeja | desligado | `mouseLock.enabled` | `MouseLockController.Start` |
 | Ctrl três vezes | Configurações | ligado | `mouseLock.tripleCtrl` | `MouseLockController` |

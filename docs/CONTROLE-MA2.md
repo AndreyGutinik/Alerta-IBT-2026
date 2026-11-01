@@ -95,6 +95,27 @@ Endereço: o campo aceita `127.0.0.1`, `http://127.0.0.1:8091/` e afins; o `http
 
 **Macros da MA2 (lista):** canal 13 = slide próximo, 14 = slide anterior, 15 = play/pausa do vídeo, 16 = logo; cada macro põe o dimmer em 100 e 0 como as outras. Passos da MA2 continuam a confirmar no onPC.
 
+## 3c. Cronômetro do Holyrics (a música para sozinha)
+
+O app vigia o cronômetro do Holyrics e, quando **qualquer** um chega a N segundos (padrão **2**, de 1 a 10), pausa a música do player **com o fade-out** que você configurou (o mesmo caminho de `/player/pause`, que era o gatilho antigo do Holyrics). Só lê; nunca muda nada no Holyrics.
+
+**O que a API do Holyrics expõe (verificado no Holyrics real 2.30, 01/11/2026):**
+
+| Tipo | Ação | O que o app vê |
+| --- | --- | --- |
+| Cronômetro do painel de comunicação (`StartCountdownCP`; o item `countdown_cp` de uma lista deve cair aqui, não testado) | `GetCPInfo` | `countdown_show` (bool) e `countdown_time`: **segundos inteiros**, descem de 9 (num de 10 s) até 0 e **continuam negativos** (-1, -2...) até o cronômetro ser parado; escondido: `show=false`, `time=0`. Cada número dura 1 s; o 0 dura 2 s. |
+| Apresentação de contagem regressiva (`ShowCountdown`, item `countdown`: "... para iniciar o culto") | `GetCurrentPresentation` | `type: "countdown"` e `current_time` em texto `M:SS` (`0:10`, `0:02`, `0:00`); o `0:00` dura ~0,8 s e a apresentação some (`data: null`). **Não aparece no GetCPInfo.** |
+| Cronômetro progressivo (`StartTimerCP`) | `GetCPInfo` | `stopwatch_show`/`stopwatch_time` (sobe). **Ignorado.** |
+| Contagem de múltipla escolha, `close_after_seconds` do alerta, duração de slide automático, tempo restante do VLC | várias | Não são cronômetros regressivos legíveis pela API; **não** são vigiados. |
+
+**Quando dispara:** uma única vez por rodada, na primeira leitura em que o tempo mostrado é **menor ou igual** a N (o número que o Holyrics mostra: "00:02" dispara com 2). Rearma quando o cronômetro some, recomeça (o tempo sobe) ou fica acima de N. Um cronômetro que já começa em N ou menos dispara uma vez. Com dois cronômetros na tela vale o menor. Se o player não está tocando, nada acontece. Um Holyrics que some por um instante no meio da rodada não faz disparar de novo.
+
+**Ritmo:** só pergunta com o Holyrics configurado e o interruptor ligado: 1 vez por segundo sem cronômetro na tela, 4 por segundo com cronômetro. Sem resposta, espera mais (2, 4, 8, até 15 s) e volta ao normal quando responde. Falhas entram no log com o motivo, sem repetir a mesma linha. Cada disparo escreve `Cronômetro do Holyrics chegou a 2 s: música parada` no log.
+
+**Cartão Holyrics (aba Controle):** linha "Parar a música em" com o interruptor e o tempo em segundos (guarda a última posição); a etiqueta verde com o cronômetro (`00:07`) só aparece enquanto o Holyrics mostra um. Permissões do token: `GetCPInfo` e `GetCurrentPresentation` (o botão Testar confere; sem a primeira o cartão mostra "token sem permissão para GetCPInfo").
+
+**A API não tem ação para iniciar o cronômetro da apresentação "10 s"** do dono além de `ShowCountdown` (cria uma apresentação nova): para o teste na igreja, inicie o cronômetro à mão no Holyrics.
+
 ## 4. Riscos conhecidos
 
 - **A MA2 onPC no MESMO PC do app** (ou outro programa Art-Net, ou um nó/driver DMX) pode ocupar a porta 6454. O app liga com compartilhamento de endereço e coexiste com quem também compartilha; com quem ocupa de forma exclusiva, o chip fica vermelho (**Porta 6454 em uso**) e o app tenta de novo a cada 3 s, sem travar. Broadcast chega a todos os ouvintes; pacote unicast (para um IP) só chega a um.
