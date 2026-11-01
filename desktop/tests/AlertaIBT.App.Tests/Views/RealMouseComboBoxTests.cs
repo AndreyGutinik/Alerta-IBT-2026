@@ -145,15 +145,12 @@ public sealed class RealMouseComboBoxTests
             };
             var host = new Window
             {
-                WindowStartupLocation = WindowStartupLocation.Manual,
-                Left = 120,
-                Top = 120,
                 Width = 360,
                 Height = 200,
-                ShowActivated = false,
-                ShowInTaskbar = false,
                 Content = new StackPanel { Margin = new Thickness(20), Children = { combo } },
             };
+            TestWindows.PlaceOnScreen(host);
+            host.Left = RealInputRig.CornerLeft(host.Width, host.Height);
             try
             {
                 host.Show();

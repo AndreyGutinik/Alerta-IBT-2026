@@ -23,7 +23,8 @@ public sealed class NdiVideoWindowTests
     [DllImport("gdi32.dll")]
     private static extern uint GetPixel(IntPtr dc, int x, int y);
 
-    private static readonly ScreenInfo Spot = new("test", "test", 120, 120, 640, 192, false);
+    // The stand-in LED sits in the same corner of the work area of the primary monitor in every test (these tests read the real pixels of the screen).
+    private static readonly ScreenInfo Spot = new("test", "test", TestWindows.CornerPixels().Left, TestWindows.CornerPixels().Top, 640, 192, false);
 
     private static HwndSource Helper(bool topmost)
     {
@@ -67,7 +68,7 @@ public sealed class NdiVideoWindowTests
             Assert.False(window.CaptureExcluded); // "Esconder da live" is off by default
             Assert.NotEqual(window.Handle, foreground); // showing it never takes the focus
             NativeMethods.GetWindowRect(window.Handle, out var rect);
-            Assert.Equal((120, 120, 640, 192), (rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top));
+            Assert.Equal((Spot.X, Spot.Y, 640, 192), (rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top));
         });
     }
 

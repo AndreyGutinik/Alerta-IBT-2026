@@ -164,11 +164,7 @@ public sealed class BackupCardTests
         }
 
         // Shown for a moment far off the screen (the window is excluded from capture anyway), so the picture is what the person would see.
-        dialog.WindowStartupLocation = WindowStartupLocation.Manual;
-        dialog.Left = -5000;
-        dialog.Top = -5000;
-        dialog.ShowActivated = false;
-        dialog.Show();
+        TestWindows.ShowOffScreen(dialog);
         try
         {
             var content = (FrameworkElement)dialog.Content;

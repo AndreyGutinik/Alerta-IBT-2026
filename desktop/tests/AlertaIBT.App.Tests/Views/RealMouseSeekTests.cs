@@ -38,7 +38,7 @@ public sealed class RealMouseSeekTests
     {
         RealInputRig.Run(() =>
         {
-            using var rig = new RealInputRig();
+            using var rig = new RealInputRig(topmost: true);
             var slider = rig.Page.SeekSlider;
             Assert.True(slider.IsEnabled);
 
@@ -63,7 +63,7 @@ public sealed class RealMouseSeekTests
     {
         RealInputRig.Run(() =>
         {
-            using var rig = new RealInputRig();
+            using var rig = new RealInputRig(topmost: true);
             var slider = rig.Page.SeekSlider;
 
             rig.Click(rig.At(slider, 0.3, 0.5));
@@ -78,7 +78,7 @@ public sealed class RealMouseSeekTests
     {
         RealInputRig.Run(() =>
         {
-            using var rig = new RealInputRig(playing: false, paused: true);
+            using var rig = new RealInputRig(playing: false, paused: true, topmost: true);
             var slider = rig.Page.SeekSlider;
             Assert.True(slider.IsEnabled);
 
@@ -101,7 +101,7 @@ public sealed class RealMouseSeekTests
     {
         RealInputRig.Run(() =>
         {
-            using var rig = new RealInputRig();
+            using var rig = new RealInputRig(topmost: true);
             var slider = rig.Page.SeekSlider;
 
             var from = rig.At(slider, 0.5, 0.5);
@@ -126,7 +126,7 @@ public sealed class RealMouseSeekTests
     {
         RealInputRig.Run(() =>
         {
-            using var rig = new RealInputRig();
+            using var rig = new RealInputRig(topmost: true);
             var slider = rig.Page.SeekSlider;
 
             var from = rig.At(slider, 0.5, 0.5);
@@ -148,7 +148,7 @@ public sealed class RealMouseSeekTests
     {
         RealInputRig.Run(() =>
         {
-            using var rig = new RealInputRig();
+            using var rig = new RealInputRig(topmost: true);
             var slider = rig.Page.SeekSlider;
 
             var from = rig.At(slider, 0.2, 0.5);

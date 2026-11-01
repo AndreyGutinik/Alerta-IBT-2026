@@ -28,7 +28,7 @@ public sealed class NdiTelaoHostTests : IDisposable
     [Fact]
     public void The_layer_starts_off_then_on_with_a_frame_shows_a_non_topmost_window_and_off_hides_it()
     {
-        var spot = new ScreenInfo("t", "t", 150, 150, 640, 192, false);
+        var spot = new ScreenInfo("t", "t", TestWindows.CornerPixels().Left, TestWindows.CornerPixels().Top, 640, 192, false);
         var receivers = new List<StubReceiver>();
         NdiService? service = null;
         NdiTelaoHost? host = null;
@@ -94,7 +94,7 @@ public sealed class NdiTelaoHostTests : IDisposable
     [Fact]
     public void A_layer_saved_as_on_comes_back_at_the_next_start_and_the_window_shows_once_a_frame_arrives()
     {
-        var spot = new ScreenInfo("t", "t", 150, 150, 640, 192, false);
+        var spot = new ScreenInfo("t", "t", TestWindows.CornerPixels().Left, TestWindows.CornerPixels().Top, 640, 192, false);
         var receivers = new List<StubReceiver>();
         NdiService? service = null;
         NdiTelaoHost? host = null;

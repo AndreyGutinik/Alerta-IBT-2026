@@ -135,7 +135,7 @@ public sealed class QuickPanelWindowTests
         WpfTestHost.Run(() =>
         {
             using var rig = new Rig();
-            rig.Window.ShowPanel();
+            TestWindows.ShowOffScreen(rig.Window); // not ShowPanel: that one moves next to the tray and takes the focus
             try
             {
                 rig.Window.UpdateLayout();

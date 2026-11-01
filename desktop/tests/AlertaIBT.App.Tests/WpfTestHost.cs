@@ -16,14 +16,50 @@ internal static class WpfTestHost
     // run the bodies that other test classes (running in parallel) have queued, in the middle of its own steps.
     private static readonly object Gate = new();
 
+    private static int _depth;
+
     public static Dispatcher Dispatcher => Host.Value;
+
+    // Every body is watched by the window guard (TestWindows.cs): a layout test whose window ends up on a monitor fails with the list.
+    private static T Guarded<T>(Func<T> run)
+    {
+        var outermost = _depth++ == 0;
+        if (outermost)
+        {
+            WindowGuard.Begin();
+        }
+
+        T result;
+        try
+        {
+            result = run();
+        }
+        catch
+        {
+            _depth--;
+            if (outermost)
+            {
+                WindowGuard.Abort();
+            }
+
+            throw;
+        }
+
+        _depth--;
+        if (outermost)
+        {
+            WindowGuard.End();
+        }
+
+        return result;
+    }
 
     /// <summary>Runs <paramref name="body"/> on the WPF thread and returns its result; exceptions are rethrown to the caller.</summary>
     public static T Run<T>(Func<T> body)
     {
         lock (Gate)
         {
-            return Dispatcher.Invoke(body);
+            return Guarded(() => Dispatcher.Invoke(body));
         }
     }
 
@@ -32,7 +68,11 @@ internal static class WpfTestHost
     {
         lock (Gate)
         {
-            Dispatcher.Invoke(body);
+            Guarded(() =>
+            {
+                Dispatcher.Invoke(body);
+                return 0;
+            });
         }
     }
 
@@ -41,7 +81,7 @@ internal static class WpfTestHost
     {
         lock (Gate)
         {
-            return Dispatcher.InvokeAsync(body).Task.Unwrap().GetAwaiter().GetResult();
+            return Guarded(() => Dispatcher.InvokeAsync(body).Task.Unwrap().GetAwaiter().GetResult());
         }
     }
 
@@ -55,6 +95,7 @@ internal static class WpfTestHost
                 App.RunsApplication = false; // before the App exists: it posts its own OnStartup to this dispatcher
                 var app = new App { ShutdownMode = ShutdownMode.OnExplicitShutdown };
                 app.InitializeComponent();
+                WindowGuard.Start();
                 ready.SetResult(Dispatcher.CurrentDispatcher);
                 Dispatcher.Run();
             }

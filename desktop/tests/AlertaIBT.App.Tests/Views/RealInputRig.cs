@@ -35,6 +35,9 @@ internal sealed class RealInputRig : IDisposable
 
     private static int _interference;
 
+    /// <summary>The left edge of a real-desktop test window: the left corner of the work area, or the right one when a window of another program (the installed app) sits over the left one.</summary>
+    public static double CornerLeft(double width, double height = 1000) => TestWindows.PickCornerLeft(width, height);
+
     /// <summary>How many times, in this process, the real cursor was found away from where a rig had put it (a person moved the mouse during a test).</summary>
     public static int Interference => Volatile.Read(ref _interference);
 
@@ -49,6 +52,7 @@ internal sealed class RealInputRig : IDisposable
         for (var attempt = 1; ; attempt++)
         {
             var before = Interference;
+            Volatile.Write(ref _cover, null); // the reason named on a failure is the one of THIS attempt
             try
             {
                 WpfTestHost.Run(body);
@@ -65,7 +69,11 @@ internal sealed class RealInputRig : IDisposable
         }
     }
 
-    public RealInputRig(bool playing = true, bool paused = false, double width = 1100, double height = 1400)
+    /// <param name="topmost">
+    /// The window stays above every other program's (the installed app, a chat), which would otherwise sit over the place the real cursor clicks. Only for tests
+    /// that do not open a popup: the popup of a list box is a window of its own and goes behind a topmost owner.
+    /// </param>
+    public RealInputRig(bool playing = true, bool paused = false, double width = 1100, double height = 1400, bool topmost = false)
     {
         var initial = new AppSettings
         {
@@ -112,12 +120,13 @@ internal sealed class RealInputRig : IDisposable
         Window = new MainWindow(ViewModel, null)
         {
             WindowStartupLocation = WindowStartupLocation.Manual,
-            Left = SystemParameters.WorkArea.Left + 40, // fully inside the work area of the primary monitor, whatever its size
+            Left = CornerLeft(Math.Min(width, SystemParameters.WorkArea.Width - 80), Math.Min(height, SystemParameters.WorkArea.Height - 60)), // fully inside the work area of the primary monitor, whatever its size
             Top = SystemParameters.WorkArea.Top + 20,
             Width = Math.Min(width, SystemParameters.WorkArea.Width - 80),
             Height = Math.Min(height, SystemParameters.WorkArea.Height - 60),
             ShowActivated = false,
             ShowInTaskbar = false,
+            Topmost = topmost,
         };
         Target = Window;
         GetCursorPos(out _cursor);

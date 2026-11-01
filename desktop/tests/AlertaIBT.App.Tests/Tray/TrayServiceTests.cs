@@ -117,6 +117,7 @@ public sealed class TrayServiceTests
                     tray.Menu.IsOpen = true;
 
                     var source = Assert.IsType<HwndSource>(System.Windows.PresentationSource.FromVisual(tray.Menu));
+                    TestWindows.MoveOffScreen(source.Handle); // WPF keeps a popup on a monitor; this one only needs its window handle
                     Assert.Equal(!inScreenshots, CaptureExclusion.IsExcluded(source.Handle));
                 }
                 finally

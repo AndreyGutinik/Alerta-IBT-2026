@@ -95,8 +95,8 @@ public sealed class AppWindowPolicyTests
                 Width = 10,
                 Height = 10,
                 WindowStyle = WindowStyle.None,
-                ShowActivated = false,
             };
+            TestWindows.PlaceOnScreen(window);
             try
             {
                 var primary = PolicyFakes.Primary();
@@ -336,7 +336,8 @@ public sealed class AppWindowPolicyTests
         {
             var primary = PolicyFakes.Primary();
             var policy = PolicyFakes.Policy(null, [primary], (0, 0));
-            var window = new PlainWindow { ShowInTaskbar = false, Width = 100, Height = 100 };
+            var window = new PlainWindow { ShowInTaskbar = false, Width = 100, Height = 100, Opacity = 0 };
+            TestWindows.PlaceOnScreen(window);
             policy.Protect(window);
             window.Show();
             window.Close();

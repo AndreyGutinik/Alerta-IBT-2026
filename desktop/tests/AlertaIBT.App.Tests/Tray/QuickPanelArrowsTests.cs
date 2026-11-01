@@ -32,7 +32,7 @@ public sealed class QuickPanelArrowsTests
 {
     private sealed class Rig : IDisposable
     {
-        private readonly HwndSource _source = new(new HwndSourceParameters("arrows-test") { Width = 1, Height = 1 });
+        private readonly HwndSource _source = new(new HwndSourceParameters("arrows-test") { Width = 1, Height = 1, PositionX = (int)TestWindows.OffScreenLeft, PositionY = (int)TestWindows.OffScreenTop, ExtendedWindowStyle = 0x08000080 }); // off every monitor, no activation (WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW)
 
         public Rig(IHolyricsRemote? remote)
         {

@@ -27,7 +27,12 @@ public sealed class OverlayWindowTests
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(IntPtr hWnd);
 
-    private static ScreenInfo Primary() => MonitorService.Enumerate().First(s => s.IsPrimary);
+    // The size of the primary screen, but far off every monitor: the real bar windows of these tests are laid out and drawn there, so none shows on the person's screens.
+    private static ScreenInfo Primary()
+    {
+        var real = MonitorService.Enumerate().First(s => s.IsPrimary);
+        return real with { X = (int)TestWindows.OffScreenLeft - real.Width, Y = (int)TestWindows.OffScreenTop, IsPrimary = false };
+    }
 
     // Transparent colors keep the real bar invisible on the developer's screen while the window is really shown.
     private static BarSettings Invisible() => new() { Background = "#00000000", Foreground = "#00000000" };
