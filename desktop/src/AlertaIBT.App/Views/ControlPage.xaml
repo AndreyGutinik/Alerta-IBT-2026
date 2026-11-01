@@ -864,7 +864,7 @@
                         </Grid>
                     </Border>
 
-                    <!-- The presentation mode: the remote of the pastor (a keyboard to Windows) passes the Holyrics slides from any window. Off at every start. -->
+                    <!-- The presentation mode: the remote of the pastor (a keyboard to Windows) passes the Holyrics slides from any window. It comes back as it was at the last close. -->
                     <Border
                         x:Name="PresentationSwitchBlock"
                         theme:BalancedColumns.Side="0"

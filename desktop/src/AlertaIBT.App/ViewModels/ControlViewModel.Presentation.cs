@@ -34,7 +34,7 @@ public sealed class PresentationKeyChip
 }
 
 /// <summary>
-/// The "Modo apresenta\U000000E7\U000000E3o" part of the Holyrics card: the switch (never saved, off at every start), the Ctrl+Alt+P shortcut, and the two sets of keys
+/// The "Modo apresenta\U000000E7\U000000E3o" part of the Holyrics card: the switch (saved: it comes back as it was), the Ctrl+Alt+P shortcut, and the two sets of keys
 /// (next, previous) that the pastor's remote sends, as removable chips with "adicionar tecla" (press-to-record) and "restaurar padr\U000000E3o". The keys are saved in
 /// <see cref="HolyricsSettings"/>; the mode itself lives in <see cref="PresentationModeController"/>.
 /// </summary>
@@ -96,7 +96,7 @@ public sealed partial class ControlViewModel
         null => string.Empty,
         { IsOn: true } => "Modo apresenta\U000000E7\U000000E3o ligado: as teclas do controle do pastor passam o slide no Holyrics de qualquer janela. Atalho: Ctrl+Alt+P.",
         { CanTurnOn: false } => "Para ligar, cole antes o token do Holyrics (acima).",
-        _ => "Ligar o modo apresenta\U000000E7\U000000E3o: as teclas abaixo (o controle do pastor) passam o slide no Holyrics de qualquer janela e n\U000000E3o chegam ao programa da frente. Atalho: Ctrl+Alt+P. Sempre come\U000000E7a desligado.",
+        _ => "Ligar o modo apresenta\U000000E7\U000000E3o: as teclas abaixo (o controle do pastor) passam o slide no Holyrics de qualquer janela e n\U000000E3o chegam ao programa da frente. Atalho: Ctrl+Alt+P. Ao abrir o app, volta como estava.",
     };
 
     /// <summary>Why the mode is off or does not work (a refusal, a hook that was lost, the shortcut in use by another program); empty when there is nothing to say.</summary>

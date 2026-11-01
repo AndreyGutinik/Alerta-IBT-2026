@@ -556,7 +556,7 @@
                             x:Name="TelaoTitle"
                             VerticalAlignment="Center"
                             Orientation="Horizontal"
-                            ToolTip="A câmera aparece no LED, por baixo do Holyrics e da barra de avisos. Ao abrir o app ela está sempre desligada.">
+                            ToolTip="A câmera aparece no LED, por baixo do Holyrics e da barra de avisos. Ao abrir o app ela volta como estava.">
                             <Path
                                 Margin="0,0,10,0"
                                 VerticalAlignment="Center"
@@ -652,7 +652,7 @@
                             AutomationProperties.Name="Câmera no telão"
                             IsChecked="{Binding LayerOn, Mode=TwoWay}"
                             Style="{StaticResource IbtSwitch}"
-                            ToolTip="Câmera no telão: liga e desliga a câmera no LED. Sempre começa desligada quando o app abre.">
+                            ToolTip="Câmera no telão: liga e desliga a câmera no LED. Quando o app abre, volta como estava.">
                             <ToggleButton.LayoutTransform>
                                 <ScaleTransform ScaleX="1.4" ScaleY="1.4" />
                             </ToggleButton.LayoutTransform>

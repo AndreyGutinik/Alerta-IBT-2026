@@ -365,7 +365,7 @@ public sealed partial class BackupViewModel : ObservableObject, IDisposable
         {
             AutoLight = StatusLight.Gray;
             AutoText = "Desligada";
-            AutoTip = "A c\U000000F3pia autom\U000000E1tica est\U000000E1 desligada.";
+            AutoTip = status.Error ?? "A c\U000000F3pia autom\U000000E1tica est\U000000E1 desligada.";
         }
         else if (status.Error is not null)
         {
