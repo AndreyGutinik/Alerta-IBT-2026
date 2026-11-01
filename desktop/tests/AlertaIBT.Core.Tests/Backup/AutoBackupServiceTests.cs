@@ -302,4 +302,60 @@ public sealed class AutoBackupServiceTests : IDisposable
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
             Lines.Add(formatter(state, exception) + (exception is null ? string.Empty : "\n" + exception));
     }
+
+    [Fact]
+    public void A_start_with_the_switch_on_and_the_password_readable_keeps_it_on()
+    {
+        _auto.Enable(_folder, Password);
+        _clock.Advance(TimeSpan.FromMilliseconds(1));
+        _auto.Dispose();
+
+        using var again = new AutoBackupService(_settings, _protector, _clock, _log, work => { work(); return Task.CompletedTask; });
+        again.Start();
+
+        Assert.True(_settings.Current.Backup.AutoEnabled);
+        Assert.True(again.Status.Enabled);
+        Assert.Null(again.Status.Error);
+    }
+
+    [Fact]
+    public void A_start_with_the_switch_on_but_the_password_gone_puts_it_off_with_the_reason_and_keeps_the_folder()
+    {
+        // The file says on, but its password was protected for another Windows user (or is simply missing).
+        _settings.Update(s => s with { Backup = new BackupSettings { AutoEnabled = true, Folder = _folder, PasswordProtected = "not-a-valid-secret" } });
+        using var again = new AutoBackupService(_settings, _protector, _clock, _log, work => { work(); return Task.CompletedTask; });
+
+        again.Start();
+
+        Assert.False(_settings.Current.Backup.AutoEnabled);
+        Assert.Null(_settings.Current.Backup.PasswordProtected);
+        Assert.Equal(_folder, _settings.Current.Backup.Folder);
+        Assert.False(again.Status.Enabled);
+        Assert.Equal(AutoBackupService.PasswordGoneText, again.Status.Error);
+        _clock.Advance(AutoBackupService.Debounce + TimeSpan.FromSeconds(1));
+        Assert.Empty(Copies()); // nothing is attempted, so nothing retries
+    }
+
+    [Fact]
+    public void A_start_with_the_switch_on_and_no_password_at_all_puts_it_off_with_the_reason()
+    {
+        _settings.Update(s => s with { Backup = new BackupSettings { AutoEnabled = true, Folder = _folder, PasswordProtected = null } });
+        using var again = new AutoBackupService(_settings, _protector, _clock, _log, work => { work(); return Task.CompletedTask; });
+
+        again.Start();
+
+        Assert.False(_settings.Current.Backup.AutoEnabled);
+        Assert.Equal(AutoBackupService.PasswordGoneText, again.Status.Error);
+    }
+
+    [Fact]
+    public void A_start_with_the_switch_off_stays_off_and_quiet()
+    {
+        using var again = new AutoBackupService(_settings, _protector, _clock, _log, work => { work(); return Task.CompletedTask; });
+
+        again.Start();
+
+        Assert.False(_settings.Current.Backup.AutoEnabled);
+        Assert.Null(again.Status.Error);
+    }
 }

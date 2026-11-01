@@ -128,7 +128,7 @@ public sealed class NdiService : INdiControl, IDisposable
         }
     }
 
-    /// <summary>The telao layer switch (false at start).</summary>
+    /// <summary>The telao layer switch (as saved when the app starts, see <see cref="RestoreSavedState"/>).</summary>
     public bool LayerOn => _switcher.LayerOn;
 
     /// <summary>The settings' <c>Ndi</c> part.</summary>
@@ -170,21 +170,58 @@ public sealed class NdiService : INdiControl, IDisposable
     public NdiResult SetLayer(bool on)
     {
         Breadcrumbs.Add(on ? "ndi: camada ligar" : "ndi: camada desligar");
-        return _switcher.SetLayer(on);
+        var result = _switcher.SetLayer(on);
+        SaveSwitches();
+        return result;
     }
 
     /// <summary>Flips the layer; returns the new state.</summary>
     public NdiResult ToggleLayer()
     {
         Breadcrumbs.Add("ndi: camada alternar");
-        return _switcher.SetLayer(!_switcher.LayerOn);
+        var result = _switcher.SetLayer(!_switcher.LayerOn);
+        SaveSwitches();
+        return result;
     }
 
     /// <summary>Shows or hides the color bars.</summary>
     public NdiResult SetTestPattern(bool on)
     {
         Breadcrumbs.Add("ndi: barras de teste");
-        return _switcher.SetTestPattern(on);
+        var result = _switcher.SetTestPattern(on);
+        SaveSwitches();
+        return result;
+    }
+
+    /// <summary>
+    /// Puts the layer and the color bars back as the owner left them (call once, after the window host listens, so the window can show). The layer ON with no
+    /// source, or with the NDI runtime missing, shows nothing: the window only exists while the on-air camera has a picture or the bars are on.
+    /// </summary>
+    public void RestoreSavedState()
+    {
+        var saved = _settings.Current.Ndi;
+        if (saved.LayerOn)
+        {
+            _switcher.SetLayer(true);
+        }
+
+        if (saved.TestPattern)
+        {
+            _switcher.SetTestPattern(true);
+        }
+
+        if (saved.LayerOn || saved.TestPattern)
+        {
+            _logger?.LogInformation("NDI telao: estado restaurado (camada {Layer}, barras de teste {Bars})", saved.LayerOn ? "ligada" : "desligada", saved.TestPattern ? "ligadas" : "desligadas");
+        }
+    }
+
+    // The switches are the owner's default for the next start: the last position is saved (debounced like every setting).
+    private void SaveSwitches()
+    {
+        var layer = _switcher.LayerOn;
+        var bars = _switcher.TestPattern;
+        _settings.Update(s => s.Ndi.LayerOn == layer && s.Ndi.TestPattern == bars ? s : s with { Ndi = s.Ndi with { LayerOn = layer, TestPattern = bars } });
     }
 
     /// <inheritdoc />

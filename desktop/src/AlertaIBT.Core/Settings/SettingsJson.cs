@@ -117,6 +117,7 @@ public static partial class SettingsJson
                     AutoUpdate = ReadBool(system, "autoUpdate") ?? defaults.System.AutoUpdate,
                     AlertsEnabled = ReadBool(system, "alertsEnabled") ?? defaults.System.AlertsEnabled,
                     AppWindowsInScreenshots = ReadBool(system, "appWindowsInScreenshots") ?? defaults.System.AppWindowsInScreenshots,
+                    BarPaused = ReadBool(system, "barPaused") ?? defaults.System.BarPaused,
                     UpdateAttemptVersion = ReadString(system, "updateAttemptVersion"),
                     UpdateAttemptSince = ReadTime(system, "updateAttemptSince"),
                     UpdateAttempts = ReadInt(system, "updateAttempts") ?? defaults.System.UpdateAttempts,
@@ -186,6 +187,8 @@ public static partial class SettingsJson
                     MonitorLocked = ReadBool(ndi, "monitorLocked") ?? defaults.Ndi.MonitorLocked,
                     MonitorDeviceName = ReadString(ndi, "monitorDeviceName") ?? defaults.Ndi.MonitorDeviceName,
                     HideFromCapture = ReadBool(ndi, "hideFromCapture") ?? defaults.Ndi.HideFromCapture,
+                    LayerOn = ReadBool(ndi, "layerOn") ?? defaults.Ndi.LayerOn,
+                    TestPattern = ReadBool(ndi, "testPattern") ?? defaults.Ndi.TestPattern,
                 },
                 Control = new ControlSettings
                 {
@@ -201,6 +204,7 @@ public static partial class SettingsJson
                     Port = ReadInt(holyrics, "port") ?? defaults.Holyrics.Port,
                     TokenProtected = ReadString(holyrics, "tokenProtected"),
                     ArrowsEnabled = ReadBool(holyrics, "arrowsEnabled") ?? defaults.Holyrics.ArrowsEnabled,
+                    PresentationMode = ReadBool(holyrics, "presentationMode") ?? defaults.Holyrics.PresentationMode,
                     PresentationNext = ReadInts(holyrics, "presentationNext") ?? defaults.Holyrics.PresentationNext,
                     PresentationPrevious = ReadInts(holyrics, "presentationPrevious") ?? defaults.Holyrics.PresentationPrevious,
                 },
@@ -259,6 +263,7 @@ public static partial class SettingsJson
                 ["autoUpdate"] = n.System.AutoUpdate,
                 ["alertsEnabled"] = n.System.AlertsEnabled,
                 ["appWindowsInScreenshots"] = n.System.AppWindowsInScreenshots,
+                ["barPaused"] = n.System.BarPaused,
                 ["updateAttemptVersion"] = n.System.UpdateAttemptVersion,
                 ["updateAttemptSince"] = n.System.UpdateAttemptSince?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
                 ["updateAttempts"] = n.System.UpdateAttempts,
@@ -344,6 +349,7 @@ public static partial class SettingsJson
                 ["port"] = n.Holyrics.Port,
                 ["tokenProtected"] = n.Holyrics.TokenProtected,
                 ["arrowsEnabled"] = n.Holyrics.ArrowsEnabled,
+                ["presentationMode"] = n.Holyrics.PresentationMode,
                 ["presentationNext"] = new JsonArray(n.Holyrics.PresentationNext.Select(key => (JsonNode)JsonValue.Create(key)!).ToArray()),
                 ["presentationPrevious"] = new JsonArray(n.Holyrics.PresentationPrevious.Select(key => (JsonNode)JsonValue.Create(key)!).ToArray()),
             },
@@ -384,6 +390,8 @@ public static partial class SettingsJson
                 ["monitorLocked"] = n.Ndi.MonitorLocked,
                 ["monitorDeviceName"] = n.Ndi.MonitorDeviceName,
                 ["hideFromCapture"] = n.Ndi.HideFromCapture,
+                ["layerOn"] = n.Ndi.LayerOn,
+                ["testPattern"] = n.Ndi.TestPattern,
             },
         };
         return root.ToJsonString(WriteOptions);
@@ -455,6 +463,7 @@ public static partial class SettingsJson
                 AutoUpdate = system.AutoUpdate,
                 AlertsEnabled = system.AlertsEnabled,
                 AppWindowsInScreenshots = system.AppWindowsInScreenshots,
+                BarPaused = system.BarPaused,
                 UpdateAttemptVersion = NullIfBlank(system.UpdateAttemptVersion),
                 UpdateAttemptSince = system.UpdateAttemptSince?.ToUniversalTime(),
                 UpdateAttempts = Math.Max(0, system.UpdateAttempts),
@@ -505,6 +514,7 @@ public static partial class SettingsJson
                 Port = holyrics.Port is >= 1 and <= 65535 ? holyrics.Port : HolyricsSettings.DefaultPort,
                 TokenProtected = NullIfBlank(holyrics.TokenProtected),
                 ArrowsEnabled = holyrics.ArrowsEnabled,
+                PresentationMode = holyrics.PresentationMode,
                 PresentationNext = presentationNext,
                 PresentationPrevious = PresentationKeys.Clean(holyrics.PresentationPrevious, presentationNext),
             },
@@ -543,6 +553,8 @@ public static partial class SettingsJson
             MonitorLocked = n.MonitorLocked,
             MonitorDeviceName = NullIfBlank(n.MonitorDeviceName) ?? string.Empty,
             HideFromCapture = n.HideFromCapture,
+            LayerOn = n.LayerOn,
+            TestPattern = n.TestPattern,
         };
     }
 

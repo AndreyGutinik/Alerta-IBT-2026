@@ -16,7 +16,7 @@ public sealed record NdiResult(bool Success, string? Message = null)
 }
 
 /// <summary>The state of the telao camera as the UI and the API show it.</summary>
-/// <param name="LayerOn">The telao layer switch (always false at start).</param>
+/// <param name="LayerOn">The telao layer switch (the service puts the saved state back at start).</param>
 /// <param name="WindowVisible">Whether the camera window is really showing (layer on and frames fresh, or the test pattern).</param>
 /// <param name="TestPattern">Whether the color bars are showing.</param>
 /// <param name="PreviewSlot">Slot (0-based) in Preview, or <c>null</c>.</param>
@@ -61,7 +61,7 @@ public delegate void NdiProgramFrameHandler(in NdiFrameView frame, double vertic
 /// The Preview/Program switcher (like OBS studio mode). Two receivers stay connected all the time, so a Take (cut) only swaps which one feeds the
 /// telao: instant, never black. Selecting a camera reconnects only the Preview receiver; Take swaps the two (the old program stays connected as
 /// the new preview); a Take before the preview's first frame waits for it (and gives up with an error after <see cref="NdiConstants.TakeTimeout"/>);
-/// the layer is always OFF at start; an on-air source that goes silent freezes its last picture for <see cref="NdiConstants.HoldTime"/> and then
+/// the layer comes back at start as the owner left it (the service puts it back); an on-air source that goes silent freezes its last picture for <see cref="NdiConstants.HoldTime"/> and then
 /// the window hides (Holyrics shows normally), coming back by itself when frames return and the layer is still ON. Slots are 0-based here
 /// (the UI shows them 1-based). Every public method is thread safe and returns at once.
 /// </summary>
@@ -148,7 +148,7 @@ public sealed class NdiSwitcher : IDisposable
     /// <summary>Raised (any thread, at most 20 per second per lane) with the slot whose thumbnail changed (<c>-1</c> when its lane has no slot).</summary>
     public event Action<int>? ThumbnailUpdated;
 
-    /// <summary>The telao layer switch. Always false when the app starts.</summary>
+    /// <summary>The telao layer switch. False until the service puts back the saved state at start.</summary>
     public bool LayerOn
     {
         get

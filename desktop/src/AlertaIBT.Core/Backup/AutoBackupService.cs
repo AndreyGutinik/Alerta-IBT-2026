@@ -79,9 +79,28 @@ public sealed class AutoBackupService : IDisposable
     public void Start()
     {
         _lastSeen = Fingerprint(_settings.Current);
+        RestoreSwitch();
         _settings.Changed += OnChanged;
         LastWork = _runner(ProbeLastCopy);
     }
+
+    // "C\U000000F3pia autom\U000000E1tica" comes back as the owner left it. It cannot work without its password (kept only with DPAPI, same Windows user): when that is gone
+    // (another user, a reinstalled Windows) the switch goes OFF with the reason instead of staying on and failing at every change; the folder is kept.
+    private void RestoreSwitch()
+    {
+        var backup = _settings.Current.Backup;
+        if (!backup.AutoEnabled || _protector.Unprotect(backup.PasswordProtected) is not null)
+        {
+            return;
+        }
+
+        _logger.LogWarning("C\U000000F3pia autom\U000000E1tica desligada: a senha guardada n\U000000E3o p\U000000F4de ser lida");
+        _settings.Update(s => s with { Backup = s.Backup with { AutoEnabled = false, PasswordProtected = null } });
+        SetStatus(status => status with { Enabled = false, Error = PasswordGoneText });
+    }
+
+    /// <summary>The reason shown when the switch was put OFF at start because the stored password cannot be read.</summary>
+    public const string PasswordGoneText = "A senha da c\U000000F3pia n\U000000E3o p\U000000F4de ser lida neste Windows. Ligue a c\U000000F3pia autom\U000000E1tica de novo e escolha uma senha.";
 
     /// <summary>Turns the copy on: keeps <paramref name="folder"/> and the protected <paramref name="password"/>, and writes the first copy at once.</summary>
     /// <exception cref="BackupException"><see cref="BackupError.WeakPassword"/> when the password is shorter than 8 characters.</exception>

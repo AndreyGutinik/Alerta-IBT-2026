@@ -33,7 +33,13 @@ public sealed record HolyricsSettings
     /// <summary>"Setas do painel rápido controlam o Holyrics": while the text box of the tray panel has the focus, Left and Right are slide back and next.</summary>
     public bool ArrowsEnabled { get; init; } = true;
 
-    /// <summary>The keys that mean "next slide" in the presentation mode (virtual-key codes); Page Down and the right arrow by default. The mode itself is never saved: it is off at every start.</summary>
+    /// <summary>
+    /// "Modo apresentação" as the owner left it: it is put back when the app starts (when Holyrics has a token and the keyboard hook can be installed; else it stays off and says why).
+    /// Off by default, so a first install never swallows a key.
+    /// </summary>
+    public bool PresentationMode { get; init; }
+
+    /// <summary>The keys that mean "next slide" in the presentation mode (virtual-key codes); Page Down and the right arrow by default. The mode itself is saved in <see cref="PresentationMode"/>.</summary>
     public IReadOnlyList<int> PresentationNext { get; init; } = PresentationKeys.DefaultNext;
 
     /// <summary>The keys that mean "previous slide" in the presentation mode (virtual-key codes); Page Up and the left arrow by default.</summary>
@@ -46,6 +52,7 @@ public sealed record HolyricsSettings
         && Port == other.Port
         && TokenProtected == other.TokenProtected
         && ArrowsEnabled == other.ArrowsEnabled
+        && PresentationMode == other.PresentationMode
         && PresentationNext.SequenceEqual(other.PresentationNext)
         && PresentationPrevious.SequenceEqual(other.PresentationPrevious);
 

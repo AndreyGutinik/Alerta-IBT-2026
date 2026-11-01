@@ -18,7 +18,7 @@ namespace AlertaIBT.Core.Services;
 /// <para>
 /// The sermon (<see cref="Pause"/>, from the Pause button or from Holyrics through the local API) cancels the alert on the bar and
 /// the whole queue at once, tells the group once, and makes new alerts answer <see cref="SubmitKind.PausedRefused"/> until
-/// <see cref="Resume"/> (silent). The pause is never saved.
+/// <see cref="Resume"/> (silent). The pause is saved by the app (<c>System.BarPaused</c>) and put back at start with <see cref="RestorePause"/> (silent: the group is not told twice).
 /// </para>
 /// <para>
 /// The queue itself records duplicates and pause refusals in the history; this service only records what the queue does not see
@@ -424,6 +424,23 @@ public sealed class AlertService : IOverlayControl, IDisposable
         Forget(cancelled);
         _notifier.Notify(TelegramReplies.Paused);
         _logger.LogInformation("Overlay pausado (pregacao): {Count} aviso(s) cancelado(s)", cancelled.Count);
+    }
+
+    /// <summary>
+    /// Puts the pause back at start, as the owner left it: like <see cref="Pause"/> but silent (the group was told when the sermon began, not at every start of the app).
+    /// Whatever the saved queue held is cancelled the same way. Does nothing when already paused.
+    /// </summary>
+    public void RestorePause()
+    {
+        if (!_queue.TryPause(out var cancelled))
+        {
+            return;
+        }
+
+        CancelPass(StopReason.Pause);
+        _hub.SetPaused(true);
+        Forget(cancelled);
+        _logger.LogInformation("Overlay pausado (estado salvo restaurado): {Count} aviso(s) cancelado(s)", cancelled.Count);
     }
 
     /// <summary>The sermon ended: accepts alerts again, with the queue empty. Silent. Does nothing when not paused.</summary>

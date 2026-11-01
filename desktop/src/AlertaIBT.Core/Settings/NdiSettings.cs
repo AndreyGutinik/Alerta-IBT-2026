@@ -8,7 +8,7 @@ public sealed record NdiCameraSlot(string Name, string Source, int VerticalPosit
 
 /// <summary>
 /// The NDI -> telao feature (receive only). Every field is optional in <c>settings.json</c>: an older file loads with the defaults. The layer
-/// itself is never saved: it is always OFF when the app starts.
+/// itself (<see cref="LayerOn"/>) and the color bars (<see cref="TestPattern"/>) are saved and come back as they were.
 /// </summary>
 public sealed record NdiSettings
 {
@@ -36,6 +36,12 @@ public sealed record NdiSettings
     /// <summary>"Esconder da live": the camera window is excluded from screen capture (OBS, NDI). Off by default (OBS may want to see it).</summary>
     public bool HideFromCapture { get; init; }
 
+    /// <summary>"Câmera no telão": the layer switch. Saved on every change and put back when the app starts (the window still only shows when the on-air camera has a picture). Off by default.</summary>
+    public bool LayerOn { get; init; }
+
+    /// <summary>"Barras de teste": the color bars on the LED. Saved on every change and put back when the app starts. Off by default.</summary>
+    public bool TestPattern { get; init; }
+
     /// <summary>The six default slots: <c>Camera 1</c> .. <c>Camera 6</c>, empty, centered.</summary>
     public static IReadOnlyList<NdiCameraSlot> DefaultCameras() =>
         Enumerable.Range(1, SlotCount).Select(n => new NdiCameraSlot($"C\U000000E2mera {n}", string.Empty)).ToList();
@@ -47,6 +53,8 @@ public sealed record NdiSettings
         && MonitorLocked == other.MonitorLocked
         && MonitorDeviceName == other.MonitorDeviceName
         && HideFromCapture == other.HideFromCapture
+        && LayerOn == other.LayerOn
+        && TestPattern == other.TestPattern
         && FixedIps.SequenceEqual(other.FixedIps)
         && Cameras.SequenceEqual(other.Cameras);
 

@@ -14,7 +14,7 @@ public sealed record PresentationResult(bool Success, string? Message = null)
 
 /// <summary>
 /// The presentation mode as the API and the map of the Controle tab drive it: the keys of the presenter remote are taken everywhere and become slide commands
-/// for Holyrics. Safe to call from any thread. The mode is never saved: it is off at every start.
+/// for Holyrics. Safe to call from any thread. The mode is saved and comes back as it was; it is off on a first install.
 /// </summary>
 public interface IPresentationControl
 {
