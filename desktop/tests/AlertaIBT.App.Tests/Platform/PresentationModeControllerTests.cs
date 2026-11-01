@@ -24,16 +24,115 @@ public sealed class PresentationModeControllerTests
     }
 
     [Fact]
-    public void It_is_never_saved_as_on()
+    public void Turning_it_on_or_off_is_saved_as_the_owners_last_position()
+    {
+        using var rig = new PresentationRig();
+        Assert.False(rig.Chrome.Settings.Current.Holyrics.PresentationMode); // a first install: off
+
+        rig.Controller.SetOn(true);
+        Assert.True(rig.Chrome.Settings.Current.Holyrics.PresentationMode);
+        Assert.Contains("\"presentationMode\": true", SettingsJson.Save(rig.Chrome.Settings.Current), StringComparison.Ordinal);
+
+        rig.Controller.Toggle();
+        Assert.False(rig.Chrome.Settings.Current.Holyrics.PresentationMode);
+        rig.Controller.Toggle();
+        Assert.True(rig.Chrome.Settings.Current.Holyrics.PresentationMode);
+    }
+
+    [Fact]
+    public void A_mode_left_on_comes_back_on_at_the_next_start_with_the_hook_installed_and_the_tray_told()
+    {
+        using var first = new PresentationRig();
+        first.Controller.SetOn(true);
+        first.Chrome.Settings.Flush();
+        var saved = first.Chrome.OnDisk();
+
+        using var again = new PresentationRig(saved);
+        Assert.False(again.Controller.IsOn); // built, not yet restored: the shell restores after the services exist
+        Assert.False(again.Gate.IsInstalled);
+        var changes = 0;
+        again.Controller.StateChanged += () => changes++;
+
+        again.Controller.RestoreSavedState();
+
+        Assert.True(again.Controller.IsOn);
+        Assert.True(again.Gate.IsInstalled);
+        Assert.True(changes > 0); // the tray menu check and the card follow StateChanged
+        Assert.True(again.Gate.Press(PageDown, true)); // and the key really is swallowed
+        Assert.True(again.Remote.WaitFor(1));
+    }
+
+    [Fact]
+    public void A_mode_left_off_stays_off_at_the_next_start()
+    {
+        using var first = new PresentationRig();
+        first.Controller.SetOn(true);
+        first.Controller.SetOn(false);
+        first.Chrome.Settings.Flush();
+
+        using var again = new PresentationRig(first.Chrome.OnDisk());
+        again.Controller.RestoreSavedState();
+
+        Assert.False(again.Controller.IsOn);
+        Assert.False(again.Gate.IsInstalled);
+    }
+
+    [Fact]
+    public void A_saved_on_without_a_token_stays_off_with_the_reason_does_not_crash_and_keeps_the_wish_for_the_next_start()
+    {
+        using var rig = new PresentationRig(new AppSettings { Holyrics = new HolyricsSettings { PresentationMode = true } }, configured: false);
+
+        rig.Controller.RestoreSavedState();
+
+        Assert.False(rig.Controller.IsOn);
+        Assert.Equal(PresentationModeController.NotConfiguredText, rig.Controller.Reason);
+        Assert.False(rig.Gate.IsInstalled);
+        Assert.Equal(0, rig.Gate.Installs); // one attempt, nothing endless
+        Assert.True(rig.Chrome.Settings.Current.Holyrics.PresentationMode); // the restore never rewrites the owner's wish
+    }
+
+    [Fact]
+    public void A_saved_on_when_windows_refuses_the_hook_stays_off_with_the_reason_and_tries_only_once()
+    {
+        using var rig = new PresentationRig(new AppSettings { Holyrics = new HolyricsSettings { PresentationMode = true } });
+        rig.Gate.AcceptInstall = false;
+
+        rig.Controller.RestoreSavedState();
+
+        Assert.False(rig.Controller.IsOn);
+        Assert.Equal("o Windows recusou o gancho do teclado", rig.Controller.Reason);
+        Assert.False(rig.Gate.IsInstalled);
+        Assert.True(rig.Chrome.Settings.Current.Holyrics.PresentationMode);
+
+        // Nothing retries by itself: Windows is asked again only when the owner turns the switch on, or at the next start.
+        rig.Gate.AcceptInstall = true;
+        rig.Chrome.Clock.Advance(TimeSpan.FromMinutes(10));
+        Assert.False(rig.Controller.IsOn);
+        Assert.Equal(0, rig.Gate.Installs);
+    }
+
+    [Fact]
+    public void Taking_the_token_away_while_on_turns_it_off_and_that_off_is_also_saved()
+    {
+        using var rig = new PresentationRig();
+        rig.Controller.SetOn(true);
+
+        rig.Remote.IsConfigured = false;
+        rig.Chrome.Settings.Update(s => s);
+
+        Assert.False(rig.Controller.IsOn);
+        Assert.False(rig.Chrome.Settings.Current.Holyrics.PresentationMode);
+    }
+
+    [Fact]
+    public void A_restore_with_nothing_saved_does_nothing()
     {
         using var rig = new PresentationRig();
 
-        rig.Controller.SetOn(true);
-        rig.Chrome.Settings.Update(s => s);
+        rig.Controller.RestoreSavedState();
 
-        Assert.DoesNotContain("presentationOn", SettingsJson.Save(rig.Chrome.Settings.Current), StringComparison.OrdinalIgnoreCase);
-        using var again = new PresentationRig();
-        Assert.False(again.Controller.IsOn);
+        Assert.False(rig.Controller.IsOn);
+        Assert.Equal(0, rig.Gate.Installs);
     }
 
     [Fact]

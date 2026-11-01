@@ -59,7 +59,7 @@ public sealed class NdiTelaoHostTests : IDisposable
 
         try
         {
-            Assert.False(service!.LayerOn); // always OFF at start
+            Assert.False(service!.LayerOn); // a first install: nothing saved, so OFF
             Assert.Null(host!.Window); // and nothing GPU-related exists yet
 
             service.SelectPreview(0);
@@ -79,6 +79,61 @@ public sealed class NdiTelaoHostTests : IDisposable
 
             service.SetLayer(false);
             Assert.True(WaitFor(() => host.Window is { IsShown: false }), "a janela da camera nao sumiu");
+        }
+        finally
+        {
+            WpfTestHost.Run(() =>
+            {
+                host?.Dispose();
+                service?.Dispose();
+                settings?.Dispose();
+            });
+        }
+    }
+
+    [Fact]
+    public void A_layer_saved_as_on_comes_back_at_the_next_start_and_the_window_shows_once_a_frame_arrives()
+    {
+        var spot = new ScreenInfo("t", "t", 150, 150, 640, 192, false);
+        var receivers = new List<StubReceiver>();
+        NdiService? service = null;
+        NdiTelaoHost? host = null;
+        SettingsService? settings = null;
+        WpfTestHost.Run(() =>
+        {
+            var path = Path.Combine(_dir, "settings-saved.json");
+            var first = new SettingsService(new SettingsStore(path));
+            first.Update(s => s with
+            {
+                Ndi = s.Ndi with { Cameras = s.Ndi.Cameras.Select((c, i) => i == 0 ? c with { Source = "PC (Cam)" } : c).ToList(), LayerOn = true },
+            });
+            first.Dispose(); // flushes: this is "the app was closed with the layer on"
+
+            settings = new SettingsService(new SettingsStore(path));
+            service = new NdiService(
+                new StubRuntime(),
+                settings,
+                receiverFactory: _ =>
+                {
+                    var r = new StubReceiver();
+                    receivers.Add(r);
+                    return r;
+                });
+            host = new NdiTelaoHost(service, settings, new StubLed(spot), new WpfUiDispatcher(Application.Current.Dispatcher), () => [spot]);
+            host.Start();
+            service.RestoreSavedState(); // what AppShell.Start does after the host listens
+        });
+
+        try
+        {
+            Assert.True(service!.LayerOn);
+            Assert.Null(host!.Window); // layer on, no camera on air: no window, nothing black
+
+            service.SelectPreview(0);
+            receivers[1].Push();
+            service.Take();
+
+            Assert.True(WaitFor(() => host.Window is { IsShown: true }), "a janela da camera nao apareceu");
         }
         finally
         {

@@ -128,9 +128,9 @@ internal sealed class FakeRegistrar : IHotkeyRegistrar
 /// <summary>Real settings and the real presentation controller over a fake hook and a fake Holyrics, plus the Controle view-model that shows them.</summary>
 internal sealed class PresentationRig : IDisposable
 {
-    public PresentationRig(bool configured = true, bool panelFocused = false)
+    public PresentationRig(AppSettings? initial = null, bool configured = true, bool panelFocused = false)
     {
-        Chrome = new SettingsRig();
+        Chrome = new SettingsRig(initial);
         Remote = new FakeHolyricsRemote { IsConfigured = configured };
         PanelFocused = panelFocused;
         Controller = new PresentationModeController(

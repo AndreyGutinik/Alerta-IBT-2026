@@ -14,7 +14,7 @@ namespace AlertaIBT.App.Platform;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>OFF at every start, never saved.</b> Only the chosen keys are settings. Turning ON needs Holyrics configured (a token) and a keyboard hook that Windows accepts;
+/// <b>Comes back as it was at the last close</b> (<see cref="HolyricsSettings.PresentationMode"/>, see <see cref="RestoreSavedState"/>); OFF on a first install. Turning ON needs Holyrics configured (a token) and a keyboard hook that Windows accepts;
 /// otherwise the mode stays OFF and <see cref="Reason"/> says why. It turns itself OFF, with the reason, when the token is removed or the hook cannot be kept.
 /// </para>
 /// <para>
@@ -187,10 +187,17 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
         }
     }
 
-    private PresentationResult SetOnCore(bool on)
+    // persist: true for what the owner does (switch, shortcut, tray, API): the new position becomes the default of the next start. The restore at start does not
+    // write: a start that could not turn it on (no token yet, hook refused) keeps the owner's wish and tries once at the next start.
+    private PresentationResult SetOnCore(bool on, bool persist = true)
     {
         if (on == _on)
         {
+            if (persist)
+            {
+                SaveWish(on);
+            }
+
             return PresentationResult.Ok;
         }
 
@@ -200,6 +207,11 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
             SetReason(null);
             Breadcrumbs.Add("modo apresentacao: desligado");
             _logger?.LogInformation("Modo apresentacao desligado");
+            if (persist)
+            {
+                SaveWish(false);
+            }
+
             return PresentationResult.Ok;
         }
 
@@ -227,9 +239,32 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
         SetReason(null);
         Breadcrumbs.Add("modo apresentacao: ligado");
         _logger?.LogInformation("Modo apresentacao ligado");
+        if (persist)
+        {
+            SaveWish(true);
+        }
+
         StateChanged?.Invoke();
         return PresentationResult.Ok;
     }
+
+    /// <summary>
+    /// Puts the mode back as the owner left it (call once at start, on the UI thread, after <see cref="Start"/>). ON is restored through the same path as the switch, so it needs
+    /// the Holyrics token and a keyboard hook Windows accepts; if either is missing it stays OFF, <see cref="Reason"/> says why, and nothing is retried before the next start.
+    /// </summary>
+    public void RestoreSavedState()
+    {
+        if (_disposed || !_settings.Current.Holyrics.PresentationMode)
+        {
+            return;
+        }
+
+        _logger?.LogInformation("Modo apresentacao: restaurando o estado salvo (ligado)");
+        SetOnCore(true, persist: false);
+    }
+
+    private void SaveWish(bool on) =>
+        _settings.Update(s => s.Holyrics.PresentationMode == on ? s : s with { Holyrics = s.Holyrics with { PresentationMode = on } });
 
     private PresentationResult Refuse(string reason)
     {
@@ -358,6 +393,7 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
             if (_on && !_remote.IsConfigured)
             {
                 Fail(NotConfiguredText);
+                SaveWish(false); // the token was removed on purpose: the switch is visibly off, so off is also the default of the next start
             }
             else
             {

@@ -35,7 +35,7 @@ public sealed class PresentationLayoutTests
 
         public Rig(double width, bool configured = true, Action<PresentationRig>? setup = null)
         {
-            _rig = new PresentationRig(configured);
+            _rig = new PresentationRig(configured: configured);
             setup?.Invoke(_rig);
             var chrome = _rig.Chrome;
             var gateway = new FakeGateway(chrome.Clock);

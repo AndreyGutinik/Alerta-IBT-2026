@@ -209,7 +209,7 @@ public static class AppHost
             provider.GetRequiredService<ISecretProtector>(),
             provider.GetRequiredService<ILogger<HolyricsClient>>()));
         services.AddSingleton<IHolyricsRemote>(provider => provider.GetRequiredService<HolyricsClient>());
-        // The presentation mode (the pastor's remote on the Holyrics slides): its own swallowing keyboard hook, which exists only while the mode is on. Off at every start.
+        // The presentation mode (the pastor's remote on the Holyrics slides): its own swallowing keyboard hook, which exists only while the mode is on. The mode comes back as it was at the last close.
         services.AddSingleton<IKeyboardGate, SwallowingKeyboardHook>();
         services.AddSingleton(provider => new PresentationModeController(
             provider.GetRequiredService<SettingsService>(),

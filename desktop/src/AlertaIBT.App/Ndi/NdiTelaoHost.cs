@@ -80,6 +80,9 @@ public sealed class NdiTelaoHost : IDisposable
             QueueApply();
         };
         _settings.Changed += _ => QueueApply();
+
+        // A switch put back before this host listened (the saved layer or color bars) would otherwise never reach the window.
+        QueueApply();
     }
 
     /// <summary>Tells the host that Windows reported a display change (monitors moved, resolution changed).</summary>

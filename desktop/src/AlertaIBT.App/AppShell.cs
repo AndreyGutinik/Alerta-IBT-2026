@@ -191,7 +191,8 @@ public sealed class AppShell : IDisposable
         _mouse.Start(_mouseHotkeys);
         _mouseSignals = new MouseLockSignals(_mouse, Application.Current.Dispatcher);
 
-        // The presentation mode (the pastor's remote on the Holyrics slides): Ctrl+Alt+P; the mode itself is OFF at every start and its keyboard hook exists only while it is on.
+        // The presentation mode (the pastor's remote on the Holyrics slides): Ctrl+Alt+P; the mode comes back as the owner left it (the same path as the switch: no token or no hook = stays off and says why)
+        // and its keyboard hook exists only while it is on.
         _presentationHotkeys = new HotkeyService(_messages, HotkeyService.PresentationHotkeyId);
         _presentationHotkeys.Pressed += _presentation.Toggle;
         _presentation.Start(_presentationHotkeys);
@@ -212,7 +213,7 @@ public sealed class AppShell : IDisposable
             _logger.LogWarning(ex, "Nao foi possivel iniciar o som");
         }
 
-        // NDI -> telao: the layer is OFF at every start (it is never saved); the shortcuts exist only while their setting is on.
+        // NDI -> telao: the layer and the color bars come back as the owner left them (the window shows once the on-air camera has a picture); the shortcuts exist only while their setting is on.
         _ndiHost.Start();
         _messages.DisplayChanged += _ndiHost.NotifyDisplayChanged;
         _ndiRegistry = _ndiRegistryFactory(_messages);
@@ -233,6 +234,9 @@ public sealed class AppShell : IDisposable
         {
             _logger.LogWarning(ex, "Nao foi possivel iniciar o controle pela MA2");
         }
+
+        // Last: every service exists and listens, so the switches the owner left on can be put back through the real code paths.
+        RestoreSavedSwitches();
 
         _settings.Changed += OnSettingsChanged;
 
@@ -282,6 +286,30 @@ public sealed class AppShell : IDisposable
         _presentation.StateChanged += OnPresentationChanged;
         _mouse.LockedChanged += _tray.SetMouseLocked;
         _tray.ExitRequested += () => _ = ExitAsync();
+    }
+
+    /// <summary>
+    /// Puts the switches that live in the shell's services back as the owner left them: the presentation mode (hook and tray check) and the NDI layer and
+    /// color bars (the window). The others are applied by their own service when it starts (mouse lock, Controle, player, sound, alerts, backup, pause). Each
+    /// one is isolated: one that cannot be put back (no token, no NDI runtime) is logged and the rest go on.
+    /// </summary>
+    internal void RestoreSavedSwitches()
+    {
+        Guarded("o modo apresentacao salvo", _presentation.RestoreSavedState);
+        Guarded("a camera no telao salva", _ndi.RestoreSavedState);
+    }
+
+    // A restore that fails is logged and the rest of the start goes on: a switch that cannot be put back never keeps the app from opening.
+    private void Guarded(string what, Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nao foi possivel restaurar {What}", what);
+        }
     }
 
     /// <summary>Asks the main window to show; used for a second launch of the app.</summary>
