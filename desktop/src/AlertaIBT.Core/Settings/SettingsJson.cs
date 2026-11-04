@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using AlertaIBT.Core.Correction;
 using AlertaIBT.Core.Holyrics;
+using AlertaIBT.Core.Temple;
 
 namespace AlertaIBT.Core.Settings;
 
@@ -79,6 +80,7 @@ public static partial class SettingsJson
             var holyrics = Section(root, "holyrics");
             var ndi = Section(root, "ndi");
             var backup = Section(root, "backup");
+            var temple = Section(root, "temple");
 
             var settings = new AppSettings
             {
@@ -208,6 +210,15 @@ public static partial class SettingsJson
                     CountdownStopAt = ReadInt(holyrics, "countdownStopAt") ?? defaults.Holyrics.CountdownStopAt,
                     PresentationNext = ReadInts(holyrics, "presentationNext") ?? defaults.Holyrics.PresentationNext,
                     PresentationPrevious = ReadInts(holyrics, "presentationPrevious") ?? defaults.Holyrics.PresentationPrevious,
+                },
+                Temple = new TempleSettings
+                {
+                    Enabled = ReadBool(temple, "enabled") ?? defaults.Temple.Enabled,
+                    Disabled = ReadStrings(temple, "disabled") ?? defaults.Temple.Disabled,
+                    NormalWidth = ReadInt(temple, "normalWidth") ?? defaults.Temple.NormalWidth,
+                    NormalHeight = ReadInt(temple, "normalHeight") ?? defaults.Temple.NormalHeight,
+                    TempleWidth = ReadInt(temple, "templeWidth") ?? defaults.Temple.TempleWidth,
+                    TempleHeight = ReadInt(temple, "templeHeight") ?? defaults.Temple.TempleHeight,
                 },
                 Backup = new BackupSettings
                 {
@@ -373,6 +384,15 @@ public static partial class SettingsJson
                     ["enabled"] = row.Enabled,
                 }).ToArray()),
             },
+            ["temple"] = new JsonObject
+            {
+                ["enabled"] = n.Temple.Enabled,
+                ["disabled"] = new JsonArray(n.Temple.Disabled.Select(key => (JsonNode)JsonValue.Create(key)!).ToArray()),
+                ["normalWidth"] = n.Temple.NormalWidth,
+                ["normalHeight"] = n.Temple.NormalHeight,
+                ["templeWidth"] = n.Temple.TempleWidth,
+                ["templeHeight"] = n.Temple.TempleHeight,
+            },
             ["backup"] = new JsonObject
             {
                 ["autoEnabled"] = n.Backup.AutoEnabled,
@@ -421,6 +441,7 @@ public static partial class SettingsJson
         var player = s.Player ?? d.Player;
         var ndi = s.Ndi ?? d.Ndi;
         var backup = s.Backup ?? d.Backup;
+        var temple = s.Temple ?? d.Temple;
         var control = s.Control ?? d.Control;
         var holyrics = s.Holyrics ?? d.Holyrics;
 
@@ -521,12 +542,31 @@ public static partial class SettingsJson
                 PresentationNext = presentationNext,
                 PresentationPrevious = PresentationKeys.Clean(holyrics.PresentationPrevious, presentationNext),
             },
+            Temple = NormalizeTemple(temple, d.Temple),
             Backup = new BackupSettings
             {
                 AutoEnabled = backup.AutoEnabled,
                 Folder = NullIfBlank(backup.Folder)?.Trim() ?? string.Empty,
                 PasswordProtected = NullIfBlank(backup.PasswordProtected),
             },
+        };
+    }
+
+    // Templo menor held usable: only known function names, once each in the fixed order, and both screen sizes inside the accepted range (a bad size goes back to its default).
+    private static TempleSettings NormalizeTemple(TempleSettings t, TempleSettings d)
+    {
+        static int Side(int value, int fallback) => value is >= TempleSettings.MinSide and <= TempleSettings.MaxSide ? value : fallback;
+
+        var listed = (t.Disabled ?? []).Where(key => TempleFeatures.TryParse(key, out _)).Select(key => key.Trim());
+        var known = TempleFeatures.All.Where(feature => listed.Contains(TempleFeatures.Key(feature), StringComparer.OrdinalIgnoreCase)).Select(TempleFeatures.Key).ToList();
+        return new TempleSettings
+        {
+            Enabled = t.Enabled,
+            Disabled = known,
+            NormalWidth = Side(t.NormalWidth, d.NormalWidth),
+            NormalHeight = Side(t.NormalHeight, d.NormalHeight),
+            TempleWidth = Side(t.TempleWidth, d.TempleWidth),
+            TempleHeight = Side(t.TempleHeight, d.TempleHeight),
         };
     }
 

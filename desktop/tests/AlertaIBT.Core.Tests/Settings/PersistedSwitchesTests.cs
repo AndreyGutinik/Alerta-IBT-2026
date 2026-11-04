@@ -43,6 +43,7 @@ public sealed class PersistedSwitchesTests
         new("Holyrics.ArrowsEnabled", s => s.Holyrics.ArrowsEnabled, (s, v) => s with { Holyrics = s.Holyrics with { ArrowsEnabled = v } }, true),
         new("Holyrics.PresentationMode", s => s.Holyrics.PresentationMode, (s, v) => s with { Holyrics = s.Holyrics with { PresentationMode = v } }, false),
         new("Holyrics.CountdownStopEnabled", s => s.Holyrics.CountdownStopEnabled, (s, v) => s with { Holyrics = s.Holyrics with { CountdownStopEnabled = v } }, true),
+        new("Temple.Enabled", s => s.Temple.Enabled, (s, v) => s with { Temple = s.Temple with { Enabled = v } }, false),
         new("Backup.AutoEnabled", s => s.Backup.AutoEnabled, (s, v) => s with { Backup = s.Backup with { AutoEnabled = v } }, false),
     ];
 

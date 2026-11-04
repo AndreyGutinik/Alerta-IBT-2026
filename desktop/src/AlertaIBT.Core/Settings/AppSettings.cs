@@ -42,6 +42,9 @@ public sealed record AppSettings
     /// <summary>The connection to the HTTP API of Holyrics (slides, video, logo). Not part of a backup.</summary>
     public HolyricsSettings Holyrics { get; init; } = new();
 
+    /// <summary>"Templo menor": the mode for the smaller temple's PC (functions turned off, the 1920x1080 telao) and the two target screen sizes.</summary>
+    public TempleSettings Temple { get; init; } = new();
+
     /// <summary>The automatic copy of the critical settings (see <c>AlertaIBT.Core.Backup</c>). It is not part of a backup itself.</summary>
     public BackupSettings Backup { get; init; } = new();
 }
