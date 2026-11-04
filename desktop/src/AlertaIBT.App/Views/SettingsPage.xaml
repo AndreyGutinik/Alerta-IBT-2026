@@ -138,16 +138,15 @@
                 </Border>
             </Grid>
 
-            <theme:AdaptiveGrid
+            <theme:FlowColumns
                 x:Name="Columns"
                 Gap="24"
-                MaxColumns="2"
                 MinColumnWidth="400">
 
                 <!-- ===== Left: the bar, its preview, Telegram, the site ===== -->
-                <StackPanel x:Name="LeftColumn">
                     <local:CardSection
                         x:Name="BarSection"
+                        theme:FlowColumns.Side="0"
                         Header="Barra no LED"
                         Icon="{StaticResource LucideMonitor}"
                         Style="{StaticResource IbtCardSectionStyle}">
@@ -401,7 +400,7 @@
 
                     <local:CardSection
                         x:Name="PreviewSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="0"
                         Header="Prévia no LED"
                         Icon="{StaticResource LucideEye}"
                         Info="Como a barra fica no LED, com o texto de exemplo."
@@ -441,7 +440,7 @@
 
                     <local:CardSection
                         x:Name="TelegramSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="0"
                         Header="Telegram"
                         Icon="{StaticResource LucideSend}"
                         Info="Só mensagens que começam com # vão para o telão.&#10;Precisa de modelo, cor e placa.&#10;Exemplo: #corolla prata abc1d23 vidro aberto"
@@ -532,7 +531,7 @@
 
                     <local:CardSection
                         x:Name="SiteSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="0"
                         Header="Site"
                         Icon="{StaticResource LucideGlobe}"
                         Info="Liga o PC ao site alertaibt.web.app: os avisos enviados pelo celular chegam aqui.&#10;Preencha com os dados que o script scripts\publicar-site.ps1 mostrou&#10;(estão em artifacts\credenciais-pc.txt) e ligue a chave."
@@ -681,7 +680,7 @@
                     <!-- Backup: the critical settings in one file protected by a password, and the automatic copy. The data context is the Backup of the tab. -->
                     <local:CardSection
                         x:Name="BackupSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="0"
                         DataContext="{Binding Backup}"
                         Header="Backup"
                         Icon="{StaticResource LucideArchive}"
@@ -796,12 +795,9 @@
                             </StackPanel>
                         </StackPanel>
                     </local:CardSection>
-                </StackPanel>
-
-                <!-- ===== Right: alerts, mouse, quick panel, history, updates, the Gemini model, the system ===== -->
-                <StackPanel x:Name="RightColumn">
-                    <local:CardSection
+                                    <local:CardSection
                         x:Name="AlertsSection"
+                        theme:FlowColumns.Side="1"
                         Header="Alertas"
                         Icon="{StaticResource LucideBell}"
                         Style="{StaticResource IbtCardSectionStyle}">
@@ -840,7 +836,7 @@
 
                     <local:CardSection
                         x:Name="MouseSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="1"
                         Header="Mouse"
                         Icon="{StaticResource LucideMouse}"
                         Style="{StaticResource IbtCardSectionStyle}">
@@ -903,7 +899,7 @@
 
                     <local:CardSection
                         x:Name="QuickPanelSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="1"
                         Header="Painel rápido"
                         Icon="{StaticResource LucideAppWindow}"
                         Style="{StaticResource IbtCardSectionStyle}">
@@ -938,7 +934,7 @@
 
                     <local:CardSection
                         x:Name="HistorySection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="1"
                         Header="Histórico"
                         Icon="{StaticResource LucideHistory}"
                         Style="{StaticResource IbtCardSectionStyle}">
@@ -961,7 +957,7 @@
                     <!-- The automatic update: the switch, the version with "Verificar agora", and how the last look ended. -->
                     <local:CardSection
                         x:Name="UpdatesSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="1"
                         Header="Atualizações"
                         Icon="{StaticResource LucideDownload}"
                         Style="{StaticResource IbtCardSectionStyle}">
@@ -1010,7 +1006,7 @@
                     <!-- The model of Gemini (it used to be in "Avançado" of the Correção tab). The data context is the correction of the window. -->
                     <local:CardSection
                         x:Name="GeminiSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="1"
                         DataContext="{Binding DataContext.Correction, RelativeSource={RelativeSource AncestorType=Window}}"
                         Header="Modelo do Gemini"
                         Icon="{StaticResource LucideSparkles}"
@@ -1062,7 +1058,7 @@
 
                     <local:CardSection
                         x:Name="SystemSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="1"
                         Header="Sistema"
                         Icon="{StaticResource LucideShieldCheck}"
                         Style="{StaticResource IbtCardSectionStyle}">
@@ -1128,7 +1124,7 @@
                     <!-- Templo menor: the master switch and, beside it, the gear with the list of what that mode turns off. Both ask before changing anything. -->
                     <local:CardSection
                         x:Name="TempleSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="1"
                         DataContext="{Binding Temple}"
                         Header="Templo menor"
                         Icon="{StaticResource LucideMonitorSpeaker}"
@@ -1168,7 +1164,7 @@
                     <!-- The two sizes of the telao: the one in force is outlined in green. -->
                     <local:CardSection
                         x:Name="ResolutionSection"
-                        Margin="0,24,0,0"
+                        theme:FlowColumns.Side="1"
                         DataContext="{Binding Temple}"
                         Header="Resolução do telão"
                         Icon="{StaticResource LucideMonitor}"
@@ -1264,8 +1260,7 @@
                             </Border>
                         </StackPanel>
                     </local:CardSection>
-                </StackPanel>
-            </theme:AdaptiveGrid>
+            </theme:FlowColumns>
 
             <!-- Diagnóstico: folded away; the logs live here. -->
             <Border

@@ -439,6 +439,71 @@ public sealed class TempleUiTests
         });
     }
 
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void With_cards_gone_the_settings_page_fills_two_balanced_columns_in_reading_order_or_one_when_narrow(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width, Mode(true, TempleFeature.Alerts, TempleFeature.Gemini));
+            rig.ViewModel.SelectTabCommand.Execute(MainTab.Settings);
+            rig.Layout(width);
+            var page = rig.Window.SettingsPage;
+            var flow = page.Columns;
+            var cards = new FrameworkElement[] { page.MouseSection, page.QuickPanelSection, page.UpdatesSection, page.SystemSection, page.TempleSection, page.ResolutionSection };
+
+            if (width >= 900 + 0 && flow.Columns == 2)
+            {
+                var left = cards.Where(c => flow.Placement[c] == 0).ToList();
+                var right = cards.Where(c => flow.Placement[c] == 1).ToList();
+                Assert.NotEmpty(left);
+                Assert.NotEmpty(right); // no empty column
+                Assert.Equal(rig.BoundsOf(left[0]).Top, rig.BoundsOf(right[0]).Top, 1);
+                var a = left.Sum(c => rig.BoundsOf(c).Height);
+                var b = right.Sum(c => rig.BoundsOf(c).Height);
+                Assert.True(Math.Min(a, b) >= Math.Max(a, b) * 0.4, "the columns are balanced");
+                foreach (var column in new[] { left, right })
+                {
+                    for (var i = 1; i < column.Count; i++)
+                    {
+                        Assert.Equal(rig.BoundsOf(column[i - 1]).Bottom + 24, rig.BoundsOf(column[i]).Top, 1); // no holes
+                    }
+                }
+
+                // Reading order: a card never sits above one that comes before it in the page order.
+                var order = cards.Select(c => (Top: rig.BoundsOf(c).Top, Left: rig.BoundsOf(c).Left)).ToList();
+                Assert.True(order.Zip(order.Skip(1)).All(p => p.Second.Top > p.First.Top - 0.5 || p.Second.Left > p.First.Left));
+            }
+            else
+            {
+                Assert.Equal(1, flow.Columns);
+                for (var i = 1; i < cards.Length; i++)
+                {
+                    Assert.Equal(rig.BoundsOf(cards[i - 1]).Bottom + 24, rig.BoundsOf(cards[i]).Top, 1);
+                }
+            }
+
+            rig.Snapshot("temple-settings-balanced-" + width, to: page.ResolutionSection);
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(WindowWidths))]
+    public void The_control_and_ndi_tabs_with_functions_off_leave_no_empty_half(double width)
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var rig = new Rig(width, Mode(true, TempleFeature.Ma2));
+            rig.ViewModel.SelectTabCommand.Execute(MainTab.Control);
+            rig.Layout(width);
+            var holyrics = rig.Window.ControlPage.HolyricsCard;
+            Assert.True(Shown(holyrics));
+            Assert.True(rig.BoundsOf(holyrics).Width >= Math.Min(1280, width - 172) - 48 - 1, "the card spans the page");
+            Assert.True(rig.BoundsOf(holyrics).Top < 140, "it sits right under the title");
+            rig.Snapshot("temple-control-ma2-off-" + width, to: holyrics);
+        });
+    }
+
     // ---- the flows of the switch and the gear ----
 
     [Fact]

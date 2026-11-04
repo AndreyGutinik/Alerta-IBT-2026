@@ -224,7 +224,7 @@ public sealed class SettingsLayoutTests
             if (width >= 1100)
             {
                 Assert.Equal(2, page.Columns.Columns);
-                Assert.True(rig.BoundsOf(page.RightColumn).Left >= rig.BoundsOf(page.LeftColumn).Right + 24 - 0.5);
+                Assert.True(rig.BoundsOf(page.AlertsSection).Left >= rig.BoundsOf(page.BarSection).Right + 24 - 0.5);
                 Assert.Equal(rig.BoundsOf(page.BarSection).Top, rig.BoundsOf(page.AlertsSection).Top, 1);
             }
             else
