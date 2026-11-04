@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using System.Threading.Channels;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Holyrics;
@@ -35,6 +36,9 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
     /// <summary>The text of the refusal when Holyrics has no token.</summary>
     public const string NotConfiguredText = "Holyrics sem token (aba Controle)";
 
+    /// <summary>The text of the refusal while Templo menor has the Holyrics control off.</summary>
+    public const string OffInTempleText = "Controle do Holyrics desligado no Templo menor";
+
     /// <summary>How often the hook is replaced by a fresh one while the mode is on.</summary>
     public static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(30);
 
@@ -55,6 +59,7 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
     private bool _started;
     private bool _disposed;
     private string? _reason;
+    private bool _suspendedByTemple;
 
     /// <param name="settings">The settings (the chosen keys, and the connection that says whether Holyrics is configured).</param>
     /// <param name="remote">Holyrics.</param>
@@ -215,6 +220,11 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
             return PresentationResult.Ok;
         }
 
+        if (!_settings.Current.IsActive(TempleFeature.Holyrics))
+        {
+            return Refuse(OffInTempleText); // Templo menor turned the Holyrics control off: the wish is kept for when it comes back
+        }
+
         if (!_remote.IsConfigured)
         {
             return Refuse(NotConfiguredText);
@@ -256,6 +266,12 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
     {
         if (_disposed || !_settings.Current.Holyrics.PresentationMode)
         {
+            return;
+        }
+
+        if (!_settings.Current.IsActive(TempleFeature.Holyrics))
+        {
+            _suspendedByTemple = true; // the wish waits for the function to come back
             return;
         }
 
@@ -390,7 +406,28 @@ public sealed class PresentationModeController : IPresentationControl, IDisposab
             }
 
             ApplyKeys(_settings.Current.Holyrics);
-            if (_on && !_remote.IsConfigured)
+            var templeActive = _settings.Current.IsActive(TempleFeature.Holyrics);
+            if (!templeActive)
+            {
+                // Templo menor: the hook goes back to Windows, the owner's wish (the saved switch) stays, and it comes back by itself with the function.
+                _suspendedByTemple = true;
+                if (_on)
+                {
+                    Stop();
+                    SetReason(null);
+                    _logger?.LogInformation("Modo apresentacao parado: o controle do Holyrics foi desligado no Templo menor");
+                }
+            }
+            else if (_suspendedByTemple)
+            {
+                _suspendedByTemple = false;
+                if (_settings.Current.Holyrics.PresentationMode && !_on)
+                {
+                    _logger?.LogInformation("Modo apresentacao: voltando depois do Templo menor");
+                    SetOnCore(true, persist: false);
+                }
+            }
+            else if (_on && !_remote.IsConfigured)
             {
                 Fail(NotConfiguredText);
                 SaveWish(false); // the token was removed on purpose: the switch is visibly off, so off is also the default of the next start

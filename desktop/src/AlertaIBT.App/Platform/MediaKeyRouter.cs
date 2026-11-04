@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Player;
@@ -40,7 +41,7 @@ public sealed class MediaKeyRouter
     }
 
     /// <summary>Whether the media keys should be listened to now (the player is on and the option is on): the hook is installed only then.</summary>
-    public bool Wanted => _settings.Current.Player is { Enabled: true, MediaKeys: true };
+    public bool Wanted => _settings.Current.Effective().Player is { Enabled: true, MediaKeys: true };
 
     /// <summary>Forgets what is held (the hook was installed again).</summary>
     public void Reset() => _detector.Reset();

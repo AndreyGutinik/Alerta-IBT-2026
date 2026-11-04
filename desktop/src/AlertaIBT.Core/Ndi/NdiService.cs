@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
@@ -45,6 +46,7 @@ public sealed class NdiService : INdiControl, IDisposable
     private IReadOnlyList<string> _finderIps = [];
     private int _finderRequests;
     private bool _disposed;
+    private bool _suspended;
 
     /// <param name="runtime">The NDI runtime (real or fake).</param>
     /// <param name="settings">The settings (the <c>Ndi</c> section is read live).</param>
@@ -69,7 +71,7 @@ public sealed class NdiService : INdiControl, IDisposable
         var time = clock ?? TimeProvider.System;
         _switcher = new NdiSwitcher(
             receiverFactory ?? (name => new NdiReceiver(runtime, name, time, logger)),
-            () => settings.Current.Ndi,
+            () => settings.Current.Effective().Ndi, // Templo menor without NDI reads as: no sources, layer and bars off
             time,
             logger,
             Enrich,
@@ -80,8 +82,12 @@ public sealed class NdiService : INdiControl, IDisposable
         _switcher.ProgramFrame += OnProgramFrame;
         _switcher.ProgramPositionChanged += position => ProgramPositionChanged?.Invoke(position);
         _switcher.ThumbnailUpdated += slot => ThumbnailUpdated?.Invoke(slot);
+        _suspended = !settings.Current.IsActive(TempleFeature.Ndi);
         _settings.Changed += OnSettingsChanged;
     }
+
+    /// <summary>Whether Templo menor turned the NDI function off (receivers closed, finder stopped, commands refused).</summary>
+    public bool Suspended => Volatile.Read(ref _suspended);
 
     /// <summary>Something the UI shows changed; read <see cref="GetStatus"/> again. Any thread.</summary>
     public event Action? Changed;
@@ -131,6 +137,9 @@ public sealed class NdiService : INdiControl, IDisposable
     /// <summary>The telao layer switch (as saved when the app starts, see <see cref="RestoreSavedState"/>).</summary>
     public bool LayerOn => _switcher.LayerOn;
 
+    /// <summary>The size of the telao now (2560x768, or the Templo menor size): what the picture is cropped to.</summary>
+    public AlertaIBT.Core.Screens.TargetSize Target => _settings.Current.Temple.Target;
+
     /// <summary>The settings' <c>Ndi</c> part.</summary>
     public NdiSettings Settings => _settings.Current.Ndi;
 
@@ -139,7 +148,7 @@ public sealed class NdiService : INdiControl, IDisposable
     {
         lock (_gate)
         {
-            if (_disposed)
+            if (_disposed || _suspended)
             {
                 return;
             }
@@ -169,6 +178,11 @@ public sealed class NdiService : INdiControl, IDisposable
     /// <inheritdoc />
     public NdiResult SetLayer(bool on)
     {
+        if (_suspended)
+        {
+            return OffInTemple();
+        }
+
         Breadcrumbs.Add(on ? "ndi: camada ligar" : "ndi: camada desligar");
         var result = _switcher.SetLayer(on);
         SaveSwitches();
@@ -178,6 +192,11 @@ public sealed class NdiService : INdiControl, IDisposable
     /// <summary>Flips the layer; returns the new state.</summary>
     public NdiResult ToggleLayer()
     {
+        if (_suspended)
+        {
+            return OffInTemple();
+        }
+
         Breadcrumbs.Add("ndi: camada alternar");
         var result = _switcher.SetLayer(!_switcher.LayerOn);
         SaveSwitches();
@@ -187,6 +206,11 @@ public sealed class NdiService : INdiControl, IDisposable
     /// <summary>Shows or hides the color bars.</summary>
     public NdiResult SetTestPattern(bool on)
     {
+        if (_suspended)
+        {
+            return OffInTemple();
+        }
+
         Breadcrumbs.Add("ndi: barras de teste");
         var result = _switcher.SetTestPattern(on);
         SaveSwitches();
@@ -199,6 +223,11 @@ public sealed class NdiService : INdiControl, IDisposable
     /// </summary>
     public void RestoreSavedState()
     {
+        if (_suspended)
+        {
+            return; // Templo menor: the saved switches wait for the function to come back
+        }
+
         var saved = _settings.Current.Ndi;
         if (saved.LayerOn)
         {
@@ -227,6 +256,11 @@ public sealed class NdiService : INdiControl, IDisposable
     /// <inheritdoc />
     public NdiResult Take()
     {
+        if (_suspended)
+        {
+            return OffInTemple();
+        }
+
         Breadcrumbs.Add("ndi: Take");
         return _switcher.Take();
     }
@@ -234,6 +268,11 @@ public sealed class NdiService : INdiControl, IDisposable
     /// <inheritdoc />
     public NdiResult SelectPreview(int slot)
     {
+        if (_suspended)
+        {
+            return OffInTemple();
+        }
+
         Breadcrumbs.Add("ndi: previa " + slot);
         var result = _switcher.SelectPreview(slot);
         if (result.Success)
@@ -291,12 +330,52 @@ public sealed class NdiService : INdiControl, IDisposable
 
     private void OnProgramFrame(in NdiFrameView frame, double position) => ProgramFrame?.Invoke(frame, position);
 
+    private static NdiResult OffInTemple() => NdiResult.Fail("NDI desligado no Templo menor");
+
+    // Templo menor turns the NDI function off or on: the layer and the bars go down (without touching the saved switches), the receivers let go (the effective
+    // settings have no sources) and the finder stops; turning it back on puts everything back through the real start path.
+    private void FollowTemple(bool active)
+    {
+        lock (_gate)
+        {
+            if (_disposed || _suspended == !active)
+            {
+                return;
+            }
+
+            _suspended = !active;
+            if (_suspended)
+            {
+                StopFinderLocked();
+            }
+            else if (_finderRequests > 0)
+            {
+                EnsureFinderLocked();
+            }
+        }
+
+        if (!active)
+        {
+            _switcher.SetLayer(false);
+            _switcher.SetTestPattern(false);
+            _switcher.ApplySettings();
+            _logger?.LogInformation("NDI desligado no Templo menor: receptores fechados, camada e barras de teste desligadas");
+        }
+        else
+        {
+            _switcher.ApplySettings();
+            RestoreSavedState();
+            _logger?.LogInformation("NDI de volta (saiu do Templo menor ou voltou a funcao)");
+        }
+    }
+
     private void OnSettingsChanged(AppSettings changed)
     {
+        FollowTemple(changed.IsActive(TempleFeature.Ndi));
         _switcher.ApplySettings();
         lock (_gate)
         {
-            if (_finderThread is not null && !_finderIps.SequenceEqual(changed.Ndi.FixedIps))
+            if (!_suspended && _finderThread is not null && !_finderIps.SequenceEqual(changed.Ndi.FixedIps))
             {
                 StopFinderLocked();
                 EnsureFinderLocked();
@@ -321,7 +400,7 @@ public sealed class NdiService : INdiControl, IDisposable
         // A camera chosen by name needs the finder so its address is known; the finder stays on while the app runs (it is cheap).
         lock (_gate)
         {
-            if (_finderThread is null && !_disposed && _runtime.IsAvailable)
+            if (_finderThread is null && !_disposed && !_suspended && _runtime.IsAvailable)
             {
                 _finderRequests++;
                 EnsureFinderLocked();
@@ -331,7 +410,7 @@ public sealed class NdiService : INdiControl, IDisposable
 
     private void EnsureFinderLocked()
     {
-        if (_finderThread is not null || !_runtime.IsAvailable)
+        if (_finderThread is not null || !_runtime.IsAvailable || _suspended)
         {
             return;
         }

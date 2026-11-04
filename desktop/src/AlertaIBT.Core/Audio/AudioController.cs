@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using System.Globalization;
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
@@ -189,7 +190,7 @@ public sealed partial class AudioController : IDisposable
             _system.DefaultDeviceChanged += Kick;
             _system.SessionCreated += Kick;
             _settings.Changed += OnSettingsChanged;
-            var audio = _settings.Current.Audio;
+            var audio = _settings.Current.Effective().Audio;
             lock (_keyGate)
             {
                 _outputKey = string.Join(
@@ -270,7 +271,7 @@ public sealed partial class AudioController : IDisposable
         Kick();
 
         // A change of an output (the lock, the Windows default, the Holyrics route) is carried out at once, not after the 500 ms look.
-        var audio = settings.Audio;
+        var audio = settings.Effective().Audio; // Templo menor: the startup volumes and the output rules read as off
         var key = string.Join(
             '|',
             audio.LockOutput,
@@ -356,7 +357,7 @@ public sealed partial class AudioController : IDisposable
     // One look at everything. Idempotent: it only writes when a rule says so.
     private void Pass(bool applyNow)
     {
-        var audio = _settings.Current.Audio;
+        var audio = _settings.Current.Effective().Audio;
         var devices = _system.ActiveRenderDevices();
         _devices = devices;
         var defaults = _system.GetDefaultDevices();
@@ -713,7 +714,7 @@ public sealed partial class AudioController : IDisposable
 
     private AudioStatus BuildStatus()
     {
-        var audio = _settings.Current.Audio;
+        var audio = _settings.Current.Effective().Audio;
         var current = _defaults?.Console is { } id ? _devices.FirstOrDefault(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase)) : null;
         var selectedName = _chosen?.ShortName ?? (string.IsNullOrWhiteSpace(audio.OutputDeviceName) ? null : AudioNames.Short(audio.OutputDeviceName));
         var waiting = audio.Enabled

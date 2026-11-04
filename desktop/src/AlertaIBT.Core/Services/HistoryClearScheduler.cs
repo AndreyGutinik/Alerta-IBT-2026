@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
 
@@ -149,7 +150,13 @@ public sealed class HistoryClearScheduler : IDisposable
     private async Task CheckAsync()
     {
         var now = _clock.GetUtcNow();
-        var system = _settings().System;
+        var current = _settings();
+        if (!current.IsActive(TempleFeature.Alerts))
+        {
+            return; // Templo menor without the alerts: no history to clear, nothing runs
+        }
+
+        var system = current.System;
 
         // First run: the count starts now. A last clear in the future (the clock was set back) starts it again.
         if (system.LastHistoryClearAt is not { } last || last > now)

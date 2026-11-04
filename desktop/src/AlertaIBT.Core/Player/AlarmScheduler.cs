@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using System.Globalization;
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
@@ -156,7 +157,7 @@ public sealed class AlarmScheduler : IDisposable
         {
             lock (_gate)
             {
-                return _nextText.Length > 0 ? _nextText : AlarmRules.Describe(_settings.Current.Player, Now());
+                return _nextText.Length > 0 ? _nextText : AlarmRules.Describe(_settings.Current.Effective().Player, Now());
             }
         }
     }
@@ -259,7 +260,7 @@ public sealed class AlarmScheduler : IDisposable
     {
         var now = Now();
         var today = AlarmRules.DateKey(now);
-        foreach (var alarm in AlarmRules.Due(_settings.Current.Player, now))
+        foreach (var alarm in AlarmRules.Due(_settings.Current.Effective().Player, now))
         {
             var start = _target.StartFromAlarm(alarm.Playlist);
             switch (start.Outcome)
@@ -301,7 +302,7 @@ public sealed class AlarmScheduler : IDisposable
         bool changed;
         lock (_gate)
         {
-            text = AlarmRules.Describe(_settings.Current.Player, Now());
+            text = AlarmRules.Describe(_settings.Current.Effective().Player, Now());
             changed = text != _nextText;
             _nextText = text;
         }

@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using System.IO;
 using System.Net.Http;
 using System.Windows;
@@ -82,6 +83,10 @@ public static class AppHost
                 onError: ex => logger.LogError(ex, "Problema com o arquivo de configurações"),
                 onSlowHandler: text => logger.LogWarning("{Text}", text));
         });
+        // "Templo menor": the mode and the list live in the settings (saved, applied before the services start); this is its observable face.
+        services.AddSingleton(provider => new TempleModeService(provider.GetRequiredService<SettingsService>()));
+        services.AddSingleton<ITempleControl>(provider => provider.GetRequiredService<TempleModeService>());
+        services.AddSingleton(provider => new TempleViewState(provider.GetRequiredService<TempleModeService>(), PostToUi));
         services.AddSingleton<IRunKeyStore, WindowsRunKeyStore>();
         services.AddSingleton<IUpdateClient>(_ => new VelopackUpdateClient());
         services.AddSingleton<IUpdateHost>(provider => new AppUpdateHost(
@@ -118,7 +123,8 @@ public static class AppHost
         services.AddSingleton(provider =>
         {
             var settings = provider.GetRequiredService<SettingsService>();
-            return new LedTracker(MonitorService.Enumerate, () => settings.Current.System.LastLedDevicePath, arguments.TestLed);
+            // The LED is the monitor of the target size: 2560x768, or the Templo menor size while that mode is on.
+            return new LedTracker(MonitorService.Enumerate, () => settings.Current.System.LastLedDevicePath, arguments.TestLed, () => settings.Current.Temple.Target);
         });
         services.AddSingleton(provider =>
         {
@@ -308,7 +314,7 @@ public static class AppHost
         services.AddSingleton(provider =>
         {
             var overlay = provider.GetRequiredService<OverlayController>();
-            return new QuickPanelViewModel(
+            var panel = new QuickPanelViewModel(
                 provider.GetRequiredService<IAlertGateway>(),
                 provider.GetRequiredService<StatusHub>(),
                 () => overlay.PassProgress,
@@ -316,6 +322,8 @@ public static class AppHost
                 logger: provider.GetRequiredService<ILogger<QuickPanelViewModel>>(),
                 player: provider.GetRequiredService<PlayerViewModel>(),
                 holyrics: provider.GetRequiredService<IHolyricsRemote>());
+            panel.SetTemple(provider.GetRequiredService<TempleViewState>());
+            return panel;
         });
         services.AddSingleton(provider =>
         {
@@ -374,6 +382,7 @@ public static class AppHost
                 // A restored backup changed the settings behind the controls: both tabs read them again.
                 provider.GetRequiredService<SettingsViewModel>().ReloadFromSettings();
                 provider.GetRequiredService<CorrectionViewModel>().Reload();
+                provider.GetRequiredService<SettingsViewModel>().Temple?.Reload();
             },
             PostToUi,
             logger: provider.GetRequiredService<ILogger<BackupViewModel>>()));
@@ -387,7 +396,16 @@ public static class AppHost
             PostToUi,
             provider.GetRequiredService<ILogger<SettingsViewModel>>(),
             provider.GetRequiredService<IUpdateStatus>(),
-            provider.GetRequiredService<BackupViewModel>()));
+            provider.GetRequiredService<BackupViewModel>())
+        {
+            // Templo menor: the switch and the gear ask in themed dialogs; only Confirmar saves.
+            Temple = new TempleViewModel(
+                provider.GetRequiredService<TempleModeService>(),
+                provider.GetRequiredService<SettingsService>(),
+                disabled => TempleGearDialog.Ask(disabled, provider.GetRequiredService<AppWindowPolicy>()),
+                plan => TempleConfirmDialog.Ask(plan, provider.GetRequiredService<AppWindowPolicy>()),
+                PostToUi),
+        });
         services.AddSingleton(provider => new SomViewModel(
             provider.GetRequiredService<SettingsService>(),
             provider.GetRequiredService<Autosaver>(),
@@ -435,7 +453,8 @@ public static class AppHost
             provider.GetRequiredService<IUpdateStatus>(),
             provider.GetRequiredService<SomViewModel>(),
             provider.GetRequiredService<NdiViewModel>(),
-            provider.GetRequiredService<ControlViewModel>()));
+            provider.GetRequiredService<ControlViewModel>(),
+            provider.GetRequiredService<TempleViewState>()));
         services.AddSingleton(provider =>
         {
             var viewModel = provider.GetRequiredService<MainViewModel>();
@@ -598,7 +617,7 @@ public static class AppHost
                 provider.GetRequiredService<StatusHub>(),
                 () =>
                 {
-                    var current = settings.Current;
+                    var current = settings.Current.Effective();
                     return new GeminiProbeSettings(
                         current.Correction.Enabled,
                         !string.Equals(current.Correction.Mode, "offline", StringComparison.Ordinal),
@@ -628,7 +647,7 @@ public static class AppHost
             provider.GetRequiredService<CorrectionPipeline>(),
             provider.GetRequiredService<IAlertDisplay>(),
             provider.GetRequiredService<IGroupNotifier>(),
-            () => provider.GetRequiredService<SettingsService>().Current,
+            () => provider.GetRequiredService<SettingsService>().Current.Effective(), // Templo menor without Gemini: the offline mode
             provider.GetRequiredService<StatusHub>(),
             provider.GetRequiredService<ILogger<AlertService>>(),
             filter: new ProfanityFilter(paths.BlockedWordsFile, provider.GetRequiredService<ILogger<ProfanityFilter>>())));
@@ -702,9 +721,10 @@ public static class AppHost
             null,
             provider.GetRequiredService<MusicPlayer>(),
             () => provider.GetRequiredService<AlarmScheduler>().NextAlarmText,
-            () => provider.GetRequiredService<SettingsService>().Current.System.AlertsEnabled,
+            () => provider.GetRequiredService<SettingsService>().Current.AlertsRun(),
             provider.GetRequiredService<NdiService>(),
-            provider.GetRequiredService<IPresentationControl>()));
+            provider.GetRequiredService<IPresentationControl>(),
+            provider.GetRequiredService<TempleModeService>()));
         services.AddSingleton<AlertRuntime>();
     }
 }

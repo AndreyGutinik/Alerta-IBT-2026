@@ -152,6 +152,16 @@ public sealed class TrayService : IDisposable
         UpdateToolTip();
     }
 
+    /// <summary>
+    /// Templo menor: the menu shows only the functions that run. Pausar/Retomar belongs to the alerts (the bar), Modo apresentação to the Holyrics control; Abrir,
+    /// Travar o mouse and Sair always stay.
+    /// </summary>
+    public void SetFunctionsVisible(bool alerts, bool holyrics)
+    {
+        _pauseItem.Visibility = alerts ? Visibility.Visible : Visibility.Collapsed;
+        _presentationItem.Visibility = holyrics ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     /// <summary>Shows whether the mouse is locked to the primary monitor: the menu item is checked and the tooltip says so.</summary>
     public void SetMouseLocked(bool locked)
     {
@@ -199,6 +209,9 @@ public sealed class TrayService : IDisposable
 
     /// <summary>Whether the icon shows the presentation mode on (the menu item is checked).</summary>
     public bool IsPresentationOn => _presentation;
+
+    /// <summary>The pause menu item, for tests.</summary>
+    internal MenuItem PauseItem => _pauseItem;
 
     /// <summary>The presentation-mode menu item, for tests.</summary>
     internal MenuItem PresentationItem => _presentationItem;

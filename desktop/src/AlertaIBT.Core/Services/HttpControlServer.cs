@@ -6,6 +6,7 @@ using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Http;
 using AlertaIBT.Core.Ndi;
 using AlertaIBT.Core.Player;
+using AlertaIBT.Core.Temple;
 using Microsoft.Extensions.Logging;
 using AlertaIBT.Core.Diagnostics;
 
@@ -46,6 +47,7 @@ public sealed class HttpControlServer : IDisposable
     private readonly IPlayerControl? _player;
     private readonly INdiControl? _ndi;
     private readonly IPresentationControl? _presentation;
+    private readonly TempleModeService? _temple;
     private readonly Func<string?>? _nextAlarm;
     private readonly Func<bool>? _alertsOn;
     private readonly StatusHub? _hub;
@@ -67,6 +69,7 @@ public sealed class HttpControlServer : IDisposable
     /// <param name="nextAlarm">The "next alarm" line for <c>/player/status</c>; may be <c>null</c>.</param>
     /// <param name="ndi">What the <c>/ndi/...</c> routes drive (the telao camera); without it they answer 404. Independent of <paramref name="alertsOn"/>.</param>
     /// <param name="presentation">What the <c>/holyrics/presentation/...</c> routes drive (the presentation mode); without it they answer 404.</param>
+    /// <param name="temple">The "Templo menor" mode: the <c>/templo/...</c> routes drive it, and the routes of a function it turned off answer "desligado" (the alerts, the player, NDI, the Holyrics control); without it they answer as always.</param>
     /// <param name="alertsOn">Whether the alerts are on (the master switch); the <c>/overlay/...</c> routes answer "alertas desligados" while it says no. Always on when <c>null</c>.</param>
     public HttpControlServer(
         IOverlayControl overlay,
@@ -78,7 +81,8 @@ public sealed class HttpControlServer : IDisposable
         Func<string?>? nextAlarm = null,
         Func<bool>? alertsOn = null,
         INdiControl? ndi = null,
-        IPresentationControl? presentation = null)
+        IPresentationControl? presentation = null,
+        TempleModeService? temple = null)
     {
         ArgumentNullException.ThrowIfNull(overlay);
         ArgumentNullException.ThrowIfNull(logger);
@@ -89,6 +93,7 @@ public sealed class HttpControlServer : IDisposable
         _player = player;
         _ndi = ndi;
         _presentation = presentation;
+        _temple = temple;
         _nextAlarm = nextAlarm;
         _alertsOn = alertsOn;
         _hub = hub;
@@ -269,6 +274,23 @@ public sealed class HttpControlServer : IDisposable
                 return Task.CompletedTask;
             }
 
+            // Templo menor: its own routes, and "desligado" for the routes of a function that mode turned off.
+            if (_temple is not null && TempleIntent.IsTemplePath(rawUrl))
+            {
+                HandleTemple(context.Response, method, rawUrl, _temple);
+                return Task.CompletedTask;
+            }
+
+            if (_temple is not null && DisabledFeatureOf(rawUrl) is { } turnedOff && !_temple.IsFeatureActive(turnedOff))
+            {
+                _logger.LogInformation("HTTP {Method} {Url}: {Feature} desligado no Templo menor", method, rawUrl, TempleFeatures.Key(turnedOff));
+                Respond(
+                    context.Response,
+                    HttpStatusCode.OK,
+                    new Dictionary<string, object?> { ["success"] = false, ["disabled"] = true, ["message"] = TempleFeatures.Title(turnedOff) + " desligado no Templo menor" });
+                return Task.CompletedTask;
+            }
+
             // The music player owns everything under /player (the exact routes of the owner's Holyrics trigger are /player/pause and friends).
             if (_player is not null && PlayerIntent.IsPlayerPath(rawUrl))
             {
@@ -348,6 +370,53 @@ public sealed class HttpControlServer : IDisposable
         }
 
         return Task.CompletedTask;
+    }
+
+    // The function whose routes this address belongs to (the ones Templo menor can turn off), or null.
+    private static TempleFeature? DisabledFeatureOf(string rawUrl)
+    {
+        if (PlayerIntent.IsPlayerPath(rawUrl))
+        {
+            return TempleFeature.Player;
+        }
+
+        if (NdiIntent.IsNdiPath(rawUrl))
+        {
+            return TempleFeature.Ndi;
+        }
+
+        if (PresentationIntent.IsHolyricsPath(rawUrl))
+        {
+            return TempleFeature.Holyrics;
+        }
+
+        return null;
+    }
+
+    private void HandleTemple(HttpListenerResponse response, string method, string rawUrl, TempleModeService temple)
+    {
+        var intent = TempleIntent.Parse(method, rawUrl);
+        if (intent == TempleIntentKind.NotFound)
+        {
+            _logger.LogInformation("HTTP {Method} {Url}: rota desconhecida", method, rawUrl);
+            Respond(
+                response,
+                HttpStatusCode.NotFound,
+                new Dictionary<string, object?>
+                {
+                    ["success"] = false,
+                    ["error"] = "not_found",
+                    ["received"] = new Dictionary<string, object?> { ["method"] = method, ["url"] = rawUrl },
+                });
+            return;
+        }
+
+        if (intent != TempleIntentKind.Status)
+        {
+            _logger.LogInformation("HTTP {Method} {Url}: templo menor {Intent}", method, rawUrl, intent);
+        }
+
+        Respond(response, HttpStatusCode.OK, TempleIntent.Execute(intent, temple));
     }
 
     private void HandleNdi(HttpListenerResponse response, string method, string rawUrl, INdiControl ndi)

@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using System.Net;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Settings;
@@ -142,7 +143,7 @@ public sealed class ControlService : IDisposable
         }
 
         _settings.Changed += OnSettingsChanged;
-        Apply(_settings.Current.Control);
+        Apply(_settings.Current.Effective().Control);
     }
 
     /// <summary>What the header shows now.</summary>
@@ -258,7 +259,8 @@ public sealed class ControlService : IDisposable
         _wake.Release();
     }
 
-    private void OnSettingsChanged(AppSettings settings) => Apply(settings.Control);
+    // Templo menor without the MA2: the effective view reads the switch as off, so the Art-Net socket closes and the owner's own switch stays as it was.
+    private void OnSettingsChanged(AppSettings settings) => Apply(settings.Effective().Control);
 
     private void Apply(ControlSettings next)
     {

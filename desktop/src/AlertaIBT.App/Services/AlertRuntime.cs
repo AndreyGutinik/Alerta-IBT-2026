@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using System.ComponentModel;
 using AlertaIBT.App.Overlay;
 using AlertaIBT.App.Platform;
@@ -80,11 +81,11 @@ public sealed class AlertRuntime : IDisposable
         // The master switch "Alertas ligados": the queue (and with it the bar), Telegram and the site start and stop together. The API,
         // the history, the player and the rest keep running.
         _switch = new AlertsSwitch(
-            () => _settings.Current.System.AlertsEnabled,
+            () => _settings.Current.AlertsRun(), // the owner's switch AND the function not turned off by Templo menor (the switch itself is never rewritten)
             [
                 new AlertsPart("o servico de avisos", _alerts.Start, _alerts.StopAsync),
                 new AlertsPart("o Telegram", _telegram.Start, _telegram.StopAsync),
-                new AlertsPart("o site", () => _site.Apply(_settings.Current), StopSiteAsync),
+                new AlertsPart("o site", () => _site.Apply(_settings.Current.Effective()), StopSiteAsync),
             ],
             _hub,
             _logger);
@@ -119,7 +120,8 @@ public sealed class AlertRuntime : IDisposable
 
         Guarded("a fila salva", () => _store.Attach(_queue));
 
-        _hub.SetCorrectionMode(ModeOf(_settings.Current));
+        _hub.SetCorrectionMode(ModeOf(_settings.Current.Effective()));
+        _hub.SetLedTarget(Describe(_settings.Current.Temple.Target));
         _settings.Changed += OnSettingsChanged;
 
         _hub.SetCaptureExcluded(_overlay.CaptureExcluded);
@@ -187,6 +189,8 @@ public sealed class AlertRuntime : IDisposable
         }
     }
 
+    private static string Describe(TargetSize size) => $"{size.Width}x{size.Height}";
+
     private static CorrectionMode ModeOf(AppSettings settings)
     {
         if (!settings.Correction.Enabled)
@@ -200,13 +204,15 @@ public sealed class AlertRuntime : IDisposable
     // A changed address, key, e-mail or password makes the site connect again with the new ones (the connector compares them).
     private void OnSettingsChanged(AppSettings settings)
     {
-        _hub.SetCorrectionMode(ModeOf(settings));
+        var effective = settings.Effective();
+        _hub.SetLedTarget(Describe(settings.Temple.Target));
+        _hub.SetCorrectionMode(ModeOf(effective));
         Guarded("os alertas", _switch.Request);
 
-        // With the alerts off the site stays off whatever its own settings say; the switch applies them when it turns on.
-        if (settings.System.AlertsEnabled)
+        // With the alerts off (the switch or Templo menor) the site stays off whatever its own settings say; the switch applies them when it turns on.
+        if (settings.AlertsRun())
         {
-            Guarded("o site", () => _site.Apply(settings));
+            Guarded("o site", () => _site.Apply(effective));
         }
 
         // A new key, model or correction switch is checked right away (debounced inside the monitor).
@@ -238,7 +244,7 @@ public sealed class AlertRuntime : IDisposable
     // The alerts went off: the connector gets the settings with the site switched off, and the call waits until it has really let go.
     private async Task StopSiteAsync()
     {
-        var current = _settings.Current;
+        var current = _settings.Current.Effective();
         _site.Apply(current with { Site = current.Site with { Enabled = false } });
         await _site.SettledAsync().ConfigureAwait(false);
     }

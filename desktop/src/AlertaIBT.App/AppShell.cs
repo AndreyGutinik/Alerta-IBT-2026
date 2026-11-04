@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using System.Windows;
 using AlertaIBT.App.Hosting;
 using AlertaIBT.App.Ndi;
@@ -58,6 +59,7 @@ public sealed class AppShell : IDisposable
     private QuickPanelHotkey? _hotkey;
     private bool _exitDialogOpen;
     private bool _exiting;
+    private TempleSettings? _lastTemple;
 
     /// <summary>Wires nothing yet; <see cref="Start"/> does.</summary>
     public AppShell(
@@ -165,6 +167,8 @@ public sealed class AppShell : IDisposable
         _hotkey.StatusChanged += OnHotkeyStatusChanged;
 
         WireTray();
+        _lastTemple = _settings.Current.Temple;
+        ApplyTempleToTray(_settings.Current);
 
         _tray.Show();
 
@@ -227,7 +231,7 @@ public sealed class AppShell : IDisposable
             realRegistry.Pressed += id => _ndiHotkeys?.OnHotkey(id);
         }
 
-        _ndiHotkeys.Apply(_settings.Current.Ndi.ShortcutsEnabled);
+        _ndiHotkeys.Apply(_settings.Current.Effective().Ndi.ShortcutsEnabled);
 
         // Controle pela MA2: OFF at install, so this opens no socket until the owner turns it on; it never blocks the start.
         try
@@ -386,6 +390,9 @@ public sealed class AppShell : IDisposable
         _messages?.Dispose();
     }
 
+    private void ApplyTempleToTray(AppSettings settings) =>
+        _tray.SetFunctionsVisible(settings.IsActive(TempleFeature.Alerts), settings.IsActive(TempleFeature.Holyrics));
+
     // The mode turned on or off (the shortcut, the switch, the API, or by itself after a failure): the tray menu and tooltip follow.
     private void OnPresentationChanged() => _tray.SetPresentation(_presentation.IsOn);
 
@@ -414,11 +421,29 @@ public sealed class AppShell : IDisposable
 
     private void OnSettingsChanged(AppSettings changed)
     {
+        // Templo menor: the tray menu follows the functions that run, and the LED is looked for again at the new target size right away (not at the next 5 s look).
+        if (!changed.Temple.Equals(_lastTemple))
+        {
+            _lastTemple = changed.Temple;
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    _led.CheckNow();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Nao foi possivel procurar o LED no novo tamanho");
+                }
+            });
+            Application.Current?.Dispatcher.BeginInvoke(() => ApplyTempleToTray(changed));
+        }
+
         // The settings may change on any thread; the hotkey belongs to the UI thread's window.
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             _hotkey?.Apply(changed.System.Hotkey);
-            _ndiHotkeys?.Apply(_settings.Current.Ndi.ShortcutsEnabled);
+            _ndiHotkeys?.Apply(_settings.Current.Effective().Ndi.ShortcutsEnabled);
 
             // The newest settings, not this snapshot: two quick toggles must end on the last one.
             _mouse.ApplySettings(_settings.Current.MouseLock);

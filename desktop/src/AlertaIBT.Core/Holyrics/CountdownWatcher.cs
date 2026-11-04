@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using System.Globalization;
 using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Player;
@@ -245,7 +246,7 @@ public sealed class CountdownWatcher : IDisposable
     /// <param name="cancellationToken">Cancels the look.</param>
     public async Task<TimeSpan> PollOnceAsync(CancellationToken cancellationToken = default)
     {
-        var holyrics = _settings.Current.Holyrics;
+        var holyrics = _settings.Current.Effective().Holyrics;
         if (!holyrics.CountdownStopEnabled || !_source.IsConfigured)
         {
             _trigger.Reset();

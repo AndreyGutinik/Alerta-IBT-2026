@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using AlertaIBT.Core.Player;
 using AlertaIBT.Core.Settings;
 using Microsoft.Extensions.Logging;
@@ -104,6 +105,16 @@ public sealed class LoudnessService : IDisposable
 
     private void OnSettingsChanged(AppSettings settings)
     {
+        // Templo menor turned the player off or on: nothing to measure while it is off, everything again when it is back.
+        var active = settings.IsActive(TempleFeature.Player);
+        if (_wasActive != active)
+        {
+            _wasActive = active;
+            Scanner.NotifyUserActivity();
+            Reconfigure();
+            return;
+        }
+
         // The playlists were edited (added, renamed, another folder, another list in use): wait for the user to finish before scanning.
         var playlists = settings.Player.Playlists;
         if (_lastPlaylists is null || !playlists.SequenceEqual(_lastPlaylists) || !string.Equals(_current, settings.Player.CurrentPlaylist, StringComparison.Ordinal))
@@ -118,6 +129,7 @@ public sealed class LoudnessService : IDisposable
     }
 
     private string? _current;
+    private bool _wasActive = true;
 
     private void Reconfigure()
     {
@@ -126,6 +138,13 @@ public sealed class LoudnessService : IDisposable
             var player = _settings.Current.Player;
             _lastPlaylists = player.Playlists;
             _current = player.CurrentPlaylist;
+            _wasActive = _settings.Current.IsActive(TempleFeature.Player);
+            if (!_wasActive)
+            {
+                Scanner.Configure([], []); // the player is off in Templo menor: no measuring, no reading of the music files
+                return;
+            }
+
             var primary = _library.Tracks(player.CurrentPlaylist);
             var others = player.Playlists
                 .Where(p => !string.Equals(p.Name, player.CurrentPlaylist, StringComparison.OrdinalIgnoreCase))

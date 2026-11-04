@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using System.Net;
 using System.Text;
 using System.Net.Sockets;
@@ -246,13 +247,18 @@ public sealed class HolyricsClient : IHolyricsRemote, IHolyricsCountdownSource, 
     {
         get
         {
+            if (!_settings.Current.IsActive(TempleFeature.Holyrics))
+            {
+                return false; // Templo menor turned the Holyrics control off: nothing is sent
+            }
+
             var holyrics = _settings.Current.Holyrics;
             return holyrics.TokenProtected is not null && HolyricsSettings.IsValidHost(holyrics.Host) && holyrics.Port is >= 1 and <= 65535;
         }
     }
 
     /// <inheritdoc />
-    public bool ArrowsActive => _settings.Current.Holyrics.ArrowsEnabled && IsConfigured;
+    public bool ArrowsActive => _settings.Current.Effective().Holyrics.ArrowsEnabled && IsConfigured;
 
     /// <inheritdoc />
     public bool Post(HolyricsCommand command)

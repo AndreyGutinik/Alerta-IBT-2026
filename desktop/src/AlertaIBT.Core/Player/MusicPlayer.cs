@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Temple;
 using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Loudness;
 using AlertaIBT.Core.Settings;
@@ -172,7 +173,8 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     public event Action? StatusChanged;
 
     /// <summary>The player's own settings, read now.</summary>
-    private PlayerSettings Options => _settings.Current.Player;
+    // Templo menor turns the player off through the effective view (the owner's own switches are never written).
+    private PlayerSettings Options => _settings.Current.Effective().Player;
 
     /// <summary>
     /// Connects the player to the settings, the playlists and the Windows outputs, and looks at the output once. Call once, after the
@@ -1210,9 +1212,10 @@ public sealed class MusicPlayer : IPlayerControl, IAlarmTarget, IDisposable
     // "Igualar volume"...) touches the audio service not at all, so a service that is stuck cannot freeze the screen.
     private void OnSettingsChanged(AppSettings settings) => Locked(() =>
     {
-        _library.Configure(settings.Player.Playlists);
-        ApplyOptions(settings.Player);
-        var outputKey = string.Join('|', settings.Player.OutputDeviceId, string.Join('+', settings.Player.OutputMatch));
+        var player = settings.Effective().Player;
+        _library.Configure(player.Playlists);
+        ApplyOptions(player);
+        var outputKey = string.Join('|', player.OutputDeviceId, string.Join('+', player.OutputMatch));
         if (!string.Equals(outputKey, _outputKey, StringComparison.Ordinal))
         {
             _outputKey = outputKey;
