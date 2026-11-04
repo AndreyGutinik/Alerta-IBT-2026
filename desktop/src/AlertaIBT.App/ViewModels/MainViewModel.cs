@@ -66,7 +66,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IUpdateStatus? updates = null,
         SomViewModel? som = null,
         NdiViewModel? ndi = null,
-        ControlViewModel? control = null)
+        ControlViewModel? control = null,
+        TempleViewState? temple = null)
     {
         ArgumentNullException.ThrowIfNull(hub);
         ArgumentNullException.ThrowIfNull(home);
@@ -82,10 +83,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Ndi = ndi;
         Control = control;
         Saver = saver;
+        Temple = temple ?? TempleViewState.AllVisible;
         _post = post ?? (action => action());
         SelectTabCommand = new RelayCommand<MainTab>(tab => SelectedTab = tab);
 
         _hub.PropertyChanged += OnHubChanged;
+        Temple.PropertyChanged += OnTempleChanged;
+        SelectedTab = ToTab(Temple.FirstTab); // the window opens on the first tab that shows (no flash of a hidden one)
         RefreshStatus();
         _updates = updates;
         if (_updates is not null)
@@ -121,6 +125,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The Controle tab (null when the window was built without it).</summary>
     public ControlViewModel? Control { get; }
 
+    /// <summary>What "Templo menor" lets the window show: the tabs and the parts of the pages.</summary>
+    public TempleViewState Temple { get; }
+
     /// <summary>The autosave of the settings tabs (their "Salvo" stamp).</summary>
     public Autosaver Saver { get; }
 
@@ -148,6 +155,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>The window was shown: the Início tab takes a fresh look at the queue and the field takes the focus.</summary>
     public void OnShown()
     {
+        EnsureVisibleTab();
         RefreshStatus();
         Home.OnShown();
     }
@@ -162,6 +170,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         _disposed = true;
         _hub.PropertyChanged -= OnHubChanged;
+        Temple.PropertyChanged -= OnTempleChanged;
         if (_updates is not null)
         {
             _updates.StateChanged -= OnUpdateStateChanged;
@@ -185,6 +194,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(IsNdiSelected));
         OnPropertyChanged(nameof(IsControlSelected));
     }
+
+    // A tab that disappeared while selected hands over to the first one that shows.
+    private void OnTempleChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => EnsureVisibleTab();
+
+    private void EnsureVisibleTab()
+    {
+        var shows = SelectedTab switch
+        {
+            MainTab.Home => Temple.HomeVisible,
+            MainTab.Som => Temple.SomVisible,
+            MainTab.Ndi => Temple.NdiVisible,
+            MainTab.Control => Temple.ControlVisible,
+            _ => true,
+        };
+        if (!shows)
+        {
+            SelectedTab = ToTab(Temple.FirstTab);
+        }
+    }
+
+    private static MainTab ToTab(AlertaIBT.Core.Temple.TempleTabs tab) => tab switch
+    {
+        AlertaIBT.Core.Temple.TempleTabs.Home => MainTab.Home,
+        AlertaIBT.Core.Temple.TempleTabs.Som => MainTab.Som,
+        AlertaIBT.Core.Temple.TempleTabs.Ndi => MainTab.Ndi,
+        AlertaIBT.Core.Temple.TempleTabs.Control => MainTab.Control,
+        _ => MainTab.Settings,
+    };
 
     private void OnHubChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e) => _post(RefreshStatus);
 

@@ -80,6 +80,7 @@
                     <StackPanel Grid.Row="1">
                         <Button
                             x:Name="HomeTab"
+                            Visibility="{Binding Temple.HomeVisible, Converter={StaticResource BoolToVisibility}}"
                             AutomationProperties.Name="Início"
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="{x:Static vm:MainTab.Home}"
@@ -96,6 +97,7 @@
                         </Button>
                         <Button
                             x:Name="SomTab"
+                            Visibility="{Binding Temple.SomVisible, Converter={StaticResource BoolToVisibility}}"
                             Margin="0,4,0,0"
                             AutomationProperties.Name="Som"
                             Command="{Binding SelectTabCommand}"
@@ -113,6 +115,7 @@
                         </Button>
                         <Button
                             x:Name="NdiTab"
+                            Visibility="{Binding Temple.NdiVisible, Converter={StaticResource BoolToVisibility}}"
                             Margin="0,4,0,0"
                             AutomationProperties.Name="NDI"
                             Command="{Binding SelectTabCommand}"
@@ -130,6 +133,7 @@
                         </Button>
                         <Button
                             x:Name="ControlTab"
+                            Visibility="{Binding Temple.ControlVisible, Converter={StaticResource BoolToVisibility}}"
                             Margin="0,4,0,0"
                             AutomationProperties.Name="Controle"
                             Command="{Binding SelectTabCommand}"
@@ -269,5 +273,15 @@
                 </Grid>
             </Grid>
         </Grid>
+
+        <!-- Templo menor: a very thin green border around the whole window, always on top, never in the way of the mouse. -->
+        <Border
+            x:Name="TempleBorder"
+            Grid.RowSpan="2"
+            AutomationProperties.Name="Templo menor ligado"
+            BorderBrush="{StaticResource IbtTempleBrush}"
+            BorderThickness="2"
+            IsHitTestVisible="False"
+            Visibility="{Binding Temple.IsOn, Converter={StaticResource BoolToVisibility}}" />
     </Grid>
 </ui:FluentWindow>

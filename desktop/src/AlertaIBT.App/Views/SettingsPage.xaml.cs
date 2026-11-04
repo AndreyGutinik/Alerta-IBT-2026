@@ -29,6 +29,7 @@ public partial class SettingsPage : UserControl
             {
                 settings.ReportSampleWidth(Preview.TextWidth);
                 BackupSection.Visibility = settings.Backup is null ? Visibility.Collapsed : Visibility.Visible;
+                TempleSection.Visibility = ResolutionSection.Visibility = settings.Temple is null ? Visibility.Collapsed : Visibility.Visible;
                 settings.SitePassword.PropertyChanged += OnSitePasswordEntryChanged;
             }
         };
@@ -166,4 +167,8 @@ public partial class SettingsPage : UserControl
 
         return modifiers;
     }
+
+    /// <summary>Follows "Templo menor": the parts of this page whose function is off leave the layout (and come back with it).</summary>
+    public void BindTemple(AlertaIBT.App.ViewModels.TempleViewState state) =>
+        TempleVisual.Bind(this, state, ("BarSection", s => s.AlertsVisible), ("PreviewSection", s => s.AlertsVisible), ("TelegramSection", s => s.AlertsVisible), ("SiteSection", s => s.AlertsVisible), ("AlertsSection", s => s.AlertsVisible), ("HistorySection", s => s.AlertsVisible), ("SiteStatusRow", s => s.AlertsVisible), ("GeminiSection", s => s.GeminiVisible));
 }

@@ -3,6 +3,7 @@ using AlertaIBT.App.Platform;
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Overlay;
 using AlertaIBT.Core.Services;
+using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Settings;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -24,8 +25,15 @@ namespace AlertaIBT.App.ViewModels;
 /// </remarks>
 public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 {
-    /// <summary>The width of the LED, for the "passa em N s" estimate (the bar only ever runs on the 2560x768 screen).</summary>
-    public const double LedWidth = 2560;
+    private TargetSize _lastTarget;
+
+    /// <summary>The Templo menor and Resolution cards (null when the tab was built without them).</summary>
+    public TempleViewModel? Temple { get; set; }
+
+    /// <summary>The size of the LED the bar runs on now (2560x768, or the Templo menor size): the preview draws it and the "passa em N s" estimate uses its width.</summary>
+    public TargetSize LedTarget => _settings.Current.Temple.Target;
+
+    private double LedWidth => LedTarget.Width;
 
     private static readonly string[] SizeNames = ["Pequena", "M\U000000E9dia", "Grande", "Enorme"];
 
@@ -228,6 +236,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _previewBar = _bar;
         LoadFrom(_settings.Current);
         _hub.PropertyChanged += OnHubChanged;
+        _lastTarget = _settings.Current.Temple.Target;
         _settings.Changed += OnSettingsChanged;
         RefreshSite();
         if (_updates is not null)
@@ -749,7 +758,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private void OnUpdateStateChanged(UpdateState state) => _post(RefreshUpdate);
 
     // The lock was also toggled by the shortcut or the tray item: the switch follows (without saving it again).
-    private void OnSettingsChanged(AppSettings settings) => _post(RefreshMouseLock);
+    private void OnSettingsChanged(AppSettings settings) => _post(() =>
+    {
+        RefreshMouseLock();
+        if (!_disposed && _lastTarget != LedTarget)
+        {
+            _lastTarget = LedTarget;
+            OnPropertyChanged(nameof(LedTarget));
+            UpdateSpeedLabel();
+        }
+    });
 
     private void RefreshMouseLock()
     {

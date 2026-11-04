@@ -93,4 +93,8 @@ public partial class HomePage : UserControl
         shake.KeyFrames.Add(new LinearDoubleKeyFrame(0, KeyTime.FromPercent(1)));
         ShakeTransform.BeginAnimation(TranslateTransform.XProperty, shake);
     }
+
+    /// <summary>Follows "Templo menor": the parts of this page whose function is off leave the layout (and come back with it).</summary>
+    public void BindTemple(AlertaIBT.App.ViewModels.TempleViewState state) =>
+        TempleVisual.Bind(this, state, ("CorrectionPanel", s => s.GeminiVisible));
 }

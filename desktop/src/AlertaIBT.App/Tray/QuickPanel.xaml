@@ -155,10 +155,22 @@
         x:Name="Card"
         Margin="12"
         Padding="16"
+        AutomationProperties.Name="Painel rápido"
         Background="{StaticResource IbtSurfaceBrush}"
-        BorderBrush="{StaticResource IbtBorderBrush}"
-        BorderThickness="1"
         CornerRadius="12">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="BorderBrush" Value="{StaticResource IbtBorderBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Style.Triggers>
+                    <!-- Templo menor is on: the same thin green border as the main window. -->
+                    <DataTrigger Binding="{Binding Temple.IsOn}" Value="True">
+                        <Setter Property="BorderBrush" Value="{StaticResource IbtTempleBrush}" />
+                        <Setter Property="BorderThickness" Value="2" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
         <Border.Effect>
             <DropShadowEffect
                 BlurRadius="24"
@@ -170,7 +182,7 @@
             <!-- With the alerts off (the master switch) only the note and the player row stay. -->
             <Grid
                 x:Name="AlertsOffNote"
-                Visibility="{Binding AlertsOff, Converter={StaticResource BoolToVisibility}}">
+                Visibility="{Binding ShowAlertsOffNote, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel
                     VerticalAlignment="Center"
                     Orientation="Horizontal">

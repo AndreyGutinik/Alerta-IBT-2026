@@ -85,4 +85,8 @@ public partial class SomPage : UserControl
             row.NormalizeLatest();
         }
     }
+
+    /// <summary>Follows "Templo menor": the parts of this page whose function is off leave the layout (and come back with it).</summary>
+    public void BindTemple(AlertaIBT.App.ViewModels.TempleViewState state) =>
+        TempleVisual.Bind(this, state, ("PlayerHero", s => s.PlayerVisible), ("AlarmsSection", s => s.PlayerVisible), ("BottomRow", s => s.StartupAudioVisible));
 }

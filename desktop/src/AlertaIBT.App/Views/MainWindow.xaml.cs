@@ -44,6 +44,12 @@ public partial class MainWindow : FluentWindow, IMainWindow
         DataContext = viewModel;
         InitializeComponent();
 
+        // Templo menor: the parts of each page whose function is off leave the layout.
+        HomePage.BindTemple(viewModel.Temple);
+        SomPage.BindTemple(viewModel.Temple);
+        ControlPage.BindTemple(viewModel.Temple);
+        SettingsPage.BindTemple(viewModel.Temple);
+
         // The handle is made now, hidden: the window is out of every screen capture before its first pixel (the LED is captured).
         _policy.Protect(this);
 

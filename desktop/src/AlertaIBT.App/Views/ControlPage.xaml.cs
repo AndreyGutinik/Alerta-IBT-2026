@@ -115,4 +115,8 @@ public partial class ControlPage : UserControl
         _live.Stop();
         _watched?.SetActive(false);
     }
+
+    /// <summary>Follows "Templo menor": the parts of this page whose function is off leave the layout (and come back with it).</summary>
+    public void BindTemple(AlertaIBT.App.ViewModels.TempleViewState state) =>
+        TempleVisual.Bind(this, state, ("HeaderCard", s => s.Ma2Visible), ("MapCard", s => s.Ma2Visible), ("HelpCard", s => s.Ma2Visible), ("HolyricsCard", s => s.HolyricsVisible));
 }

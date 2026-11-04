@@ -21,6 +21,8 @@
     <SolidColorBrush x:Key="IbtAccentSoftBrush" Color="#211DA35F" />
     <SolidColorBrush x:Key="IbtAccentGlowBrush" Color="{StaticResource IbtGreenGlow}" />
     <SolidColorBrush x:Key="IbtOkBrush" Color="#86E4AD" />
+    <!-- The thin border that shows "Templo menor" is on. -->
+    <SolidColorBrush x:Key="IbtTempleBrush" Color="{StaticResource IbtGreenGlow}" />
     <SolidColorBrush x:Key="IbtWarnBrush" Color="#FFD87A" />
     <SolidColorBrush x:Key="IbtBadBrush" Color="#FF5C5C" />
     <SolidColorBrush x:Key="IbtInfoBrush" Color="#5AA9FF" />

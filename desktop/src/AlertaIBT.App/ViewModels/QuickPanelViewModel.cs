@@ -179,8 +179,31 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
     /// <summary>The opposite of <see cref="AlertsOn"/>, for the note "Alertas desligados".</summary>
     public bool AlertsOff => !_alertsOn;
 
+    /// <summary>The note "Alertas desligados" shows only when the owner switched the alerts off; with Templo menor the alerts are simply not part of this PC, so no note.</summary>
+    public bool ShowAlertsOffNote => AlertsOff && Temple.AlertsVisible;
+
+    /// <summary>What "Templo menor" lets this panel show (the Novo aviso part, the player row, the green border).</summary>
+    public TempleViewState Temple { get; private set; } = TempleViewState.AllVisible;
+
+    /// <summary>Follows <paramref name="state"/>: the rows of the functions that are off leave the panel.</summary>
+    public void SetTemple(TempleViewState state)
+    {
+        Temple.PropertyChanged -= OnTempleChanged;
+        Temple = state;
+        Temple.PropertyChanged += OnTempleChanged;
+        OnTempleChanged(this, new System.ComponentModel.PropertyChangedEventArgs(string.Empty));
+    }
+
+    private void OnTempleChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(Temple));
+        OnPropertyChanged(nameof(ShowAlertsOffNote));
+        OnPropertyChanged(nameof(ShowPlayer));
+        OnPropertyChanged(nameof(PlayerRow));
+    }
+
     /// <summary>Whether the player row is shown: the player is on ("Player ligado"). Never shown when there is no player.</summary>
-    public bool ShowPlayer => Player is { IsEnabled: true };
+    public bool ShowPlayer => Player is { IsEnabled: true } && Temple.PlayerVisible;
 
     /// <summary>What the player row of the window shows: the player while it is on, else <c>null</c> (the row is then not in the window at all).</summary>
     public PlayerViewModel? PlayerRow => ShowPlayer ? Player : null;
@@ -594,6 +617,7 @@ public sealed partial class QuickPanelViewModel : ObservableObject, IDisposable
             _alertsOn = alertsOn;
             OnPropertyChanged(nameof(AlertsOn));
             OnPropertyChanged(nameof(AlertsOff));
+            OnPropertyChanged(nameof(ShowAlertsOffNote));
         }
 
         Telegram = Chip("Telegram", "LucideSend", _hub.Telegram);

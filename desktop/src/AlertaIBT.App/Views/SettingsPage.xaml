@@ -404,7 +404,7 @@
                         Margin="0,24,0,0"
                         Header="Prévia no LED"
                         Icon="{StaticResource LucideEye}"
-                        Info="Como a barra fica no LED de 2560x768, com o texto de exemplo."
+                        Info="Como a barra fica no LED, com o texto de exemplo."
                         Style="{StaticResource IbtCardSectionStyle}">
                         <local:CardSection.HeaderActions>
                             <Button
@@ -428,6 +428,7 @@
                                 CornerRadius="8">
                                 <local:BarPreviewControl
                                     x:Name="Preview"
+                                    Target="{Binding LedTarget}"
                                     Bar="{Binding PreviewBar}"
                                     SampleText="{Binding SampleText}" />
                             </Border>
@@ -1121,6 +1122,146 @@
                                         Text="{Binding SiteText}" />
                                 </StackPanel>
                             </local:SettingRow>
+                        </StackPanel>
+                    </local:CardSection>
+
+                    <!-- Templo menor: the master switch and, beside it, the gear with the list of what that mode turns off. Both ask before changing anything. -->
+                    <local:CardSection
+                        x:Name="TempleSection"
+                        Margin="0,24,0,0"
+                        DataContext="{Binding Temple}"
+                        Header="Templo menor"
+                        Icon="{StaticResource LucideMonitorSpeaker}"
+                        Style="{StaticResource IbtCardSectionStyle}">
+                        <StackPanel Margin="0,0,0,-8">
+                            <local:SettingRow
+                                x:Name="TempleRow"
+                                Title="Templo menor"
+                                Icon="{StaticResource LucidePower}"
+                                Info="Para o PC do templo menor: liga uma vez e fica.&#10;As funções marcadas na engrenagem param de verdade e somem da tela. O telão passa para o tamanho do templo menor.&#10;Desligando, tudo volta como estava. Uma borda verde fina em volta do app mostra que ele está ligado."
+                                Style="{StaticResource SettingRowStyle}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button
+                                        x:Name="TempleGearButton"
+                                        Margin="0,0,12,0"
+                                        AutomationProperties.Name="Funções desligadas no templo menor"
+                                        Command="{Binding GearCommand}"
+                                        Style="{StaticResource IbtToolButton}"
+                                        ToolTip="{Binding GearTip}">
+                                        <Path
+                                            Width="16"
+                                            Height="16"
+                                            Data="{StaticResource LucideSettings}"
+                                            Style="{StaticResource LucideIcon}" />
+                                    </Button>
+                                    <ToggleButton
+                                        x:Name="TempleSwitch"
+                                        AutomationProperties.Name="Templo menor"
+                                        Command="{Binding ToggleCommand}"
+                                        IsChecked="{Binding IsOn, Mode=OneWay}"
+                                        Style="{StaticResource IbtSwitch}" />
+                                </StackPanel>
+                            </local:SettingRow>
+                        </StackPanel>
+                    </local:CardSection>
+
+                    <!-- The two sizes of the telao: the one in force is outlined in green. -->
+                    <local:CardSection
+                        x:Name="ResolutionSection"
+                        Margin="0,24,0,0"
+                        DataContext="{Binding Temple}"
+                        Header="Resolução do telão"
+                        Icon="{StaticResource LucideMonitor}"
+                        Info="O tamanho do LED que o app procura e usa: a barra de avisos, a câmera no telão e os testes.&#10;Normal vale com o templo menor desligado, o outro com ele ligado."
+                        Style="{StaticResource IbtCardSectionStyle}">
+                        <StackPanel Margin="0,0,0,-8">
+                            <Border x:Name="NormalSizeBlock" AutomationProperties.Name="Resolução normal" ToolTip="{Binding NormalText}">
+                                <Border.Style>
+                                    <Style BasedOn="{StaticResource FieldBlock}" TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding NormalActive}" Value="True">
+                                                <Setter Property="BorderBrush" Value="{StaticResource IbtAccentBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                        <Path Margin="0,0,12,0" Data="{StaticResource LucideMonitor}" Style="{StaticResource IbtRowIcon}" />
+                                        <TextBlock Style="{StaticResource IbtRowLabel}" Text="Normal" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                        <TextBox
+                                            x:Name="NormalWidthBox"
+                                            Width="84"
+                                            AutomationProperties.Name="Largura normal"
+                                            LostFocus="OnFieldLostFocus"
+                                            Style="{StaticResource IbtFieldInput}"
+                                            Tag="{Binding NormalWidth}"
+                                            Text="{Binding NormalWidth.Text, UpdateSourceTrigger=PropertyChanged}"
+                                            ToolTip="Largura em pixels" />
+                                        <TextBlock Margin="8,0" VerticalAlignment="Center" Foreground="{StaticResource IbtMutedBrush}" Text="x" />
+                                        <TextBox
+                                            x:Name="NormalHeightBox"
+                                            Width="84"
+                                            AutomationProperties.Name="Altura normal"
+                                            LostFocus="OnFieldLostFocus"
+                                            Style="{StaticResource IbtFieldInput}"
+                                            Tag="{Binding NormalHeight}"
+                                            Text="{Binding NormalHeight.Text, UpdateSourceTrigger=PropertyChanged}"
+                                            ToolTip="Altura em pixels" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Border x:Name="TempleSizeBlock" AutomationProperties.Name="Resolução do templo menor" ToolTip="{Binding TempleText}">
+                                <Border.Style>
+                                    <Style BasedOn="{StaticResource FieldBlock}" TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding TempleActive}" Value="True">
+                                                <Setter Property="BorderBrush" Value="{StaticResource IbtAccentBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center" Orientation="Horizontal">
+                                        <Path Margin="0,0,12,0" Data="{StaticResource LucideMonitorSpeaker}" Style="{StaticResource IbtRowIcon}" />
+                                        <TextBlock Style="{StaticResource IbtRowLabel}" Text="Templo menor" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                        <TextBox
+                                            x:Name="TempleWidthBox"
+                                            Width="84"
+                                            AutomationProperties.Name="Largura do templo menor"
+                                            LostFocus="OnFieldLostFocus"
+                                            Style="{StaticResource IbtFieldInput}"
+                                            Tag="{Binding TempleWidth}"
+                                            Text="{Binding TempleWidth.Text, UpdateSourceTrigger=PropertyChanged}"
+                                            ToolTip="Largura em pixels" />
+                                        <TextBlock Margin="8,0" VerticalAlignment="Center" Foreground="{StaticResource IbtMutedBrush}" Text="x" />
+                                        <TextBox
+                                            x:Name="TempleHeightBox"
+                                            Width="84"
+                                            AutomationProperties.Name="Altura do templo menor"
+                                            LostFocus="OnFieldLostFocus"
+                                            Style="{StaticResource IbtFieldInput}"
+                                            Tag="{Binding TempleHeight}"
+                                            Text="{Binding TempleHeight.Text, UpdateSourceTrigger=PropertyChanged}"
+                                            ToolTip="Altura em pixels" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
                         </StackPanel>
                     </local:CardSection>
                 </StackPanel>
