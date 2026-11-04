@@ -40,6 +40,13 @@ public readonly record struct NdiCrop(
 public static class NdiCropMath
 {
     /// <summary>
+    /// Whether the picture overflows the target vertically, so a vertical position means something. A 1920x1080 source into a 1920x1080 target (or any source of the
+    /// target's own shape) has no hidden rows: the position controls are pointless and the app hides them.
+    /// </summary>
+    public static bool HasVerticalCrop(int sourceWidth, int sourceHeight, int targetWidth, int targetHeight) =>
+        sourceWidth > 0 && sourceHeight > 0 && targetWidth > 0 && targetHeight > 0 && Compute(sourceWidth, sourceHeight, targetWidth, targetHeight, 50).HiddenRows > 0;
+
+    /// <summary>
     /// Computes the crop of a <paramref name="sourceWidth"/>x<paramref name="sourceHeight"/> picture on a
     /// <paramref name="targetWidth"/>x<paramref name="targetHeight"/> target.
     /// </summary>

@@ -7,7 +7,7 @@ namespace AlertaIBT.App.Hosting;
 /// </param>
 /// <param name="TestLed">
 /// <c>--test-led</c>: treat the primary monitor as the LED, whatever its size, so the bar can be developed and checked
-/// on a PC that has no 2560x768 screen.
+/// on a PC that has no screen of the LED size.
 /// </param>
 public sealed record StartupArguments(bool Tray, bool TestLed)
 {

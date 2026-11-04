@@ -83,10 +83,17 @@ public sealed partial class NdiLaneViewModel : ObservableObject
     private string _tallyTip = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanMoveVertically))]
+    [NotifyPropertyChangedFor(nameof(CropAspect))]
     private int _cropWidth = NdiViewModel.DefaultTargetWidth;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanMoveVertically))]
+    [NotifyPropertyChangedFor(nameof(CropAspect))]
     private int _cropHeight = NdiViewModel.DefaultTargetHeight;
+
+    private int _sourceWidth;
+    private int _sourceHeight;
 
     internal NdiLaneViewModel(NdiViewModel owner, bool isProgram, ThumbnailCopy copy)
     {
@@ -109,6 +116,28 @@ public sealed partial class NdiLaneViewModel : ObservableObject
 
     /// <summary>Whether to show the red/green tally (only the lane that is on air, with a camera).</summary>
     public bool ShowTally => IsProgram && HasCamera;
+
+    /// <summary>The shape of the telao the picture is cropped to (width divided by height).</summary>
+    public double CropAspect => CropHeight <= 0 ? 16.0 / 9 : (double)CropWidth / CropHeight;
+
+    /// <summary>
+    /// Whether the vertical position means anything: the picture is taller than the target (a 1920x1080 camera on the 2560x768 LED hides 672 rows; the same camera on a 1920x1080
+    /// telao hides none, so the slider, the wheel and the crop rectangle go away). True while the size of the picture is not known yet.
+    /// </summary>
+    public bool CanMoveVertically => _sourceWidth <= 0 || _sourceHeight <= 0 || NdiCropMath.HasVerticalCrop(_sourceWidth, _sourceHeight, CropWidth, CropHeight);
+
+    /// <summary>The size of the camera's picture, as the thumbnail knows it (the view reports it); decides <see cref="CanMoveVertically"/>.</summary>
+    public void ReportSource(int width, int height)
+    {
+        if (width == _sourceWidth && height == _sourceHeight)
+        {
+            return;
+        }
+
+        _sourceWidth = width;
+        _sourceHeight = height;
+        OnPropertyChanged(nameof(CanMoveVertically));
+    }
 
     /// <summary>The tooltip of the slider (what it does).</summary>
     public string SliderTip => "Posi\U000000E7\U000000E3o vertical: qual faixa da imagem aparece no tel\U000000E3o. 0% mostra o topo da imagem, 100% mostra a parte de baixo. Tamb\U000000E9m d\U000000E1 para girar o mouse sobre a imagem (Shift = 5%).";
@@ -246,11 +275,14 @@ public sealed class NdiAddTile
 /// </summary>
 public sealed partial class NdiViewModel : ObservableObject, IDisposable
 {
-    /// <summary>The width of the LED monitor (the telao), used for the crop picture until a monitor is known.</summary>
+    /// <summary>The width of the normal LED monitor (the telao), used for the crop picture until a monitor is known. The real target is <see cref="TargetNow"/>.</summary>
     public const int DefaultTargetWidth = 2560;
 
-    /// <summary>The height of the LED monitor.</summary>
+    /// <summary>The height of the normal LED monitor.</summary>
     public const int DefaultTargetHeight = 768;
+
+    /// <summary>The size the telao must have now: 2560x768, or the Templo menor size (1920x1080) while that mode is on.</summary>
+    public TargetSize TargetNow => _settings.Current.Temple.Target;
 
     private readonly NdiService _service;
     private readonly SettingsService _settings;
@@ -326,7 +358,7 @@ public sealed partial class NdiViewModel : ObservableObject, IDisposable
     /// <param name="service">The NDI engine.</param>
     /// <param name="settings">The settings (autosaved by their own service).</param>
     /// <param name="screens">Lists the monitors.</param>
-    /// <param name="led">The monitor of the alert bar (the 2560x768 LED), or null.</param>
+    /// <param name="led">The monitor of the alert bar (the LED of the target size), or null.</param>
     /// <param name="hotkeys">The shortcut controller (null until the shell started).</param>
     /// <param name="recheck">Looks for the NDI runtime again; true when it works now. Null cannot look again.</param>
     /// <param name="post">Runs an action on the UI thread; runs it at once when null (tests).</param>
@@ -671,7 +703,7 @@ public sealed partial class NdiViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // Unlocking always starts from the 2560x768 monitor again; locking goes back to it.
+        // Unlocking always starts from the monitor of the target size again; locking goes back to it.
         var home = DefaultMonitor()?.DeviceName ?? string.Empty;
         UpdateNdi(ndi => ndi with { MonitorLocked = value, MonitorDeviceName = value ? ndi.MonitorDeviceName : home });
     }
@@ -785,7 +817,7 @@ public sealed partial class NdiViewModel : ObservableObject, IDisposable
     private ScreenInfo? DefaultMonitor()
     {
         var screens = _screens();
-        return screens.FirstOrDefault(s => s.Width == DefaultTargetWidth && s.Height == DefaultTargetHeight) ?? _led();
+        return screens.FirstOrDefault(TargetNow.Matches) ?? _led();
     }
 
     private static string MonitorDisplay(ScreenInfo screen)
@@ -919,8 +951,8 @@ public sealed partial class NdiViewModel : ObservableObject, IDisposable
     {
         var screens = _screens();
         var target = _service.ChooseMonitor(screens, _led() ?? DefaultMonitor());
-        var width = target?.Width ?? DefaultTargetWidth;
-        var height = target?.Height ?? DefaultTargetHeight;
+        var width = target?.Width ?? TargetNow.Width;
+        var height = target?.Height ?? TargetNow.Height;
 
         SyncLane(Preview, sw.PreviewSlot, sw.PreviewState, ndi, width, height, false);
         SyncLane(OnAir, sw.ProgramSlot, sw.ProgramState, ndi, width, height, sw.ProgramLastFrameAgeMs is > 1500);

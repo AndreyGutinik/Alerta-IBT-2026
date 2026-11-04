@@ -4,13 +4,14 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using AlertaIBT.App.Overlay;
 using AlertaIBT.Core.Overlay;
+using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Settings;
 
 namespace AlertaIBT.App.Views;
 
 /// <summary>
-/// The live preview of the bar (painel-v7.html, "Prévia no LED 2560x768"): a small copy of the LED with a slide on it and the bar
-/// on top, running the same pass as the real bar over and over. It is drawn on a 2560x768 canvas in LED pixels under a
+/// The live preview of the bar (painel-v7.html, "Prévia no LED"): a small copy of the LED with a slide on it and the bar
+/// on top, running the same pass as the real bar over and over. It is drawn on a canvas of the LED's size (2560x768, or the Templo menor size) in LED pixels under a
 /// <see cref="Viewbox"/>, with the real text layout (<see cref="MarqueeText"/>) and the real timeline (<see cref="BarTimeline"/>), so what
 /// moves here is what moves there. Any change of the bar's settings restarts the pass at once. It only runs while it is visible.
 /// </summary>
@@ -33,16 +34,22 @@ internal sealed class BarPreviewControl : Decorator
     /// <summary>The slide shown behind the bar (the example of the mockup).</summary>
     public const string SlideText = "QU\U000000C3O GRANDE \U000000C9 O MEU DEUS";
 
-    private const double LedWidth = 2560;
-    private const double LedHeight = 768;
+    /// <summary>The size of the LED the preview draws: 2560x768, or the Templo menor size; the preview adapts at once.</summary>
+    public static readonly DependencyProperty TargetProperty = DependencyProperty.Register(
+        nameof(Target),
+        typeof(TargetSize),
+        typeof(BarPreviewControl),
+        new PropertyMetadata(TargetSize.DefaultNormal, (d, _) => ((BarPreviewControl)d).ResizeLed()));
+
     private static readonly TimeSpan Pause = TimeSpan.FromMilliseconds(1200);
 
-    private readonly Canvas _led = new() { Width = LedWidth, Height = LedHeight, ClipToBounds = true };
-    private readonly Border _bar = new() { Width = LedWidth, ClipToBounds = true };
+    private readonly Canvas _led = new() { Width = TargetSize.DefaultNormal.Width, Height = TargetSize.DefaultNormal.Height, ClipToBounds = true };
+    private readonly Border _bar = new() { Width = TargetSize.DefaultNormal.Width, ClipToBounds = true };
+    private readonly Grid _slide;
     private readonly MarqueeText _text = new();
     private readonly TranslateTransform _barSlide = new();
     private readonly TranslateTransform _textShift = new();
-    private BarTimeline _timeline = new(LedWidth, 800, 90, TimeSpan.FromMilliseconds(320));
+    private BarTimeline _timeline = new(TargetSize.DefaultNormal.Width, 800, 90, TimeSpan.FromMilliseconds(320));
     private (string Text, double Font, double Padding, double Height, string Foreground)? _layoutKey;
     private long _startedAt;
     private bool _running;
@@ -53,7 +60,8 @@ internal sealed class BarPreviewControl : Decorator
     public BarPreviewControl()
     {
         SnapsToDevicePixels = false;
-        _led.Children.Add(BuildSlide());
+        _slide = BuildSlide();
+        _led.Children.Add(_slide);
         _bar.RenderTransform = _barSlide;
         _text.RenderTransform = _textShift;
         _bar.Child = new Canvas { ClipToBounds = true, Children = { _text } };
@@ -74,6 +82,13 @@ internal sealed class BarPreviewControl : Decorator
     {
         get => (BarSettings)GetValue(BarProperty);
         set => SetValue(BarProperty, value);
+    }
+
+    /// <summary>The size of the LED drawn (width x height in LED pixels).</summary>
+    public TargetSize Target
+    {
+        get => (TargetSize)GetValue(TargetProperty);
+        set => SetValue(TargetProperty, value);
     }
 
     /// <summary>The text that crosses the bar.</summary>
@@ -108,9 +123,9 @@ internal sealed class BarPreviewControl : Decorator
         return frame;
     }
 
-    private static UIElement BuildSlide()
+    private static Grid BuildSlide()
     {
-        var slide = new Grid { Width = LedWidth, Height = LedHeight };
+        var slide = new Grid { Width = TargetSize.DefaultNormal.Width, Height = TargetSize.DefaultNormal.Height };
         slide.Children.Add(new Border
         {
             Background = new LinearGradientBrush(Color.FromRgb(0x0E, 0x12, 0x26), Color.FromRgb(0x07, 0x09, 0x12), 90),
@@ -177,7 +192,7 @@ internal sealed class BarPreviewControl : Decorator
         _bar.Height = _barHeight;
         _bar.Background = BrushOf(bar.Background, Colors.Black);
         Canvas.SetLeft(_bar, 0);
-        Canvas.SetTop(_bar, _atTop ? 0 : LedHeight - _barHeight);
+        Canvas.SetTop(_bar, _atTop ? 0 : Target.Height - _barHeight);
 
         // The glyphs are laid out once; only a change of what they depend on lays them out again (not the speed).
         var key = (text, font, padding, _barHeight, bar.Foreground);
@@ -198,7 +213,7 @@ internal sealed class BarPreviewControl : Decorator
         }
 
         _timeline = new BarTimeline(
-            LedWidth,
+            Target.Width,
             _text.ContentWidth,
             Math.Clamp(bar.Speed, BarSettings.MinSpeed, BarSettings.MaxSpeed),
             TimeSpan.FromMilliseconds(Math.Clamp(bar.SlideMs, BarSettings.MinSlideMs, BarSettings.MaxSlideMs)));
@@ -213,6 +228,23 @@ internal sealed class BarPreviewControl : Decorator
             // Not playing (hidden, or no screen): a resting picture with the text in the middle of the bar.
             ShowAt(_timeline.Total / 2);
         }
+    }
+
+    // A new target size (Templo menor on or off): the canvas, the slide and the bar take it and the pass restarts.
+    private void ResizeLed()
+    {
+        var target = Target;
+        if (target.Width <= 0 || target.Height <= 0)
+        {
+            return;
+        }
+
+        _led.Width = target.Width;
+        _led.Height = target.Height;
+        _slide.Width = target.Width;
+        _slide.Height = target.Height;
+        _bar.Width = target.Width;
+        Rebuild();
     }
 
     private void UpdateRunning()

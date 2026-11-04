@@ -274,7 +274,11 @@
                     </Border>
                 </Grid>
 
-                <Grid Grid.Row="1" Margin="0,12,0,0">
+                <Grid
+                    x:Name="PositionRow"
+                    Grid.Row="1"
+                    Margin="0,12,0,0"
+                    Visibility="{Binding CanMoveVertically, Converter={StaticResource BoolToVisibility}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -881,7 +885,7 @@
                                 AutomationProperties.Name="Travar no monitor do LED"
                                 IsChecked="{Binding MonitorLocked, Mode=TwoWay}"
                                 Style="{StaticResource IbtLockToggle}"
-                                ToolTip="Travado: a câmera vai para o monitor do LED (2560 x 768). Destravar deixa escolher outro monitor." />
+                                ToolTip="Travado: a câmera vai para o monitor do LED (o tamanho do telão). Destravar deixa escolher outro monitor." />
                         </Grid>
                     </Border>
 

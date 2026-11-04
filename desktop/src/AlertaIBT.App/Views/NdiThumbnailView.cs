@@ -73,6 +73,7 @@ public sealed class NdiThumbnailView : FrameworkElement
         }
 
         _version = version;
+        lane.ReportSource(width, height);
         if (_bitmap is null || _bitmap.PixelWidth != width || _bitmap.PixelHeight != height)
         {
             _bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
@@ -86,14 +87,16 @@ public sealed class NdiThumbnailView : FrameworkElement
     protected override Size MeasureOverride(Size availableSize)
     {
         var width = double.IsInfinity(availableSize.Width) ? 480 : availableSize.Width;
-        return new Size(width, Math.Round(width * 9 / 16));
+        // The picture box is 16:9 (what the cameras send); a target that is taller than that (4:3) gives a taller box.
+        var aspect = Math.Min(16.0 / 9, Lane?.CropAspect ?? 16.0 / 9);
+        return new Size(width, Math.Round(width / aspect));
     }
 
     /// <inheritdoc />
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         var lane = Lane;
-        if (lane is { HasCamera: true })
+        if (lane is { HasCamera: true, CanMoveVertically: true })
         {
             var notches = Math.Max(1, Math.Abs(e.Delta) / 120);
             var step = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 5 : 1;
@@ -127,7 +130,10 @@ public sealed class NdiThumbnailView : FrameworkElement
                 DrawPlaceholder(dc, bounds, "LucideWifiOff", "sem sinal");
             }
 
-            DrawCrop(dc, picture, lane);
+            if (lane.CanMoveVertically)
+            {
+                DrawCrop(dc, picture, lane); // no hidden rows (1920x1080 into 1920x1080): there is no band to show
+            }
         }
         else if (lane is { HasCamera: true })
         {

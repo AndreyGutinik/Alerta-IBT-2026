@@ -189,6 +189,9 @@ public sealed class StatusHub : INotifyPropertyChanged
     /// <summary>Sets whether the LED screen is there.</summary>
     public void SetLedPresent(bool present) => Change(i => i with { LedPresent = present });
 
+    /// <summary>Sets the size the LED must have (<c>2560x768</c>, or the Templo menor one), for the "no monitor" message.</summary>
+    public void SetLedTarget(string size) => Change(i => i with { LedTarget = size });
+
     /// <summary>Sets the text that describes the LED (<c>2560x768 em \\.\DISPLAY2</c>), or <c>null</c> for none.</summary>
     public void SetLedDescription(string? description) => Change(i => i with { LedDescription = description });
 
@@ -312,7 +315,7 @@ public sealed class StatusHub : INotifyPropertyChanged
 
     private static StatusIndicator LedDot(Inputs i) => i.LedPresent
         ? new(StatusLight.Green, "Ligado", i.LedDescription ?? "Tel\U000000E3o encontrado.")
-        : new(StatusLight.Red, "Desligado", "Nenhum monitor de 2560x768 encontrado. Os avisos esperam na fila at\U000000E9 ele ligar.");
+        : new(StatusLight.Red, "Desligado", $"Nenhum monitor de {i.LedTarget} encontrado. Os avisos esperam na fila at\U000000E9 ele ligar.");
 
     private static StatusIndicator BarDot(Inputs i)
     {
@@ -506,6 +509,8 @@ public sealed class StatusHub : INotifyPropertyChanged
         public bool LedPresent { get; init; }
 
         public string? LedDescription { get; init; }
+
+        public string LedTarget { get; init; } = "2560x768";
 
         public bool? CaptureExcluded { get; init; }
 

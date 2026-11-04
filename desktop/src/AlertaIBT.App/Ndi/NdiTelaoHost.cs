@@ -182,7 +182,7 @@ public sealed class NdiTelaoHost : IDisposable
                 _showing = false;
             }
 
-            _logger?.LogWarning("Camera do telao: nenhum monitor para usar (o LED 2560x768 nao esta ligado)");
+            _logger?.LogWarning("Camera do telao: nenhum monitor para usar (o monitor do telao {Target} nao esta ligado)", _settings.Current.Temple.Target);
             return;
         }
 

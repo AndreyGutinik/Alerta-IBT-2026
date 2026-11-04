@@ -69,7 +69,19 @@ public sealed class NdiControlAdapter(NdiService ndi) : IControlNdi
         slot is >= 0 and < NdiSettings.SlotCount && slot < ndi.Settings.Cameras.Count ? ndi.Settings.Cameras[slot].VerticalPosition : NdiSettings.DefaultVerticalPosition;
 
     /// <inheritdoc />
-    public ControlResult SetVerticalPosition(int slot, int position) => Convert(ndi.SetVerticalPosition(slot, position));
+    public ControlResult SetVerticalPosition(int slot, int position)
+    {
+        // A picture that fits the telao without hidden rows (1920x1080 on a 1920x1080 telao) has no position to move: the fader does nothing.
+        var status = ndi.GetStatus().Switcher;
+        var target = ndi.Target;
+        if (slot == status.ProgramSlot && status.ProgramWidth > 0 && status.ProgramHeight > 0
+            && !NdiCropMath.HasVerticalCrop(status.ProgramWidth, status.ProgramHeight, target.Width, target.Height))
+        {
+            return ControlResult.Ok;
+        }
+
+        return Convert(ndi.SetVerticalPosition(slot, position));
+    }
 
     private static ControlResult Convert(NdiResult result) => result.Success ? ControlResult.Ok : ControlResult.Fail(result.Message ?? "falhou");
 }
