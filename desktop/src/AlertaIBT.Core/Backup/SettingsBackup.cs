@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Settings;
+using AlertaIBT.Core.Temple;
 
 namespace AlertaIBT.Core.Backup;
 
@@ -84,6 +85,12 @@ public sealed record BackupPayload
     /// <summary>The weekly history clear.</summary>
     public bool ClearHistoryWeekly { get; init; }
 
+    /// <summary>"Templo menor" on/off; null in a file made before it joined the backup (restoring such a file leaves the mode as it is).</summary>
+    public bool? TempleMode { get; init; }
+
+    /// <summary>The functions "Templo menor" turns off: their names (see <c>TempleFeatures.Key</c>) joined with commas, empty for none; null in a file made before it joined the backup (the list stays as it is). A string, so two captures compare equal.</summary>
+    public string? TempleDisabled { get; init; }
+
     /// <summary>Hides every secret and every long text.</summary>
     public override string ToString() => $"BackupPayload v{Version} ({ExportedAt})";
 }
@@ -115,6 +122,7 @@ public static class SettingsBackup
         "Ctrl 3 vezes", "Atalhos do NDI", "Teclas de m\U000000EDdia", "Posi\U000000E7\U000000E3o da barra", "Tamanho da barra", "Velocidade da barra",
         "Tela do LED", "Endere\U000000E7o do site", "Chave da API do site", "E-mail do PC", "Senha do PC", "Site ligado", "Regras fixas",
         "Alertas ligados", "Limpar hist\U000000F3rico toda segunda",
+        "Templo menor", "Fun\U000000E7\U000000F5es desligadas no templo menor",
     ];
 
     /// <summary>Reads the included values out of <paramref name="settings"/>, secrets in clear.</summary>
@@ -147,6 +155,8 @@ public static class SettingsBackup
             FixedRules = settings.Correction.FixedRules,
             AlertsEnabled = settings.System.AlertsEnabled,
             ClearHistoryWeekly = settings.System.ClearHistoryWeekly,
+            TempleMode = settings.Temple.Enabled,
+            TempleDisabled = string.Join(',', settings.Temple.DisabledFeatures.Select(TempleFeatures.Key)),
         };
     }
 
@@ -247,6 +257,11 @@ public static class SettingsBackup
             Player = s.Player with { MediaKeys = payload.MediaKeys },
             Bar = s.Bar with { Position = payload.BarPosition, Height = payload.BarHeight, Speed = payload.BarSpeed },
             Site = s.Site with { DatabaseUrl = payload.SiteDatabaseUrl, ApiKey = payload.SiteApiKey, DeviceEmail = payload.SiteEmail, Enabled = payload.SiteEnabled ?? s.Site.Enabled },
+            Temple = s.Temple with
+            {
+                Enabled = payload.TempleMode ?? s.Temple.Enabled,
+                Disabled = payload.TempleDisabled is { } listed ? KnownFeatureKeys(Split(listed)) : s.Temple.Disabled,
+            },
         };
     }
 
@@ -285,6 +300,8 @@ public static class SettingsBackup
             Plain(labels[18], RuleCount(now.FixedRules), RuleCount(payload.FixedRules), now.FixedRules != payload.FixedRules),
             Plain(labels[19], OnOff(now.AlertsEnabled), OnOff(payload.AlertsEnabled), now.AlertsEnabled != payload.AlertsEnabled),
             Plain(labels[20], OnOff(now.ClearHistoryWeekly), OnOff(payload.ClearHistoryWeekly), now.ClearHistoryWeekly != payload.ClearHistoryWeekly),
+            Plain(labels[21], OnOff(now.TempleMode == true), OnOff(payload.TempleMode ?? now.TempleMode == true), payload.TempleMode is not null && now.TempleMode != payload.TempleMode),
+            Plain(labels[22], FeatureList(now.TempleDisabled), FeatureList(payload.TempleDisabled ?? now.TempleDisabled), payload.TempleDisabled is not null && !SameFeatures(now.TempleDisabled, payload.TempleDisabled)),
         ];
     }
 
@@ -311,6 +328,22 @@ public static class SettingsBackup
         new(label, Blank(old), Blank(@new), false, !string.Equals(old, @new, StringComparison.Ordinal));
 
     private static BackupChange Plain(string label, string old, string @new, bool changed) => new(label, old, @new, false, changed);
+
+    // The names of the functions held to the known ones, once each, in the fixed order.
+    private static string[] KnownFeatureKeys(IEnumerable<string> keys) =>
+        TempleFeatures.All.Where(f => keys.Contains(TempleFeatures.Key(f), StringComparer.OrdinalIgnoreCase)).Select(TempleFeatures.Key).ToArray();
+
+    private static string[] Split(string? list) => (list ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static bool SameFeatures(string? a, string? b) => KnownFeatureKeys(Split(a)).SequenceEqual(KnownFeatureKeys(Split(b)));
+
+    private static string FeatureList(string? keys)
+    {
+        var known = KnownFeatureKeys(Split(keys));
+        return known.Length == 0
+            ? "(nenhuma)"
+            : string.Join(", ", known.Select(key => TempleFeatures.TryParse(key, out var feature) ? TempleFeatures.Title(feature) : key));
+    }
 
     private static string Blank(string text) => text.Length == 0 ? "(vazio)" : text;
 

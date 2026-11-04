@@ -41,6 +41,9 @@ Quando o interruptor depende de algo que não está lá (sem token do Holyrics, 
 | Atualizar automaticamente ao abrir | Configurações | ligado | `system.autoUpdate` | `UpdateService` |
 | Janelas do app aparecem em prints | Configurações | ligado | `system.appWindowsInScreenshots` | `AppWindowPolicy` |
 | Site ligado | Configurações | desligado | `site.enabled` | `SiteConnector.Apply` (sem endereço, e-mail ou senha continua como antes: fica parado e mostra o que falta) |
+| Templo menor (modo) | Configurações > Sistema, API `/templo/on` e `/templo/off` | desligado | `temple.enabled` | `AppSettings.Temple`, lido por cada serviço ao iniciar (`TempleProfile.Effective`): os serviços das funções desligadas nem começam, a tela já abre sem as abas escondidas e o telão já usa o tamanho do templo menor |
+| Funções desligadas no templo menor (engrenagem) | Configurações > Sistema | nenhuma marcada | `temple.disabled` (nomes: `alerts`, `player`, `audio`, `ndi`, `ma2`, `holyrics`, `gemini`) | idem; a lista fica guardada mesmo com o modo desligado, e só vale com o modo ligado |
+| Resolução do telão: normal e templo menor | Configurações > Sistema | 2560 x 768 e 1920 x 1080 | `temple.normalWidth/normalHeight`, `temple.templeWidth/templeHeight` | `LedTracker` (o monitor que conta como LED), a barra, a janela do NDI |
 | Cópia automática do backup | Configurações | desligada | `backup.autoEnabled` (a senha fica só protegida pelo Windows, em `backup.passwordProtected`) | `AutoBackupService.Start` (se a senha não puder ser lida neste Windows, a chave volta **desligada** com o motivo e a pasta é mantida) |
 
 Itens da bandeja (Pausar, Travar mouse, Modo apresentação) não têm valor próprio: mostram o estado do mesmo interruptor acima.
@@ -50,3 +53,5 @@ Itens da bandeja (Pausar, Travar mouse, Modo apresentação) não têm valor pr�
 Não são interruptores e **não** entram nesta regra: o que está tocando agora, a posição da música, a câmera da Prévia e a do No ar, as listas (playlists), os volumes e os fades (esses já eram guardados).
 
 O teste `PersistedSwitchesTests` (Core) tem esta mesma lista: um interruptor novo é uma linha nova lá, nesta tabela e, se ele depende de um serviço, um teste de "aplicado no início".
+
+**Templo menor não reescreve os seus interruptores.** As chaves de cada função (Alertas ligados, Player ligado, Controle pela MA2, modo apresentação, camada NDI e as outras da tabela) continuam com o valor que o dono escolheu; o modo só faz os serviços lerem essas chaves como desligadas (`TempleProfile.Effective`: alertas efetivos = a chave do dono E a função não desligada pelo modo). Sair do modo, ou tirar a função da lista, devolve tudo como estava, pelo caminho normal de início de cada serviço (o modo apresentação e a camada NDI voltam sozinhos). O Templo menor e a lista fazem parte do backup (itens "Templo menor" e "Funções desligadas no templo menor"); um backup antigo, sem esses itens, não mexe neles. Teste: `TempleModeTests` (Core) e `PersistedSwitchesTests`.

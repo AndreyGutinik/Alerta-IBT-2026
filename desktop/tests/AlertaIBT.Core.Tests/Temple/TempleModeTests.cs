@@ -382,7 +382,7 @@ public sealed class TempleModeTests : IDisposable
 
         Assert.True(restored.Temple.Enabled);
         Assert.Equal(["player"], restored.Temple.Disabled);
-        Assert.False(SettingsBackup.Preview(current, payload, protector).Any(c => c.Label.Contains("emplo", StringComparison.Ordinal) && c.Changed));
+        Assert.DoesNotContain(SettingsBackup.Preview(current, payload, protector), c => c.Label.Contains("emplo", StringComparison.Ordinal) && c.Changed);
     }
 
     // ---- the screen ----
@@ -604,5 +604,59 @@ public sealed class TempleModeTests : IDisposable
 
         settings.Update(s => s with { Temple = s.Temple with { Enabled = false } });
         Assert.True(client.IsConfigured);
+    }
+
+    private sealed class QuietOverlay : AlertaIBT.Core.Services.IOverlayControl
+    {
+        public bool IsPaused => false;
+
+        public void Pause()
+        {
+        }
+
+        public void Resume()
+        {
+        }
+    }
+
+    [Fact]
+    public async Task The_templo_routes_work_and_the_routes_of_a_function_that_is_off_answer_desligado()
+    {
+        var settings = Settings();
+        var temple = new TempleModeService(settings);
+        var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        probe.Start();
+        var port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
+        probe.Stop();
+        using var server = new AlertaIBT.Core.Services.HttpControlServer(
+            new QuietOverlay(),
+            null,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
+            port,
+            alertsOn: () => settings.Current.AlertsRun(),
+            temple: temple);
+        Assert.True(server.Start());
+        using var http = new HttpClient();
+        async Task<string> Get(string path, string method = "GET") =>
+            await (await http.SendAsync(new HttpRequestMessage(new HttpMethod(method), $"http://127.0.0.1:{port}{path}"), TestContext.Current.CancellationToken)).Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("\"templeMode\":false", await Get("/templo/status"));
+        settings.Update(s => s with { Temple = new TempleSettings { Disabled = ["alerts", "player", "ndi", "holyrics"] } });
+
+        // The list alone does nothing while the mode is off.
+        Assert.Contains("\"overlayEnabled\":true", await Get("/overlay/status"));
+
+        var on = await Get("/templo/on", "POST");
+        Assert.Contains("\"templeMode\":true", on);
+        Assert.Contains("\"disabled\":[\"alerts\",\"player\",\"ndi\",\"holyrics\"]", on);
+        Assert.Contains("\"text\":\"1920 x 1080\"", on);
+        Assert.Contains("alertas desligados", await Get("/overlay/status"));
+        Assert.Contains("\"disabled\":true", await Get("/player/pause"));
+        Assert.Contains("desligado no Templo menor", await Get("/ndi/status"));
+        Assert.Contains("\"disabled\":true", await Get("/holyrics/presentation/on"));
+        Assert.Contains("not_found", await Get("/templo/nothing"));
+
+        Assert.Contains("\"templeMode\":false", await Get("/templo/off"));
+        Assert.Contains("\"overlayEnabled\":true", await Get("/overlay/status"));
     }
 }

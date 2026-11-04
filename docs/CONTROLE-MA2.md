@@ -148,3 +148,7 @@ dotnet test --project desktop/tests/AlertaIBT.Core.Tests --filter-class "*ArtNet
 ```
 
 Sem a variável, o teste é pulado. Ligue **Controle pela MA2** no app antes. Para ver só um canal sem a MA2, use o botão **Testar** (raio) de cada linha.
+
+## Templo menor
+
+Com o **Templo menor** ligado e "Controle pela MA2" marcado na engrenagem, a porta Art-Net fecha e a parte MA2 da aba Controle some (a chave do Controle fica como estava). Quando a imagem da câmera tem o mesmo formato do telão (por exemplo 1920x1080 num telão de 1920x1080), não há faixa escondida: o fader de **posição vertical** não faz nada e o app não mostra o controle dessa posição.

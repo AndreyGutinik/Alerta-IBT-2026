@@ -362,3 +362,16 @@ O backup guarda **só o que é difícil de refazer**: token e grupo do Telegram,
 | Atalho do painel não abre | Outro programa usa a combinação: trocar em Configurações > Sistema; o clique no ícone sempre funciona. |
 | O mouse não trava (ou escapa para o LED) | Ligar a chave em Configurações > Sistema (vem desligada); Diagnóstico: linhas "Mouse travado" e "Travamento do mouse refeito". Ctrl+Alt+M liga e desliga; Ctrl 3 vezes traz o mouse de volta. |
 | Qualquer erro estranho | Configurações > Diagnóstico > Copiar logs e me mandar. |
+
+## Templo menor (PC do templo menor, 1920x1080)
+
+Faça no **PC do templo menor** (o app instalado lá, com a tela do telão em 1920x1080). No PC do telão principal o modo fica **desligado**.
+
+- [ ] Configurações > Sistema > **Templo menor**: clicar na engrenagem; nada vem marcado. Marcar o que o templo não usa (avisos, player...) e salvar. O que está marcado só vale com o modo ligado.
+- [ ] Ligar a chave: aparece a confirmação com o que vai **parar** e "2560 x 768 → 1920 x 1080". **Cancelar** não muda nada; **Confirmar** liga.
+- [ ] Uma **borda verde fina** em volta da janela (e do painel rápido). A aba **Início** (se Avisos desligado) e as outras abas das funções desligadas **sumiram**; a janela abre na primeira aba que sobrou (Som, depois NDI, Controle, Configurações).
+- [ ] Com Avisos desligado: sem barra no LED, sem Telegram, sem site (as bolinhas e a API respondem "desligado"). Com o player desligado: nenhuma música, nenhum despertador, teclas de mídia sem efeito. Com a MA2 desligada: a porta Art-Net (6454) fecha (conferir no Diagnóstico). Com o NDI desligado: F1-F4 e Ctrl+Espaço não fazem nada.
+- [ ] O LED aparece como "Ligado" com a tela **1920x1080**; a barra de avisos (se ligada) ocupa a tela toda de 1920 px; a câmera NDI no telão (se ligada) com fonte 1920x1080 mostra a imagem **inteira** (sem recorte) e **não** tem o controle de posição vertical.
+- [ ] Fechar e abrir o app (ou reiniciar o PC): o modo continua ligado, sem piscar abas escondidas.
+- [ ] `http://127.0.0.1:8787/templo/status` mostra o modo, a lista e a resolução.
+- [ ] Desligar a chave: confirmação lista o que volta; tudo volta como estava (as suas chaves, o modo apresentação e a câmera NDI voltam sozinhos); o telão volta para 2560x768.
