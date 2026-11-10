@@ -25,7 +25,8 @@ public enum CountdownKind
 /// <param name="Kind">The countdown that is on display (the one with the least time when there are two), or <see cref="CountdownKind.None"/>.</param>
 /// <param name="SecondsLeft">The seconds the countdown shows (it can go below zero on the panel), or <c>null</c> when none is on display.</param>
 /// <param name="Message">For a failure: the short reason.</param>
-public readonly record struct CountdownReading(HolyricsOutcome Outcome, CountdownKind Kind = CountdownKind.None, double? SecondsLeft = null, string? Message = null)
+/// <param name="Detail">For a failure: the full account (one fact per line: action, host:port, exception, time), already free of the token; <c>null</c> when it worked.</param>
+public readonly record struct CountdownReading(HolyricsOutcome Outcome, CountdownKind Kind = CountdownKind.None, double? SecondsLeft = null, string? Message = null, string? Detail = null)
 {
     /// <summary>Whether Holyrics answered.</summary>
     public bool Ok => Outcome == HolyricsOutcome.Ok;
@@ -148,8 +149,10 @@ public sealed record CountdownSnapshot(double? Seconds, string? Problem)
 /// <summary>
 /// Watches the Holyrics countdown and, when ANY countdown reaches the chosen seconds (2 by default), fades the music out and pauses it: the same thing the old
 /// Holyrics trigger asked of <c>/player/pause</c>. It only asks Holyrics while the feature is on and the connection is configured: about once a second while no
-/// countdown is on display, four times a second while one is. A Holyrics that does not answer is asked again after a growing pause (up to 15 s) and at the normal
-/// pace as soon as it answers. The stopwatch (the one that counts up) is ignored. Nothing here touches the UI thread.
+/// countdown is on display, four times a second while one is. A Holyrics that does not answer (closed, which is a normal situation) is asked again after a growing pause (2, 5, 15, 30, then
+/// 60 s) and at the normal pace as soon as it answers; the pause is cut short when the connection settings change. An outage is told once (<see cref="OutageLogger"/>):
+/// one Warning with the full reason on the first failure, a reminder per hour, one Information line when it answers again. The stopwatch (the one that counts up)
+/// is ignored. Nothing here touches the UI thread.
 /// </summary>
 public sealed class CountdownWatcher : IDisposable
 {
@@ -160,7 +163,11 @@ public sealed class CountdownWatcher : IDisposable
     public static readonly TimeSpan FastPoll = TimeSpan.FromMilliseconds(250);
 
     /// <summary>The longest pause after failures.</summary>
-    public static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(15);
+    public static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(60);
+
+    /// <summary>The pauses after the 1st, 2nd, 3rd... failure in a row; the last one repeats. A closed Holyrics is normal, so it is not asked often.</summary>
+    public static readonly IReadOnlyList<TimeSpan> Backoff =
+        [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(30), MaxBackoff];
 
     private readonly SettingsService _settings;
     private readonly IHolyricsCountdownSource _source;
@@ -168,11 +175,15 @@ public sealed class CountdownWatcher : IDisposable
     private readonly ILogger? _logger;
     private readonly TimeProvider _clock;
     private readonly CountdownTrigger _trigger = new();
+    private readonly OutageLogger _outage;
     private readonly CancellationTokenSource _cts = new();
     private readonly object _gate = new();
     private Task? _loop;
+    private CancellationTokenSource? _sleep;
     private int _failures;
+    private int _connectionChanged;
     private bool _disposed;
+    private (string Host, int Port, string? Token, bool Enabled, bool Configured) _connection;
     private CountdownSnapshot _snapshot = CountdownSnapshot.Idle;
 
     /// <param name="settings">Where the switch and the seconds live.</param>
@@ -191,6 +202,9 @@ public sealed class CountdownWatcher : IDisposable
         _player = player;
         _logger = logger;
         _clock = clock ?? TimeProvider.System;
+        _outage = new OutageLogger(logger, new OutageWording("Holyrics"), _clock);
+        _connection = ConnectionOf(settings.Current);
+        _settings.Changed += OnSettingsChanged;
     }
 
     /// <summary>Raised (from the background task) when <see cref="Current"/> changed.</summary>
@@ -235,8 +249,7 @@ public sealed class CountdownWatcher : IDisposable
 
         if (failures > 0)
         {
-            var seconds = Math.Min(MaxBackoff.TotalSeconds, Math.Pow(2, Math.Min(failures, 5)));
-            return TimeSpan.FromSeconds(seconds);
+            return Backoff[Math.Min(failures, Backoff.Count) - 1];
         }
 
         return countdownShown ? FastPoll : SlowPoll;
@@ -246,11 +259,19 @@ public sealed class CountdownWatcher : IDisposable
     /// <param name="cancellationToken">Cancels the look.</param>
     public async Task<TimeSpan> PollOnceAsync(CancellationToken cancellationToken = default)
     {
+        if (Interlocked.Exchange(ref _connectionChanged, 0) == 1)
+        {
+            // A new address, port or token is a new connection: ask at the normal pace again and tell its outage (if any) anew.
+            _failures = 0;
+            _outage.Reset();
+        }
+
         var holyrics = _settings.Current.Effective().Holyrics;
         if (!holyrics.CountdownStopEnabled || !_source.IsConfigured)
         {
             _trigger.Reset();
             _failures = 0;
+            _outage.Reset();
             Publish(CountdownSnapshot.Idle);
             return NextDelay(active: false, countdownShown: false, 0);
         }
@@ -260,11 +281,13 @@ public sealed class CountdownWatcher : IDisposable
         {
             // A blink of Holyrics never re-arms the trigger: the same run must not stop the music twice.
             _failures++;
+            _outage.Failed(reading.Outcome.ToString(), FailureLine(reading), reading.Message);
             Publish(new CountdownSnapshot(null, reading.Outcome == HolyricsOutcome.Unauthorized ? reading.Message : null));
             return NextDelay(active: true, countdownShown: false, _failures);
         }
 
         _failures = 0;
+        _outage.Succeeded();
         Publish(new CountdownSnapshot(reading.SecondsLeft, null));
         if (_trigger.Observe(reading.SecondsLeft, holyrics.CountdownStopAt))
         {
@@ -289,6 +312,7 @@ public sealed class CountdownWatcher : IDisposable
             loop = _loop;
         }
 
+        _settings.Changed -= OnSettingsChanged;
         _cts.Cancel();
         try
         {
@@ -324,13 +348,84 @@ public sealed class CountdownWatcher : IDisposable
 
             try
             {
-                await Task.Delay(delay, _clock, ct).ConfigureAwait(false);
+                await SleepAsync(delay, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
                 return;
             }
         }
+    }
+
+    // The pause between looks; the connection settings changing cuts it short (the new address is tried at once, not after up to a minute).
+    private async Task SleepAsync(TimeSpan delay, CancellationToken ct)
+    {
+        using var sleep = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        lock (_gate)
+        {
+            _sleep = sleep;
+        }
+
+        try
+        {
+            if (Volatile.Read(ref _connectionChanged) == 1)
+            {
+                return; // changed while the last look was running
+            }
+
+            await Task.Delay(delay, _clock, sleep.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // woken by a change of the connection
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                _sleep = null;
+            }
+        }
+    }
+
+    private static (string Host, int Port, string? Token, bool Enabled, bool Configured) ConnectionOf(AppSettings settings)
+    {
+        var holyrics = settings.Effective().Holyrics;
+        return (holyrics.Host, holyrics.Port, holyrics.TokenProtected, holyrics.CountdownStopEnabled, settings.IsActive(TempleFeature.Holyrics));
+    }
+
+    private void OnSettingsChanged(AppSettings settings)
+    {
+        var next = ConnectionOf(settings);
+        CancellationTokenSource? sleep;
+        lock (_gate)
+        {
+            if (next == _connection)
+            {
+                return;
+            }
+
+            _connection = next;
+            Volatile.Write(ref _connectionChanged, 1);
+            sleep = _sleep;
+        }
+
+        try
+        {
+            sleep?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // the sleep just ended
+        }
+    }
+
+    // The one line that tells the outage: the same words as the failures of the other Holyrics calls, with the facts (free of the token).
+    private static string FailureLine(CountdownReading reading)
+    {
+        var facts = string.IsNullOrEmpty(reading.Detail) ? string.Empty : " [" + reading.Detail.Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", "; ", StringComparison.Ordinal) + "]";
+        return "Holyrics: cron\U000000F4metro falhou (" + reading.Outcome + "): " + reading.Message + facts
+            + ". N\U000000E3o repito enquanto durar: aviso quando o Holyrics voltar";
     }
 
     // The same stop as the Holyrics trigger of /player/pause: the fade-out of the owner's setting, then paused. A player that is not playing is left alone.

@@ -163,6 +163,7 @@ public sealed class HolyricsClient : IHolyricsRemote, IHolyricsCountdownSource, 
     private readonly List<HolyricsCommand> _pending = [];
     private readonly Dictionary<HolyricsActionKind, long> _lastAccepted = [];
     private readonly Dictionary<string, (long At, int Suppressed)> _lastWarn = [];
+    private readonly OutageLogger _presentationOutage;
     private bool _draining;
     private bool _disposed;
     private bool _logoShown;
@@ -195,6 +196,7 @@ public sealed class HolyricsClient : IHolyricsRemote, IHolyricsCountdownSource, 
         _protector = protector;
         _logger = logger;
         _clock = clock ?? TimeProvider.System;
+        _presentationOutage = new OutageLogger(logger, new OutageWording("Holyrics (apresentação)", "sem ler a apresentação", "voltou a ler a apresentação"), _clock);
         MinInterval = minInterval ?? DefaultMinInterval;
         _timeout = timeout ?? RequestTimeout;
         _permissionTimeout = permissionTimeout ?? PermissionTimeout;
@@ -323,9 +325,9 @@ public sealed class HolyricsClient : IHolyricsRemote, IHolyricsCountdownSource, 
         var cp = await CallAsync("GetCPInfo", "{}", cancellationToken).ConfigureAwait(false);
         if (!cp.Success)
         {
-            LogFailure("cronômetro", cp.Outcome, cp.Message, cp.Detail);
+            // Not logged here: the watcher tells an outage once (OutageLogger) with the reason and the facts this reading carries.
             // A 401 here means the token may not read the countdown (or is not accepted): say which action, so the owner knows what to approve in Holyrics.
-            return new CountdownReading(cp.Outcome, Message: cp.Outcome == HolyricsOutcome.Unauthorized ? "token sem permissão para GetCPInfo" : cp.Message);
+            return new CountdownReading(cp.Outcome, Message: cp.Outcome == HolyricsOutcome.Unauthorized ? "token sem permissão para GetCPInfo" : cp.Message, Detail: cp.Detail);
         }
 
         double? seconds = null;
@@ -339,7 +341,8 @@ public sealed class HolyricsClient : IHolyricsRemote, IHolyricsCountdownSource, 
         }
 
         // A token that may not read the presentation is told once; it is not asked again until the connection changes (no warning every few seconds).
-        var presentation = _presentationDenied ? new Reply(HolyricsOutcome.NoPresentation, null, [], null) : await CallAsync("GetCurrentPresentation", "{}", cancellationToken).ConfigureAwait(false);
+        var asked = !_presentationDenied;
+        var presentation = asked ? await CallAsync("GetCurrentPresentation", "{}", cancellationToken).ConfigureAwait(false) : new Reply(HolyricsOutcome.NoPresentation, null, [], null);
         if (presentation.Outcome == HolyricsOutcome.Unauthorized)
         {
             _presentationDenied = true;
@@ -357,7 +360,17 @@ public sealed class HolyricsClient : IHolyricsRemote, IHolyricsCountdownSource, 
         }
         else if (!presentation.Success && presentation.Outcome != HolyricsOutcome.NoPresentation)
         {
-            LogFailure("cronômetro (apresentação)", presentation.Outcome, presentation.Message, presentation.Detail);
+            // The panel answered but the presentation did not: told once per outage, however many polls follow.
+            var facts = string.IsNullOrEmpty(presentation.Detail) ? string.Empty : " [" + presentation.Detail.Replace("\n", "; ", StringComparison.Ordinal) + "]";
+            _presentationOutage.Failed(
+                presentation.Outcome.ToString(),
+                "Holyrics: cronômetro (apresentação) falhou (" + presentation.Outcome + "): " + presentation.Message + facts + ". Não repito enquanto durar: aviso quando voltar",
+                presentation.Message);
+        }
+
+        if (asked && (presentation.Success || presentation.Outcome == HolyricsOutcome.NoPresentation))
+        {
+            _presentationOutage.Succeeded();
         }
 
         return new CountdownReading(HolyricsOutcome.Ok, kind, seconds);
@@ -999,6 +1012,7 @@ public sealed class HolyricsClient : IHolyricsRemote, IHolyricsCountdownSource, 
 
             _lastSeen = next;
             _presentationDenied = false;
+            _presentationOutage.Reset();
             _status = new HolyricsStatus(HolyricsLink.Unknown, string.Empty);
         }
 

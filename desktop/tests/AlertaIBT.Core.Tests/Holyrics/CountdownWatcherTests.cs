@@ -182,11 +182,11 @@ public sealed class CountdownWatcherTests : IDisposable
     }
 
     [Fact]
-    public void An_unreachable_holyrics_is_asked_less_and_less_up_to_fifteen_seconds()
+    public void An_unreachable_holyrics_is_asked_less_and_less_up_to_a_minute()
     {
         var delays = Enumerable.Range(1, 8).Select(f => CountdownWatcher.NextDelay(active: true, countdownShown: false, failures: f).TotalSeconds).ToArray();
 
-        Assert.Equal([2d, 4, 8, 15, 15, 15, 15, 15], delays);
+        Assert.Equal([2d, 5, 15, 30, 60, 60, 60, 60], delays);
     }
 
     // ---- the watcher -------------------------------------------------------------------------------------------------------------------------------
@@ -425,7 +425,7 @@ public sealed class CountdownWatcherTests : IDisposable
             delays.Add((await watcher.PollOnceAsync(TestContext.Current.CancellationToken)).TotalMilliseconds);
         }
 
-        Assert.Equal([1000d, 250, 2000, 4000, 8000, 250, 1000], delays);
+        Assert.Equal([1000d, 250, 2000, 5000, 15000, 250, 1000], delays);
     }
 
     [Fact]
@@ -470,6 +470,7 @@ public sealed class CountdownWatcherTests : IDisposable
         {
             watcher.Start();
             await WaitFor(() => source.Reads == 1);
+            await Settle(); // the loop is asleep (Reads counts the look that has just begun)
             Assert.Equal(1, source.Reads); // nothing more until the clock moves
 
             clock.Advance(TimeSpan.FromMilliseconds(999));
@@ -478,11 +479,14 @@ public sealed class CountdownWatcherTests : IDisposable
 
             clock.Advance(TimeSpan.FromMilliseconds(1)); // the slow pace is one second
             await WaitFor(() => source.Reads == 2);
+            await Settle();
 
             clock.Advance(TimeSpan.FromMilliseconds(250)); // a countdown is shown: the fast pace
             await WaitFor(() => source.Reads == 3);
+            await Settle();
             clock.Advance(TimeSpan.FromMilliseconds(250));
             await WaitFor(() => source.Reads == 4);
+            await Settle();
             clock.Advance(TimeSpan.FromMilliseconds(250));
             await WaitFor(() => source.Reads == 5);
             await WaitFor(() => player.Pauses == 1);
@@ -490,6 +494,247 @@ public sealed class CountdownWatcherTests : IDisposable
 
         Assert.Equal(1, player.Pauses);
     }
+
+
+    // ---- an outage is told once ---------------------------------------------------------------------------------------------------------------------
+
+    private static CountdownReading Down(string message = "sem resposta: conex\U000000E3o recusada em 192.168.1.13:8091") =>
+        new(HolyricsOutcome.Unreachable, Message: message, Detail: "a\U000000E7\U000000E3o: GetCPInfo; endere\U000000E7o: 192.168.1.13:8091; tempo: 2002 ms");
+
+    private IEnumerable<(LogLevel Level, string Message)> Told => _log.Entries.Where(e => e.Level >= LogLevel.Information);
+
+    [Fact]
+    public async Task A_hundred_failed_polls_leave_one_warning_with_the_full_reason_and_nothing_else()
+    {
+        var clock = new FakeTimeProvider();
+        var (watcher, source, _) = Make(clock);
+        source.Fallback = Down();
+
+        for (var i = 0; i < 100; i++)
+        {
+            await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+            clock.Advance(TimeSpan.FromSeconds(10)); // 100 polls over 16 minutes: no reminder yet
+        }
+
+        var line = Assert.Single(Told);
+        Assert.Equal(LogLevel.Warning, line.Level);
+        Assert.StartsWith("Holyrics: cron\U000000F4metro falhou (Unreachable): sem resposta: conex\U000000E3o recusada em 192.168.1.13:8091 [a\U000000E7\U000000E3o: GetCPInfo;", line.Message, StringComparison.Ordinal);
+        Assert.Contains("tempo: 2002 ms]", line.Message, StringComparison.Ordinal);
+        Assert.Equal(100, source.Reads);
+    }
+
+    [Fact]
+    public async Task The_chip_and_the_pace_of_a_closed_holyrics_follow_the_new_backoff_and_the_chip_does_not_repaint()
+    {
+        var clock = new FakeTimeProvider();
+        var (watcher, source, _) = Make(clock);
+        var seen = new List<CountdownSnapshot>();
+        watcher.Changed += () => seen.Add(watcher.Current);
+        source.Fallback = Down();
+
+        var delays = new List<double>();
+        for (var i = 0; i < 7; i++)
+        {
+            delays.Add((await watcher.PollOnceAsync(TestContext.Current.CancellationToken)).TotalSeconds);
+        }
+
+        Assert.Equal([2d, 5, 15, 30, 60, 60, 60], delays);
+        Assert.Empty(seen); // Idle and "unreachable" look the same on the chip: nothing changed, nothing is repainted
+        Assert.Equal(CountdownSnapshot.Idle, watcher.Current);
+    }
+
+    [Fact]
+    public async Task When_holyrics_answers_again_one_information_line_says_how_long_and_how_many_tries()
+    {
+        var clock = new FakeTimeProvider();
+        var (watcher, source, _) = Make(clock);
+        source.Script(Down(), Down(), Down(), Nothing, Nothing);
+
+        for (var i = 0; i < 3; i++)
+        {
+            await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+            clock.Advance(TimeSpan.FromSeconds(150));
+        }
+
+        await watcher.PollOnceAsync(TestContext.Current.CancellationToken); // it answers at the 7.5th minute
+        await watcher.PollOnceAsync(TestContext.Current.CancellationToken); // and keeps answering: nothing more to say
+
+        Assert.Equal(2, Told.Count());
+        var recovered = Told.Last();
+        Assert.Equal(LogLevel.Information, recovered.Level);
+        Assert.Equal("Holyrics voltou a responder ap\U000000F3s 7 min, 3 tentativas", recovered.Message);
+    }
+
+    [Fact]
+    public async Task While_it_stays_down_there_is_one_reminder_per_hour_and_none_in_between()
+    {
+        var clock = new FakeTimeProvider();
+        var (watcher, source, _) = Make(clock);
+        source.Fallback = Down();
+
+        for (var i = 0; i < 8; i++)
+        {
+            await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+            clock.Advance(TimeSpan.FromMinutes(31)); // polls at 0, 31, 62, 93, 124, 155, 186 and 217 minutes
+        }
+
+        var lines = Told.ToList();
+        Assert.Equal(4, lines.Count);
+        Assert.Equal(LogLevel.Warning, lines[0].Level);
+        Assert.StartsWith("Holyrics continua sem resposta h\U000000E1 1 h", lines[1].Message, StringComparison.Ordinal);
+        Assert.StartsWith("Holyrics continua sem resposta h\U000000E1 2 h", lines[2].Message, StringComparison.Ordinal);
+        Assert.StartsWith("Holyrics continua sem resposta h\U000000E1 3 h", lines[3].Message, StringComparison.Ordinal);
+        Assert.All(lines.Skip(1), l => Assert.Equal(LogLevel.Information, l.Level));
+    }
+
+    [Fact]
+    public async Task A_failure_after_a_recovery_is_a_new_outage_with_a_new_warning()
+    {
+        var clock = new FakeTimeProvider();
+        var (watcher, source, _) = Make(clock);
+        source.Script(Down(), Down(), Nothing, Down(), Down(), Nothing);
+
+        for (var i = 0; i < 6; i++)
+        {
+            await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+            clock.Advance(TimeSpan.FromSeconds(30));
+        }
+
+        Assert.Equal([LogLevel.Warning, LogLevel.Information, LogLevel.Warning, LogLevel.Information], Told.Select(l => l.Level));
+        Assert.Equal("Holyrics voltou a responder ap\U000000F3s 1 min, 2 tentativas", Told.Last().Message);
+    }
+
+    [Fact]
+    public async Task A_different_reason_in_the_same_outage_is_told_too_but_not_over_and_over()
+    {
+        var clock = new FakeTimeProvider();
+        var (watcher, source, _) = Make(clock);
+        var denied = new CountdownReading(HolyricsOutcome.Unauthorized, Message: "token sem permiss\U000000E3o para GetCPInfo");
+        source.Script(Down(), Down(), denied, Down(), denied);
+
+        for (var i = 0; i < 5; i++)
+        {
+            await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+            clock.Advance(TimeSpan.FromMinutes(6));
+        }
+
+        // refused (warning), refused again (silent), then each change comes 6 minutes after the last full line, over the 5-minute gap: 4 warnings
+        Assert.Equal(4, Told.Count(l => l.Level == LogLevel.Warning));
+    }
+
+    [Fact]
+    public async Task Two_reasons_flapping_every_twenty_seconds_do_not_flood_the_log()
+    {
+        var clock = new FakeTimeProvider();
+        var (watcher, source, _) = Make(clock);
+        var denied = new CountdownReading(HolyricsOutcome.Unauthorized, Message: "token sem permiss\U000000E3o para GetCPInfo");
+        for (var i = 0; i < 30; i++)
+        {
+            source.Script(Down(), denied);
+        }
+
+        for (var i = 0; i < 60; i++)
+        {
+            await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+            clock.Advance(TimeSpan.FromSeconds(20));
+        }
+
+        // 20 minutes of flapping: the first line, then at most one change line per 5 minutes
+        Assert.InRange(Told.Count(l => l.Level == LogLevel.Warning), 1, 5);
+    }
+
+    [Fact]
+    public async Task Switching_the_watch_off_ends_the_outage_without_a_word_and_a_later_answer_is_not_a_recovery()
+    {
+        var clock = new FakeTimeProvider();
+        var (watcher, source, _) = Make(clock);
+        source.Script(Down(), Down());
+        await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+        await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+        _settings.Update(s => s with { Holyrics = s.Holyrics with { CountdownStopEnabled = false } });
+        await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+        _settings.Update(s => s with { Holyrics = s.Holyrics with { CountdownStopEnabled = true } });
+        clock.Advance(TimeSpan.FromHours(3));
+
+        await watcher.PollOnceAsync(TestContext.Current.CancellationToken); // Holyrics answers
+
+        Assert.Single(Told); // only the first warning: no "voltou ap\U000000F3s 3 h"
+    }
+
+    [Fact]
+    public async Task A_new_address_is_asked_at_once_at_the_normal_pace_and_its_outage_is_told_anew()
+    {
+        var clock = new FakeTimeProvider();
+        var (watcher, source, _) = Make(clock);
+        source.Fallback = Down();
+        var last = TimeSpan.Zero;
+        for (var i = 0; i < 6; i++)
+        {
+            last = await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal(TimeSpan.FromSeconds(60), last);
+
+        _settings.Update(s => s with { Holyrics = s.Holyrics with { Host = "192.168.1.99" } });
+        var next = await watcher.PollOnceAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(TimeSpan.FromSeconds(2), next); // the backoff started over
+        Assert.Equal(2, Told.Count(l => l.Level == LogLevel.Warning)); // one for the old address, one for the new
+    }
+
+    [Fact]
+    public async Task A_new_address_cuts_the_wait_of_the_background_loop_short()
+    {
+        var clock = new FakeTimeProvider();
+        var (watcher, source, _) = Make(clock);
+        source.Fallback = Down();
+        using (watcher)
+        {
+            watcher.Start();
+            await WaitFor(() => source.Reads == 1);
+            await Settle();
+            clock.Advance(TimeSpan.FromSeconds(2));
+            await WaitFor(() => source.Reads == 2);
+            await Settle();
+            clock.Advance(TimeSpan.FromSeconds(5));
+            await WaitFor(() => source.Reads == 3); // now it waits 15 s
+            await Settle();
+
+            _settings.Update(s => s with { Holyrics = s.Holyrics with { Port = s.Holyrics.Port + 1 } });
+
+            await WaitFor(() => source.Reads == 4); // no clock movement: the change woke it
+        }
+    }
+
+    [Fact]
+    public async Task A_presentation_that_fails_while_the_panel_answers_is_told_once_and_the_return_is_told_once()
+    {
+        _server.Replies["GetCPInfo"] = HolyricsReply.WithData(Cp(false, "0"));
+        _server.Replies["GetCurrentPresentation"] = HolyricsReply.Error("boom");
+        var clock = new FakeTimeProvider();
+        using var client = new HolyricsClient(_settings, _protector, _log, clock, minInterval: TimeSpan.Zero);
+
+        for (var i = 0; i < 30; i++)
+        {
+            var reading = await client.ReadCountdownAsync(TestContext.Current.CancellationToken);
+            Assert.True(reading.Ok); // the panel still works
+            clock.Advance(TimeSpan.FromSeconds(1));
+        }
+
+        var warning = Assert.Single(Told);
+        Assert.Equal(LogLevel.Warning, warning.Level);
+        Assert.Contains("cron\U000000F4metro (apresenta\U000000E7\U000000E3o) falhou", warning.Message, StringComparison.Ordinal);
+
+        _server.Replies["GetCurrentPresentation"] = HolyricsReply.WithData("null");
+        await client.ReadCountdownAsync(TestContext.Current.CancellationToken);
+        await client.ReadCountdownAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, Told.Count());
+        Assert.Equal("Holyrics (apresenta\U000000E7\U000000E3o) voltou a ler a apresenta\U000000E7\U000000E3o ap\U000000F3s 30 s, 30 tentativas", Told.Last().Message);
+    }
+
+    // Lets the background loop get from "a look has begun" to "asleep on the fake clock" before the test moves the clock.
+    private static Task Settle() => Task.Delay(60, TestContext.Current.CancellationToken);
 
     private static async Task WaitFor(Func<bool> condition)
     {
@@ -646,9 +891,11 @@ public sealed class CountdownWatcherTests : IDisposable
         {
             var reading = await quiet.ReadCountdownAsync(TestContext.Current.CancellationToken);
             Assert.Equal(HolyricsOutcome.Unreachable, reading.Outcome);
+            Assert.Contains("127.0.0.1:" + dead, reading.Detail, StringComparison.Ordinal); // the facts travel with the reading, to the watcher that logs them once
+            Assert.DoesNotContain(tokenBefore, reading.Detail, StringComparison.Ordinal);
         }
 
-        Assert.True(_log.Entries.Count(e => e.Level == LogLevel.Warning) <= 1, "the same reason is logged once in a few seconds");
+        Assert.DoesNotContain(_log.Entries, e => e.Level >= LogLevel.Warning); // the client leaves the telling of a poll outage to the watcher
         Assert.All(_log.Entries, e => Assert.DoesNotContain(tokenBefore, e.Message, StringComparison.Ordinal));
         Assert.Equal(HolyricsLink.Unknown, quiet.Status.Link); // a poll never repaints the connection chip
     }
