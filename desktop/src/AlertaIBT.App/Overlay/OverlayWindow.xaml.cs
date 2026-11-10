@@ -3,6 +3,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using AlertaIBT.App.Platform;
+using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Overlay;
 using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Settings;
@@ -23,6 +24,7 @@ public partial class OverlayWindow : Window, IBarSurface
     private ScreenInfo? _screen;
     private bool _captureExcluded;
     private bool _disposed;
+    private int _placements;
 
     /// <summary>Creates the window and its handle (not shown) and applies the native styles and the capture exclusion.</summary>
     public OverlayWindow()
@@ -55,6 +57,27 @@ public partial class OverlayWindow : Window, IBarSurface
 
     /// <summary>The layout of the last <see cref="Prepare"/>.</summary>
     internal BarLayout? Layout => _layout;
+
+    /// <summary>The session state that pauses the window work (locked, display off, asleep); tests give it their own.</summary>
+    internal SessionState State { get; set; } = SessionState.Default;
+
+    /// <summary>How many times the window was really moved or resized with <c>SetWindowPos</c> (a placement that changes nothing is skipped).</summary>
+    internal int Placements => _placements;
+
+    /// <summary>
+    /// After the window system failed (error 1816), or when the session is back (unlock, resume, display on): puts the bar where it belongs and repaints it, once.
+    /// Does nothing while the bar is hidden (it is placed again at the next alert anyway).
+    /// </summary>
+    public void Reapply()
+    {
+        if (_disposed || !IsVisible || _layout is not { } layout)
+        {
+            return;
+        }
+
+        PlaceWindow(layout, force: true);
+        InvalidateVisual();
+    }
 
     /// <inheritdoc />
     public PreparedBar Prepare(string text, BarSettings bar, ScreenInfo screen)
@@ -143,20 +166,36 @@ public partial class OverlayWindow : Window, IBarSurface
         Close();
     }
 
-    private void PlaceWindow(BarLayout layout) =>
+    // Moves the window only when it is not already there (see PlacementGuard).
+    private void PlaceWindow(BarLayout layout, bool force = false)
+    {
+        var wanted = new PixelRect(layout.WindowX, layout.WindowY, layout.WindowWidth, layout.WindowHeight);
+        PixelRect? actual = NativeMethods.GetWindowRect(_hwnd, out var rect)
+            ? new PixelRect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top)
+            : null;
+        if (!force && !PlacementGuard.NeedsMove(actual, wanted))
+        {
+            return;
+        }
+
+        _placements++;
         NativeMethods.SetWindowPos(
             _hwnd,
             NativeMethods.HWND_TOPMOST,
-            layout.WindowX,
-            layout.WindowY,
-            layout.WindowWidth,
-            layout.WindowHeight,
+            wanted.X,
+            wanted.Y,
+            wanted.Width,
+            wanted.Height,
             NativeMethods.SWP_NOACTIVATE);
+    }
 
-    private void ReassertTopmost()
+    // Every 2 s while the bar is visible: put it back on top, but only when something visible and topmost really sits above it (not while nobody can see the
+    // screen: locked, display off, asleep), so the window system is not asked for a z-order change that changes nothing.
+    internal void ReassertTopmost()
     {
-        if (IsVisible)
+        if (IsVisible && !State.ShouldPauseWindowWork && CoveredByTopmostWindow())
         {
+            _placements++;
             NativeMethods.SetWindowPos(
                 _hwnd,
                 NativeMethods.HWND_TOPMOST,
@@ -166,6 +205,23 @@ public partial class OverlayWindow : Window, IBarSurface
                 0,
                 NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
         }
+    }
+
+    // A visible window with the topmost style above this one in the z-order (the first one found is enough).
+    private bool CoveredByTopmostWindow()
+    {
+        var above = NativeMethods.GetWindow(_hwnd, NativeMethods.GW_HWNDPREV);
+        for (var steps = 0; above != IntPtr.Zero && steps < 64; steps++)
+        {
+            if (NativeMethods.IsWindowVisible(above) && (NativeMethods.GetExStyle(above) & NativeMethods.WS_EX_TOPMOST) != 0)
+            {
+                return true;
+            }
+
+            above = NativeMethods.GetWindow(above, NativeMethods.GW_HWNDPREV);
+        }
+
+        return false;
     }
 
     // Excludes the window from every kind of screen capture and checks that Windows really took it.

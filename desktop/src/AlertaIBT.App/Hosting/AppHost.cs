@@ -50,12 +50,13 @@ public static class AppHost
         Directory.CreateDirectory(paths.LogsFolder);
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
+            .Enrich.With(new SessionStateEnricher())
             .WriteTo.File(
                 Path.Combine(paths.LogsFolder, "alertaibt-.log"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 7,
                 shared: true,
-                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
+                outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext}: {Message:lj}{Sessao:l}{NewLine}{Exception}")
             .CreateLogger();
 
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
@@ -135,7 +136,8 @@ public static class AppHost
                 path => settings.Update(s => string.Equals(s.System.LastLedDevicePath, path, StringComparison.OrdinalIgnoreCase)
                     ? s
                     : s with { System = s.System with { LastLedDevicePath = path } }),
-                ex => logger.LogError(ex, "Erro ao procurar o LED"));
+                ex => logger.LogError(ex, "Erro ao procurar o LED"),
+                paused: () => AlertaIBT.Core.Diagnostics.SessionState.Default.ShouldPauseWindowWork);
         });
         services.AddSingleton<ILedSource>(provider => provider.GetRequiredService<LedWatcher>());
 

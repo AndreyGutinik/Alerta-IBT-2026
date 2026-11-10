@@ -8,6 +8,7 @@ using AlertaIBT.App.Services;
 using AlertaIBT.App.Tray;
 using AlertaIBT.Core.Audio;
 using AlertaIBT.Core.Control;
+using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Holyrics;
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Loudness;
@@ -179,6 +180,7 @@ public sealed class AppShell : IDisposable
         _messages.DisplayChanged += _led.NotifyDisplayChanged;
         _led.Start();
         _overlay.Start();
+        SessionState.Default.WorkResumed += OnSessionBack; // the bar, the camera window and the LED look are redone ONCE when the session is back (unlock, resume, display on)
         _logger.LogInformation(
             "LED: {Led} (modo de teste: {TestLed})",
             _led.Led is { } led ? $"{led.DeviceName} {led.Width}x{led.Height}" : "desligado",
@@ -359,35 +361,89 @@ public sealed class AppShell : IDisposable
         }
     }
 
+    /// <summary>
+    /// Puts the windows of the app back in order, once: the bar over the LED, the camera window and the LED look are redone and the open windows repainted. Called when the
+    /// session is back (unlock, resume, display on) and when WPF ended an episode of window-system errors, so nothing is left blank.
+    /// </summary>
+    /// <param name="why">A short reason for the trail.</param>
+    public void ReapplyWindows(string why)
+    {
+        Breadcrumbs.Add("janelas: refazer (" + why + ")");
+        _overlay.ReapplyWindow();
+        _ndiHost.Reapply();
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                _led.CheckNow();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Nao foi possivel procurar o LED depois de {Why}", why);
+            }
+        });
+        Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            foreach (var window in Application.Current.Windows.OfType<Window>().ToList())
+            {
+                if (!window.IsVisible)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    window.InvalidateVisual();
+                    window.UpdateLayout();
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    // The window system may still refuse: the next episode is handled the same way.
+                }
+            }
+        });
+    }
+
+    private void OnSessionBack() => ReapplyWindows("sessao de volta");
+
     /// <inheritdoc />
     public void Dispose()
     {
+        SessionState.Default.WorkResumed -= OnSessionBack;
         _settings.Changed -= OnSettingsChanged;
         _updates.StateChanged -= OnUpdateStateChanged;
         _runtime.Status.PropertyChanged -= OnStatusChanged;
 
-        // First: the cursor, the keyboard hook and the lock shortcut go back to Windows before anything slow runs.
-        _mouseSignals?.Dispose();
+        // Every step is named in the trail, timed, and an exception in one never skips the next (a failed player must not leave a hotkey or a hook behind).
+        // First: the cursor, the keyboard hook and the lock shortcut go back to Windows before anything slow runs (they belong to the UI thread).
+        ShutdownSteps.Run("mouse (sinais)", () => _mouseSignals?.Dispose());
         _presentation.StateChanged -= OnPresentationChanged;
-        _presentation.Dispose(); // the swallowing keyboard hook goes back to Windows first of all
-        _mouse.Dispose();
-        _alarms.Dispose();
-        _player.Dispose(); // the sound stops at once, before the slow parts
-        _loudness.Dispose(); // cancels the measurement or the tag write in progress and saves the cache
-        _audio.Dispose();
-        _control.Dispose(); // closes the Art-Net socket
-        _countdown.Dispose();
-        _ndiHotkeys?.Dispose();
-        (_ndiRegistry as IDisposable)?.Dispose();
-        _ndiHost.Dispose(); // hides the camera window before anything slow runs
-        _mouseHotkeys?.Dispose();
-        _presentationHotkeys?.Dispose();
-        _overlay.Dispose(); // first: it ends the pass in progress, so stopping the alert service does not wait for the UI thread
-        _runtime.Dispose();
-        _led.Dispose();
-        _tray.Dispose();
-        _hotkeys?.Dispose();
-        _messages?.Dispose();
+        ShutdownSteps.Run("modo apresentacao", _presentation.Dispose); // the swallowing keyboard hook goes back to Windows first of all
+        ShutdownSteps.Run("mouse", _mouse.Dispose);
+
+        // These need no UI thread and some of them talk to Windows services (audio, the Holyrics socket): each is bounded, so a Windows call that never returns cannot freeze
+        // the quit (it did: the process stayed alive with no window for a day). The process ends right after, taking a step that was given up with it.
+        ShutdownSteps.RunBounded("despertadores", _alarms.Dispose, TimeSpan.FromSeconds(2)); // timer only
+        ShutdownSteps.RunBounded("player", _player.Dispose, TimeSpan.FromSeconds(3)); // the sound stops at once, before the slow parts
+        ShutdownSteps.RunBounded("igualar volume", _loudness.Dispose, TimeSpan.FromSeconds(6)); // cancels the measurement or the tag write in progress and saves the cache
+        ShutdownSteps.RunBounded("som do Windows", _audio.Dispose, TimeSpan.FromSeconds(3));
+        ShutdownSteps.RunBounded("controle MA2", _control.Dispose, TimeSpan.FromSeconds(2)); // closes the Art-Net socket
+        ShutdownSteps.RunBounded("cronometro do Holyrics", _countdown.Dispose, TimeSpan.FromSeconds(3));
+
+        ShutdownSteps.Run("atalhos NDI", () =>
+        {
+            _ndiHotkeys?.Dispose();
+            (_ndiRegistry as IDisposable)?.Dispose();
+        });
+        ShutdownSteps.Run("janela da camera", _ndiHost.Dispose); // hides the camera window before anything slow runs
+        ShutdownSteps.Run("atalho do mouse", () => _mouseHotkeys?.Dispose());
+        ShutdownSteps.Run("atalho do modo apresentacao", () => _presentationHotkeys?.Dispose());
+        ShutdownSteps.Run("barra", _overlay.Dispose); // first: it ends the pass in progress, so stopping the alert service does not wait for the UI thread
+        ShutdownSteps.Run("servico de avisos", _runtime.Dispose);
+        ShutdownSteps.Run("LED", _led.Dispose);
+        ShutdownSteps.Run("bandeja", _tray.Dispose);
+        ShutdownSteps.Run("atalho do painel", () => _hotkeys?.Dispose());
+        ShutdownSteps.Run("janela de mensagens", () => _messages?.Dispose());
     }
 
     private void ApplyTempleToTray(AppSettings settings) =>

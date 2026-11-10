@@ -15,10 +15,12 @@ public sealed class LedWatcherTests
     private readonly List<string> _remembered = [];
     private readonly List<Exception> _errors = [];
 
+    private bool _paused;
+
     private LedWatcher Watcher(bool testMode = false, Func<IReadOnlyList<ScreenInfo>>? enumerate = null)
     {
         var tracker = new LedTracker(enumerate ?? (() => _screens.ToList()), () => null, testMode);
-        var watcher = new LedWatcher(tracker, _remembered.Add, _errors.Add, _clock);
+        var watcher = new LedWatcher(tracker, _remembered.Add, _errors.Add, _clock, paused: () => _paused);
         watcher.LedChanged += _events.Add;
         return watcher;
     }
@@ -48,6 +50,28 @@ public sealed class LedWatcherTests
 
         Assert.Equal([(ScreenInfo?)null], _events);
         Assert.Null(watcher.Led);
+    }
+
+    // Batch 42: while the session is locked or the display is off the 5-second look waits (the monitors are not there to be looked at); it is made once when the session is back.
+    [Fact]
+    public void The_five_second_check_waits_while_the_session_is_paused_and_a_display_change_or_the_resume_still_looks()
+    {
+        using var watcher = Watcher();
+        watcher.Start();
+        _screens.Remove(Led);
+        _paused = true;
+
+        _clock.Advance(TimeSpan.FromSeconds(30)); // six polls, all skipped
+        Assert.Empty(_events);
+
+        watcher.NotifyDisplayChanged(); // Windows said the monitors changed: that is a reason to look even now
+        _clock.Advance(LedWatcher.DebounceDelay);
+        Assert.Equal([(ScreenInfo?)null], _events);
+
+        _paused = false;
+        _screens.Add(Led);
+        watcher.CheckNow(); // the session is back (what the shell does once)
+        Assert.Equal([(ScreenInfo?)null, Led], _events);
     }
 
     [Fact]

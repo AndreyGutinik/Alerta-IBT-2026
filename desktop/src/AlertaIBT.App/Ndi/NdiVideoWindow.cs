@@ -30,6 +30,9 @@ public sealed class NdiVideoWindow : IDisposable
     private readonly ILogger? _logger;
     private bool _shown;
     private bool _captureExcluded;
+    private int _pushes;
+    private IntPtr _belowAfterLastPush; // the window right under this one after the last push to the bottom (nothing changed below it = nothing to push)
+    private bool _pushed;
 
     private delegate IntPtr WndProc(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
@@ -66,6 +69,9 @@ public sealed class NdiVideoWindow : IDisposable
     /// <summary>The window handle.</summary>
     public IntPtr Handle => _hwnd;
 
+    /// <summary>How many times <see cref="KeepAtBottom"/> really called Windows (a push that changes nothing is skipped).</summary>
+    internal int Pushes => _pushes;
+
     /// <summary>Whether the window is shown now.</summary>
     public bool IsShown => _shown;
 
@@ -85,6 +91,7 @@ public sealed class NdiVideoWindow : IDisposable
     public void Show()
     {
         _shown = true;
+        _pushed = false;
         NativeMethods.SetWindowPos(
             Handle,
             NativeMethods.HWND_BOTTOM,
@@ -99,6 +106,7 @@ public sealed class NdiVideoWindow : IDisposable
     public void Hide()
     {
         _shown = false;
+        _pushed = false;
         NativeMethods.SetWindowPos(
             Handle,
             IntPtr.Zero,
@@ -109,11 +117,20 @@ public sealed class NdiVideoWindow : IDisposable
             NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_HIDEWINDOW);
     }
 
-    /// <summary>Pushes the window to the bottom again (cheap, harmless when it already is there): run it every couple of seconds while shown.</summary>
-    public void KeepAtBottom()
+    /// <summary>
+    /// Pushes the window to the bottom again: run it every couple of seconds while shown. It only calls Windows when the window right under this one is not the one it was
+    /// after the last push (a window that was shown or moved below it), so a quiet desktop costs two cheap reads and no window message; <paramref name="force"/> pushes anyway
+    /// (after the session came back from a lock or the display from sleep).
+    /// </summary>
+    public void KeepAtBottom(bool force = false)
     {
         if (_shown)
         {
+            if (!force && _pushed && NativeMethods.GetWindow(Handle, NativeMethods.GW_HWNDNEXT) == _belowAfterLastPush)
+            {
+                return;
+            }
+
             NativeMethods.SetWindowPos(
                 Handle,
                 NativeMethods.HWND_BOTTOM,
@@ -122,6 +139,9 @@ public sealed class NdiVideoWindow : IDisposable
                 0,
                 0,
                 NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+            _pushes++;
+            _belowAfterLastPush = NativeMethods.GetWindow(Handle, NativeMethods.GW_HWNDNEXT);
+            _pushed = true;
         }
     }
 

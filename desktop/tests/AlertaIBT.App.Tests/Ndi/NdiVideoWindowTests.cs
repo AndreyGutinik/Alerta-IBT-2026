@@ -72,6 +72,37 @@ public sealed class NdiVideoWindowTests
         });
     }
 
+    // Batch 42: the push to the bottom runs every 2 s while shown; on a quiet desktop it must not call Windows (each call that changes nothing is a window message for nothing).
+    [Fact]
+    public void The_push_to_the_bottom_only_calls_Windows_when_something_changed_under_the_window_or_when_forced()
+    {
+        WpfTestHost.Run(() =>
+        {
+            using var window = new NdiVideoWindow();
+            window.Place(Spot);
+            window.Show();
+
+            window.KeepAtBottom();
+            var first = window.Pushes;
+            Assert.Equal(1, first);
+
+            window.KeepAtBottom();
+            window.KeepAtBottom();
+            Assert.Equal(first, window.Pushes); // nothing changed under it
+
+            window.KeepAtBottom(force: true); // the session came back from a lock
+            Assert.Equal(first + 1, window.Pushes);
+
+            window.Hide();
+            window.KeepAtBottom(); // hidden: nothing to push
+            Assert.Equal(first + 1, window.Pushes);
+
+            window.Show(); // shown again: the order is not known any more
+            window.KeepAtBottom();
+            Assert.Equal(first + 2, window.Pushes);
+        });
+    }
+
     [Fact]
     public void Hit_testing_lets_the_mouse_through_and_activation_is_refused()
     {

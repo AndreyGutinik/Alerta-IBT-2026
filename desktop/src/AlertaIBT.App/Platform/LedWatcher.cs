@@ -23,6 +23,7 @@ public sealed class LedWatcher : ILedSource, IDisposable
     private readonly Action<string> _rememberDevicePath;
     private readonly Action<Exception>? _onError;
     private readonly TimeProvider _clock;
+    private readonly Func<bool>? _paused;
     private readonly object _gate = new();
     private ITimer? _poll;
     private ITimer? _debounce;
@@ -32,7 +33,8 @@ public sealed class LedWatcher : ILedSource, IDisposable
     /// <param name="rememberDevicePath">Called with the LED's device path when a real LED (not the test stand-in) is found.</param>
     /// <param name="onError">Told about an unexpected error while looking at the monitors; it must not throw.</param>
     /// <param name="clock">Drives the poll and the pause; the system clock by default.</param>
-    public LedWatcher(LedTracker tracker, Action<string> rememberDevicePath, Action<Exception>? onError = null, TimeProvider? clock = null)
+    /// <param name="paused">True while nobody can see the screen (the session is locked, the display is off): the 5-second poll waits, a display-change message and <see cref="CheckNow"/> still look.</param>
+    public LedWatcher(LedTracker tracker, Action<string> rememberDevicePath, Action<Exception>? onError = null, TimeProvider? clock = null, Func<bool>? paused = null)
     {
         ArgumentNullException.ThrowIfNull(tracker);
         ArgumentNullException.ThrowIfNull(rememberDevicePath);
@@ -41,6 +43,7 @@ public sealed class LedWatcher : ILedSource, IDisposable
         _rememberDevicePath = rememberDevicePath;
         _onError = onError;
         _clock = clock ?? TimeProvider.System;
+        _paused = paused;
     }
 
     /// <inheritdoc />
@@ -72,7 +75,7 @@ public sealed class LedWatcher : ILedSource, IDisposable
             }
 
             _tracker.Refresh();
-            _poll = _clock.CreateTimer(_ => CheckNow(), null, PollInterval, PollInterval);
+            _poll = _clock.CreateTimer(_ => PollNow(), null, PollInterval, PollInterval);
             _debounce = _clock.CreateTimer(_ => CheckNow(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
 
@@ -86,6 +89,17 @@ public sealed class LedWatcher : ILedSource, IDisposable
         {
             _debounce?.Change(DebounceDelay, Timeout.InfiniteTimeSpan);
         }
+    }
+
+    // The safety-net look: skipped while the session is locked or the display is off (the monitors are not there to be looked at; the look is made once when it is back).
+    private void PollNow()
+    {
+        if (_paused?.Invoke() == true)
+        {
+            return;
+        }
+
+        CheckNow();
     }
 
     /// <summary>Looks at the monitors now and raises <see cref="LedChanged"/> if the LED differs from the last look.</summary>

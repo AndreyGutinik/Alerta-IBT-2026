@@ -226,15 +226,11 @@ public sealed class WindowsAudioSystem : IAudioSystem
     /// <inheritdoc />
     public void WatchSessions(IReadOnlyList<string> deviceIds)
     {
+        List<(MMDevice Device, AudioSessionManager Manager)> old;
         lock (_gate)
         {
-            StopWatching();
-            if (_disposed)
-            {
-                return;
-            }
-
-            foreach (var deviceId in deviceIds.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.OrdinalIgnoreCase))
+            old = TakeWatchedLocked();
+            foreach (var deviceId in _disposed ? [] : deviceIds.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 MMDevice? device = null;
                 try
@@ -250,6 +246,10 @@ public sealed class WindowsAudioSystem : IAudioSystem
                 }
             }
         }
+
+        // Outside the lock: closing a session manager waits for a notification that is running, and that notification can need the lock (the same shape as the
+        // notification client of Dispose), so closing inside it can freeze the caller (the quit, for one).
+        CloseWatched(old);
     }
 
     /// <inheritdoc />
@@ -257,6 +257,7 @@ public sealed class WindowsAudioSystem : IAudioSystem
     {
         MMDeviceNotificationClient? notifications;
         MMDeviceEnumerator? enumerator;
+        List<(MMDevice Device, AudioSessionManager Manager)> watched;
         lock (_gate)
         {
             if (_disposed)
@@ -265,7 +266,7 @@ public sealed class WindowsAudioSystem : IAudioSystem
             }
 
             _disposed = true;
-            StopWatching();
+            watched = TakeWatchedLocked();
             ForgetCaches();
             notifications = _notifications;
             enumerator = _enumerator;
@@ -274,7 +275,8 @@ public sealed class WindowsAudioSystem : IAudioSystem
         }
 
         // Outside the lock: removing the notification client waits for a callback that is running, and that callback takes the lock (ForgetCaches),
-        // so doing it inside would freeze the exit whenever a device event arrives at that moment.
+        // so doing it inside would freeze the exit whenever a device event arrives at that moment. The session managers are the same.
+        CloseWatched(watched);
         try
         {
             if (notifications is not null)
@@ -350,9 +352,17 @@ public sealed class WindowsAudioSystem : IAudioSystem
         return _enumerator;
     }
 
-    private void StopWatching()
+    // The watched list handed over (and emptied) under the lock; it is closed afterwards, outside it.
+    private List<(MMDevice Device, AudioSessionManager Manager)> TakeWatchedLocked()
     {
-        foreach (var (device, manager) in _watched)
+        var taken = _watched.ToList();
+        _watched.Clear();
+        return taken;
+    }
+
+    private void CloseWatched(List<(MMDevice Device, AudioSessionManager Manager)> watched)
+    {
+        foreach (var (device, manager) in watched)
         {
             try
             {
@@ -366,8 +376,6 @@ public sealed class WindowsAudioSystem : IAudioSystem
 
             device.Dispose();
         }
-
-        _watched.Clear();
     }
 
     private void OnSessionCreated(object? sender, AudioSessionControl newSession) => Raise(SessionCreated);

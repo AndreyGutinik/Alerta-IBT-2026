@@ -134,6 +134,25 @@ public sealed class OverlayController : IDisposable
         });
     }
 
+    /// <summary>
+    /// The session is back (unlock, resume, display on) or the window system failed to update a window: the bar is placed again and repainted, once, when it is on screen.
+    /// Safe from any thread.
+    /// </summary>
+    public void ReapplyWindow() => _ui.Post(() =>
+    {
+        try
+        {
+            if (!_disposed && _run is not null)
+            {
+                _surface?.Reapply();
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger.LogWarning(ex, "Nao foi possivel refazer a posicao da barra");
+        }
+    });
+
     /// <summary>Cuts short whatever is on the bar and releases the window.</summary>
     public void Dispose()
     {

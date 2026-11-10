@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using AlertaIBT.App.Overlay;
+using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Ndi;
 using AlertaIBT.Core.Screens;
 using AlertaIBT.Core.Settings;
@@ -38,6 +39,7 @@ public sealed class NdiTelaoHost : IDisposable
     private bool _applyQueued;
     private bool _disposed;
     private IReadOnlyList<ScreenInfo>? _screenCache;
+    private SessionState _session = SessionState.Default;
 
     /// <param name="service">The NDI engine.</param>
     /// <param name="settings">The settings (monitor, hide from capture).</param>
@@ -59,6 +61,13 @@ public sealed class NdiTelaoHost : IDisposable
         _ui = ui;
         _screens = screens;
         _logger = logger;
+    }
+
+    /// <summary>The session state that pauses the window work (locked, display off, asleep); tests give it their own. Set it before <see cref="Start"/>.</summary>
+    internal SessionState Session
+    {
+        get => _session;
+        set => _session = value;
     }
 
     /// <summary>The window, or <c>null</c> until the camera was shown the first time.</summary>
@@ -90,6 +99,27 @@ public sealed class NdiTelaoHost : IDisposable
     {
         _screenCache = null;
         QueueApply();
+    }
+
+    /// <summary>
+    /// After the session came back (unlock, resume, display on) or after a window-system error: the window is placed again, pushed to the bottom and repainted, once.
+    /// Safe from any thread.
+    /// </summary>
+    public void Reapply()
+    {
+        _ui.Post(() =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _screenCache = null;
+            _placedOn = null; // the next Apply places the window again, whatever it thought
+            _window?.KeepAtBottom(force: true);
+            _renderer?.RequestRepaint();
+            QueueApply();
+        });
     }
 
     /// <inheritdoc />
@@ -232,7 +262,13 @@ public sealed class NdiTelaoHost : IDisposable
         {
             window.Show();
             _logger?.LogInformation("Camera do telao mostrada");
-            _bottomTimer ??= new Timer(_ => _ui.Post(() => _window?.KeepAtBottom()), null, BottomInterval, BottomInterval);
+            _bottomTimer ??= new Timer(_ => _ui.Post(() =>
+            {
+                if (!_session.ShouldPauseWindowWork)
+                {
+                    _window?.KeepAtBottom(); // not while nobody can see the screen: Reapply does it once when the session is back
+                }
+            }), null, BottomInterval, BottomInterval);
         }
     }
 

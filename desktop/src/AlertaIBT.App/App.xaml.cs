@@ -25,7 +25,11 @@ public partial class App : Application
     private SessionMarker? _session;
     private UiStallWatchdog? _watchdog;
     private string? _exitReason;
-    private readonly Dictionary<string, (DateTimeOffset At, int Suppressed)> _loggedErrors = [];
+    private SessionStateTracker? _sessionTracker;
+    private ShutdownGuard? _shutdownGuard;
+    private DispatcherTimer? _episodeTimer;
+    private readonly UiFailureEpisodes _failures = new();
+    private UiErrorHandler? _uiErrors;
 
     /// <summary>
     /// Whether <see cref="OnStartup"/> runs the real application (single-instance lock, settings, tray, hotkey, API, window). Always true in
@@ -79,13 +83,8 @@ public partial class App : Application
             _host = AppHost.Build(paths, arguments);
             logger = _host.Services.GetRequiredService<ILogger<App>>();
             InstallErrorLogging(logger);
-            if (previousRun.EndedAbnormally)
-            {
-                logger.LogWarning(
-                    "A execucao anterior (versao {Version}, iniciada em {Started:yyyy-MM-dd HH:mm:ss}) terminou sem encerramento limpo: queda do app, encerrado pelo Gerenciador de Tarefas, queda de energia ou travamento",
-                    previousRun.Version ?? "?",
-                    previousRun.StartedAt?.ToLocalTime() ?? default);
-            }
+            ShutdownSteps.UseLogger(logger);
+            ExplainPreviousRun(previousRun, logger);
 
             logger.LogInformation("Execucao iniciada (versao {Version}, processo {Pid}, .NET {Runtime})", RunningVersion(), Environment.ProcessId, Environment.Version);
 
@@ -117,6 +116,11 @@ public partial class App : Application
             _host.Services.GetRequiredService<MainWindowController>().Attach(shell); // before Start: the first run opens the window
             shell.Start(plan);
             _instance.ListenForActivation(() => Dispatcher.BeginInvoke(shell.RaiseMainWindow));
+
+            // What Windows says about the session (lock, sleep, display, remote) goes to the state that every error line carries, and the marker keeps its heartbeat.
+            _sessionTracker = new SessionStateTracker(SessionState.Default, _session, logger);
+            _sessionTracker.Start(shell.Messages);
+            _session.StartHeartbeat();
 
             // Both run in the background after the tray is up: the update check waits 5 seconds and never throws (an update is
             // installed when the app is idle, restarting with these same arguments); the old-app warning waits for the dispatcher
@@ -150,41 +154,115 @@ public partial class App : Application
         var closing = _host?.Services.GetService<ILogger<App>>();
         _watchdog?.Dispose(); // first: the dispatcher is going away and would never answer its next ping
         _watchdog = null;
+        _episodeTimer?.Stop();
+        _sessionTracker?.Dispose();
+
+        // A quit that freezes must not leave a process with no window holding the single-instance lock (2026-11-06 and 11-08: "encerrando" and then nothing, for a day).
+        // Closing normally takes well under a second; if it is not done in 15 s the app says where it stood and ends the process by force.
+        _shutdownGuard = new ShutdownGuard(TimeSpan.FromSeconds(15), OnShutdownStuck);
+        _shutdownGuard.Begin();
         closing?.LogInformation("IBT Controller encerrando ({Reason}, codigo {Code})", _exitReason ?? ExitReasonFromMarkers(), e.ApplicationExitCode);
         try
         {
             if (_host is not null && _restartingForUpdate)
             {
-                _host.Dispose(); // never started: the updater is about to replace the program
+                ShutdownSteps.Run("host (atualizacao)", _host.Dispose); // never started: the updater is about to replace the program
             }
             else if (_host is not null)
             {
-                try
-                {
-                    _host.Services.GetRequiredService<UpdateService>().Dispose();
-                    _host.Services.GetRequiredService<AppShell>().Dispose();
-                    _host.Services.GetRequiredService<MainWindowController>().Dispose(); // saves a setting still inside its 600 ms
-                    _host.Services.GetRequiredService<SettingsService>().Dispose(); // saves a change still waiting for its delay
-                    _host.StopAsync(TimeSpan.FromSeconds(3)).GetAwaiter().GetResult();
-                }
-                catch (Exception ex)
-                {
-                    _host.Services.GetRequiredService<ILogger<App>>().LogError(ex, "Erro ao encerrar o IBT Controller");
-                }
-                finally
-                {
-                    _host.Dispose();
-                }
+                var services = _host.Services;
+                ShutdownSteps.Run("atualizacoes", () => services.GetRequiredService<UpdateService>().Dispose());
+                ShutdownSteps.Run("shell", () => services.GetRequiredService<AppShell>().Dispose());
+                ShutdownSteps.Run("janela principal", () => services.GetRequiredService<MainWindowController>().Dispose()); // saves a setting still inside its 600 ms
+                ShutdownSteps.Run("configuracoes", () => services.GetRequiredService<SettingsService>().Dispose()); // saves a change still waiting for its delay
+                ShutdownSteps.RunBounded("servicos em segundo plano", () => _host.StopAsync(TimeSpan.FromSeconds(3)).GetAwaiter().GetResult(), TimeSpan.FromSeconds(6));
             }
         }
         finally
         {
+            if (_host is not null && !_restartingForUpdate)
+            {
+                ShutdownSteps.RunBounded("liberar servicos", _host.Dispose, TimeSpan.FromSeconds(6));
+            }
+
             closing?.LogInformation("IBT Controller encerrado");
             _session?.End(_exitReason ?? ExitReasonFromMarkers());
+            _shutdownGuard?.Complete();
             Serilog.Log.CloseAndFlush();
             _instance?.Dispose();
             base.OnExit(e);
         }
+    }
+
+    // The closing took too long (a call to Windows that never came back): say where, record it for the next start, and end the process now.
+    private void OnShutdownStuck(string step, TimeSpan took)
+    {
+        try
+        {
+            _host?.Services.GetService<ILogger<App>>()?.LogCritical(
+                "O encerramento travou ha {Seconds:0} s no passo \"{Step}\": o processo sera encerrado a forca. Ultimas operacoes: {Trail} [{Counters}] [{Session}]",
+                took.TotalSeconds,
+                step.Length == 0 ? "(nenhum)" : step,
+                BreadcrumbTrail.Default.Format(DateTimeOffset.UtcNow),
+                ProcessCounters.Describe(),
+                SessionState.Default.Describe());
+        }
+        catch (Exception)
+        {
+            // The log is not worth stopping the exit for.
+        }
+
+        _session?.End("encerramento travado em " + (step.Length == 0 ? "(nenhum passo)" : step));
+        Serilog.Log.CloseAndFlush();
+        var killer = new Thread(() =>
+        {
+            Thread.Sleep(3000); // Environment.Exit waits for the process exit handlers: if one of them is stuck too, the process is killed
+            System.Diagnostics.Process.GetCurrentProcess().Kill();
+        })
+        { IsBackground = true, Name = "encerramento forcado" };
+        killer.Start();
+        Environment.Exit(0);
+    }
+
+    // Says, in the log and once, how the run before this one ended: a Windows shutdown that killed it before it could write its end, a power cut, a crash, a PC that
+    // slept and never came back, a freeze on quitting... The Windows event log is read in the background (read-only, no admin rights, given up after 8 s).
+    private static void ExplainPreviousRun(PreviousRun previous, ILogger logger)
+    {
+        var worth = previous.Existed
+            && (!previous.EndedCleanly || previous.State == "session-ending" || previous.CrashType is not null
+                || previous.EndReason?.StartsWith("encerramento travado", StringComparison.Ordinal) == true);
+        if (!worth)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                var now = DateTimeOffset.UtcNow;
+                var from = (previous.StartedAt ?? now.AddDays(-1)) - TimeSpan.FromMinutes(1);
+                var (events, available) = WindowsEventLog.Read(from, now, TimeSpan.FromSeconds(8));
+                var report = RunEndDiagnosis.Describe(previous, events, available);
+                if (report.Kind == RunEndKind.Clean)
+                {
+                    return;
+                }
+
+                if (report.IsWarning)
+                {
+                    logger.LogWarning("{Report}", report.Message);
+                }
+                else
+                {
+                    logger.LogInformation("{Report}", report.Message);
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                logger.LogWarning(ex, "Nao foi possivel analisar como a execucao anterior terminou");
+            }
+        });
     }
 
     /// <inheritdoc />
@@ -192,6 +270,8 @@ public partial class App : Application
     {
         // Windows is shutting down or logging off: this is a normal end, and the log should say who asked.
         _exitReason = "Windows encerrando a sessao (" + e.ReasonSessionEnding + ")";
+        // Written at once: Windows may kill the process before OnExit runs (three normal shutdowns were reported as crashes because of that).
+        _session?.SessionEnding(_exitReason);
         _host?.Services.GetService<ILogger<App>>()?.LogInformation("{Reason}", _exitReason);
         base.OnSessionEnding(e);
     }
@@ -245,37 +325,14 @@ public partial class App : Application
 
     private void InstallErrorLogging(ILogger logger)
     {
-        DispatcherUnhandledException += (_, args) =>
-        {
-            // The same error over and over (a window-system quota error comes by the dozen) is written once, then counted.
-            var key = args.Exception.GetType().Name + ":" + args.Exception.Message;
-            var now = DateTimeOffset.UtcNow;
-            var suppressed = 0;
-            var write = true;
-            if (_loggedErrors.TryGetValue(key, out var seen) && now - seen.At < TimeSpan.FromSeconds(10))
-            {
-                write = false;
-                _loggedErrors[key] = (seen.At, seen.Suppressed + 1);
-            }
-            else
-            {
-                suppressed = seen.Suppressed;
-                _loggedErrors[key] = (now, 0);
-            }
+        // WPF's own "not enough quota" (error 1816) while it handles a window position change is not our bug and never fatal: one warning per episode, one line when it ends
+        // (see UiErrorHandler). Every unhandled dispatcher exception is handled: the app never dies from one.
+        _uiErrors = new UiErrorHandler(logger, _failures, SessionState.Default, ProcessCounters.Describe);
+        _episodeTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(2) };
+        _episodeTimer.Tick += (_, _) => _uiErrors.EndQuietEpisodes(() => _host?.Services.GetService<AppShell>()?.ReapplyWindows("falha do sistema de janelas"));
+        _episodeTimer.Start();
 
-            Breadcrumbs.Add("erro na interface: " + args.Exception.GetType().Name);
-            if (write)
-            {
-                logger.LogError(
-                    args.Exception,
-                    "Erro na interface ({Repeated} iguais suprimidos desde o ultimo aviso) [{Counters}]. Ultimas operacoes: {Trail}",
-                    suppressed,
-                    ProcessCounters.Describe(),
-                    BreadcrumbTrail.Default.Format(now));
-            }
-
-            args.Handled = true;
-        };
+        DispatcherUnhandledException += (_, args) => args.Handled = _uiErrors.Handle(args.Exception);
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
             Breadcrumbs.Add("erro em tarefa em segundo plano: " + args.Exception.GetBaseException().GetType().Name);
@@ -298,6 +355,16 @@ public partial class App : Application
                 // Nothing more can be done while crashing.
             }
 
+            // The marker says "crash" (the TYPE of the exception only): the next start tells a crash from a power cut or a Task Manager kill.
+            try
+            {
+                _session?.Crash((args.ExceptionObject as Exception)?.GetType().Name ?? "(desconhecida)");
+            }
+            catch (Exception)
+            {
+                // Nothing more can be done while crashing.
+            }
+
             // Give the mouse back before the process dies (Windows also releases it when the process ends).
             try
             {
@@ -308,7 +375,7 @@ public partial class App : Application
                 // Nothing more can be done while crashing.
             }
 
-            Serilog.Log.CloseAndFlush();
+            Serilog.Log.CloseAndFlush(); // synchronous: the last line is on disk before the process dies
         };
     }
 }

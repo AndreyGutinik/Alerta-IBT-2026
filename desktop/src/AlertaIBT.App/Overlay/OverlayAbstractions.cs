@@ -33,6 +33,14 @@ public interface IBarSurface : IDisposable
 
     /// <summary>Hides the window at once.</summary>
     void Hide();
+
+    /// <summary>
+    /// The session came back (unlock, resume, display on) or the window system failed to update the window: place it again and repaint, once. Nothing when it is hidden.
+    /// A surface with nothing to redo (a test fake) can leave the default.
+    /// </summary>
+    void Reapply()
+    {
+    }
 }
 
 /// <summary>A clock that ticks once per rendered frame, with the frame's own time.</summary>
