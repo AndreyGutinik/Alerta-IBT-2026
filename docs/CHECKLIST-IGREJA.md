@@ -164,7 +164,7 @@ Pedir a outra pessoa para mandar do grupo (e conferir as respostas do bot).
 
 - [ ] **Reiniciar o Windows**: o app volta **sozinho, na bandeja, sem janela** (o valor `AlertaIBT` com `--tray` no registro). Aparece em menos de 2 s depois do logon.
 - [ ] Depois do reinício a bolinha do Telegram volta a verde sozinha e `curl http://127.0.0.1:8787/overlay/status` responde.
-- [ ] Fechar o app pelo **Sair** da bandeja (confirmar) e verificar no Gerenciador de Tarefas que o processo acabou.
+- [ ] Fechar o app pelo **Sair** da bandeja (confirmar) e verificar no Gerenciador de Tarefas que o processo acabou. Se o **Sair** travar, o próprio app se encerra à força em 15 s e o log diz em que passo travou ("O encerramento travou há N s no passo ...").
 
 ## 13. Atualização automática (precisa de duas versões: a instalada N e uma publicada N+1)
 
@@ -361,7 +361,20 @@ O backup guarda **só o que é difícil de refazer**: token e grupo do Telegram,
 | Bolinha Site vermelha ou "PC offline" no celular | Seção "Se der erro" de `docs/SITE-COMO-PUBLICAR.md` (login, regras, internet do PC). |
 | Atalho do painel não abre | Outro programa usa a combinação: trocar em Configurações > Sistema; o clique no ícone sempre funciona. |
 | O mouse não trava (ou escapa para o LED) | Ligar a chave em Configurações > Sistema (vem desligada); Diagnóstico: linhas "Mouse travado" e "Travamento do mouse refeito". Ctrl+Alt+M liga e desliga; Ctrl 3 vezes traz o mouse de volta. |
+| O log diz "A execução anterior ... terminou ..." | Lote 42: o app diz o que provavelmente encerrou a execução anterior (veja a próxima seção). Só **queda de energia**, **PC suspenso que não voltou**, **caiu** e **encerrou à força** são avisos (WRN); um desligamento ou reinício normal do Windows é só informação (INF). |
+| "Falha passageira do Windows ao atualizar uma janela" | O Windows recusou uma atualização de janela (erro 1816, "cota"). O app **não cai**: vale uma linha por episódio, outra quando ele termina ("repetida N vezes, durou X s") e as janelas (barra, câmera) são refeitas sozinhas. A linha traz o estado da sessão (bloqueada, tela desligada, remota, último retorno da suspensão). |
 | Qualquer erro estranho | Configurações > Diagnóstico > Copiar logs e me mandar. |
+
+### Como ler as mensagens de fim de sessão (log `%AppData%\AlertaIBT\logs`)
+
+Na abertura, o app olha o arquivo `session.txt` (escrito de 30 em 30 s, com o último sinal de vida) e, só leitura e sem administrador, o log do Windows (Sistema e Aplicativo) do período da execução anterior. Frases possíveis:
+
+- **"... terminou porque o Windows encerrou a sessão (Shutdown/Restart; evento 1074 às HH:mm:ss ...). Normal"**: desligar ou reiniciar pelo menu Iniciar. O Windows mata o programa em segundos; antes do lote 42 isso aparecia como "sem encerramento limpo" por engano.
+- **"... queda de energia ou desligamento forçado (evento 41 às ...)"**: o PC desligou sem avisar (energia, botão de ligar segurado, travamento total). O "último sinal do app" diz até quando ele estava vivo.
+- **"... terminou com o PC suspenso e ele não voltou"**: o PC foi dormir e o app nunca viu o retorno (o PC foi religado a frio, ou faltou energia dormindo).
+- **"... caiu com um erro não tratado (TipoDaExceção ...)"** ou **"o Windows registrou o evento 1000/1026"**: queda do próprio app; o detalhe está no log do dia em que caiu.
+- **"... travou ao encerrar e foi encerrada à força pelo próprio app"**: o **Sair** travou por mais de 15 s; o log do dia diz o passo.
+- **"... terminou sem aviso com o Windows ligado: último sinal às HH:mm:ss"**: o Windows não registrou desligamento, energia, suspensão nem erro do app. Foi o Gerenciador de Tarefas, o instalador ou uma queda sem registro. Limite: sem direitos de administrador o app não consegue um relatório de queda nativa; o que o Windows grava em Aplicativo (eventos 1000/1026) é o que dá para ler.
 
 ## Templo menor (PC do templo menor, 1920x1080)
 
