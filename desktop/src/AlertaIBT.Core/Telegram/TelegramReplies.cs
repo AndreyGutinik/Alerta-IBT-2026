@@ -57,12 +57,6 @@ public static class TelegramReplies
     /// <summary>The alert waited too long and was dropped.</summary>
     public const string Expired = "\U0000231B O aviso expirou sem passar no tel\U000000E3o.";
 
-    /// <summary>The pastor started the sermon and the overlay was paused.</summary>
-    public const string Paused = "\U000026A0\U0000FE0F O pastor iniciou a prega\U000000E7\U000000E3o. O overlay foi pausado para n\U000000E3o atrapalhar o culto.";
-
-    /// <summary>An alert arrived during the sermon and was refused.</summary>
-    public const string PausedRefused = "\U000023F8\U0000FE0F Prega\U000000E7\U000000E3o em andamento: o tel\U000000E3o n\U000000E3o est\U000000E1 mostrando avisos.";
-
     /// <summary>Joins as Portuguese does: <c>a</c>; <c>a e b</c>; <c>a, b e c</c>.</summary>
     private static string JoinPortuguese(IReadOnlyList<string> items)
     {

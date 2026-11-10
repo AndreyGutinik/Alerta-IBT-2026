@@ -145,9 +145,9 @@ Pedir a outra pessoa para mandar do grupo (e conferir as respostas do bot).
 ## 10. Pregação: Holyrics pausa a barra
 
 - [ ] Em um terminal: `curl http://127.0.0.1:8787/overlay/status` responde `{"success":true,"overlayEnabled":true}`.
-- [ ] Com avisos na fila e um passando, chamar `http://127.0.0.1:8787/overlay/off`: a barra para na hora, a fila esvazia, o grupo recebe `⚠️ O pastor iniciou a pregação...` **uma vez**, a pílula diz **Pausada** (barra amarela), o botão Pausar fica amarelo "Retomar".
+- [ ] Com avisos na fila e um passando, chamar `http://127.0.0.1:8787/overlay/off`: a barra para na hora, a fila esvazia, o grupo **não recebe nenhuma mensagem**, a pílula diz **Pausada** (barra amarela), o botão Pausar fica amarelo "Retomar".
 - [ ] Chamar `/overlay/off` de novo: **não** manda uma segunda mensagem.
-- [ ] Mandar um aviso no Telegram durante a pausa: `⏸️ Pregação em andamento...`; digitar no painel: "Pregação em andamento: o aviso não foi enviado.", e o histórico mostra a linha vermelha "PREGAÇÃO".
+- [ ] Mandar um aviso no Telegram durante a pausa: o grupo **não recebe resposta nenhuma** (o aviso só aparece no histórico); digitar no painel: "Pregação em andamento: o aviso não foi enviado.", e o histórico mostra a linha vermelha "PREGAÇÃO".
 - [ ] Chamar `/overlay/on`: volta ao normal, **sem** mensagem no grupo, fila vazia.
 - [ ] **No Holyrics, de verdade**: o slide da pregação dispara `/overlay/off` e o slide seguinte dispara `/overlay/on` (o gatilho do Holyrics não muda; as rotas são as mesmas do app antigo).
 - [ ] O botão **Pausar** do painel e da janela e o item do menu da bandeja mostram **o mesmo estado** nos três lugares. **Um clique = uma troca** (olhar o texto do menu da bandeja depois de cada clique).

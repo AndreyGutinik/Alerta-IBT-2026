@@ -108,15 +108,15 @@ public sealed class EndToEndTests : IDisposable
         Assert.True(pass.Cancelled); // the bar stops at once
         Assert.Empty(_queue!.Pending);
         Assert.Null(_queue.Current);
-        await Wait.Until(() => _api.Sent.Length == 1, "the pause message");
-        Assert.Equal((FakeTelegramApi.Chat, TelegramReplies.Paused), _api.Sent[0]);
-        Assert.Equal("""{"success":true,"overlayEnabled":false}""", await Get("/overlay/status"));
-        Assert.Equal("""{"success":true,"overlayEnabled":false}""", await Get("/overlay/off")); // again: no second message
         await Wait.Settle();
-        Assert.Single(_api.Sent);
+        Assert.Empty(_api.Sent); // the pause says nothing to the group
+        Assert.Equal("""{"success":true,"overlayEnabled":false}""", await Get("/overlay/status"));
+        Assert.Equal("""{"success":true,"overlayEnabled":false}""", await Get("/overlay/off")); // again: still nothing
+        await Wait.Settle();
+        Assert.Empty(_api.Sent);
 
         Assert.Equal("""{"success":true,"overlayEnabled":true}""", await Get("/overlay/on"));
-        Assert.Single(_api.Sent); // resuming is silent
+        Assert.Empty(_api.Sent); // resuming is silent
         await _alerts.SubmitAsync("onix preto bbb2222", AlertSource.Pc, SenderRole.Operator, false, null, TestContext.Current.CancellationToken);
         Assert.Equal("ONIX PRETO | PLACA: BBB-2222", (await _display.NextPass(2)).Text);
     }

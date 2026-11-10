@@ -233,7 +233,7 @@ public class AlertServiceSubmitTests
         var entry = Assert.Single(h.Queue.History);
         Assert.Equal(HistoryState.Rejected, entry.State);
         Assert.Equal(HistoryReasons.Sermon, entry.Reason);
-        Assert.Equal(TelegramReplies.PausedRefused, h.Notifier.Sent[notices]);
+        Assert.Equal(notices, h.Notifier.Sent.Length); // the refusal is not answered in the group
         Assert.Equal(0, h.Gemini.Calls);
         Assert.Equal(0, h.Offline.Calls);
     }
@@ -254,7 +254,7 @@ public class AlertServiceSubmitTests
         Assert.Empty(h.Queue.Pending);
         var entry = Assert.Single(h.Queue.History);
         Assert.Equal(HistoryReasons.Sermon, entry.Reason);
-        Assert.Contains(TelegramReplies.PausedRefused, h.Notifier.Sent);
+        Assert.Empty(h.Notifier.Sent); // the refusal is not answered in the group
     }
 
     // ---- improper content ----

@@ -17,7 +17,7 @@ namespace AlertaIBT.Core.Services;
 /// <remarks>
 /// <para>
 /// The sermon (<see cref="Pause"/>, from the Pause button or from Holyrics through the local API) cancels the alert on the bar and
-/// the whole queue at once, tells the group once, and makes new alerts answer <see cref="SubmitKind.PausedRefused"/> until
+/// the whole queue at once, says nothing to the group, and makes new alerts answer <see cref="SubmitKind.PausedRefused"/> until
 /// <see cref="Resume"/> (silent). The pause is never saved: the app always starts with the bar running, so the alerts work after the PC is turned on again.
 /// </para>
 /// <para>
@@ -271,7 +271,6 @@ public sealed class AlertService : IOverlayControl, IDisposable
         {
             var refused = NewItem(Display(raw), null, source, urgent, senderId, raw, itemId);
             _queue.AddRejected(refused, HistoryReasons.Sermon);
-            Reply(source, TelegramReplies.PausedRefused);
             return new SubmitOutcome(SubmitKind.PausedRefused, refused.Text, []);
         }
 
@@ -318,8 +317,7 @@ public sealed class AlertService : IOverlayControl, IDisposable
         switch (enqueued.Kind)
         {
             case EnqueueKind.PausedRefused:
-                // Paused while the text was being corrected: the queue wrote the history itself.
-                Reply(source, TelegramReplies.PausedRefused);
+                // Paused while the text was being corrected: the queue wrote the history itself. Nothing is written to the group.
                 return new SubmitOutcome(SubmitKind.PausedRefused, item.Text, [], By: by, Changed: changed);
 
             case EnqueueKind.DuplicateBlocked:
@@ -409,8 +407,8 @@ public sealed class AlertService : IOverlayControl, IDisposable
     }
 
     /// <summary>
-    /// The sermon began: cancels the alert on the bar and the whole queue, refuses new alerts, and tells the group once.
-    /// Does nothing when already paused.
+    /// The sermon began: cancels the alert on the bar and the whole queue and refuses new alerts. Nothing is written to the
+    /// Telegram group (neither now nor when someone sends an alert during the pause). Does nothing when already paused.
     /// </summary>
     public void Pause()
     {
@@ -422,7 +420,6 @@ public sealed class AlertService : IOverlayControl, IDisposable
         CancelPass(StopReason.Pause);
         _hub.SetPaused(true);
         Forget(cancelled);
-        _notifier.Notify(TelegramReplies.Paused);
         _logger.LogInformation("Overlay pausado (pregacao): {Count} aviso(s) cancelado(s)", cancelled.Count);
     }
 

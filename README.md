@@ -54,7 +54,7 @@ O bot responde no grupo:
 | LED desligado | ⏳ Telão desligado. O aviso está na fila e passa quando ele ligar. |
 | Ficou mais de 30 min esperando | ⌛ O aviso expirou sem passar no telão. |
 | Texto grande demais (mais de 200 letras) ou impróprio | ❌ ... |
-| Pregação em andamento | ⏸️ Pregação em andamento: o telão não está mostrando avisos. |
+| Pregação em andamento | (nada: o grupo não recebe mensagem quando a pausa começa nem quando alguém manda aviso durante ela) |
 
 Mensagens de bots e de outros grupos são ignoradas.
 

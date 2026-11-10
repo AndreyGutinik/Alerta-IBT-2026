@@ -119,7 +119,7 @@ public class AlertServiceLoopTests
     // ---- the sermon ----
 
     [Fact]
-    public async Task Pause_cancels_the_bar_and_the_queue_tells_the_group_once_and_refuses_new_alerts()
+    public async Task Pause_cancels_the_bar_and_the_queue_says_nothing_to_the_group_and_refuses_new_alerts()
     {
         using var h = new ServiceHarness();
         await h.Telegram(Good);
@@ -136,15 +136,16 @@ public class AlertServiceLoopTests
         Assert.Equal(AlertPill.Paused, h.Hub.Pill);
         Assert.Equal(StatusLight.Yellow, h.Hub.Bar.Light);
         Assert.Equal(2, h.Queue.History.Count(e => e.State == HistoryState.Cancelled && e.Reason == HistoryReasons.Sermon));
-        Assert.Equal([TelegramReplies.Paused], h.Notifier.Sent);
+        Assert.Empty(h.Notifier.Sent);
 
         h.Service.Pause();
         h.Service.Pause();
-        Assert.Equal([TelegramReplies.Paused], h.Notifier.Sent); // once
+        Assert.Empty(h.Notifier.Sent);
 
         var refused = await h.Telegram("gol branco ccc3333");
         Assert.Equal(SubmitKind.PausedRefused, refused.Kind);
         await Wait.Settle();
+        Assert.Empty(h.Notifier.Sent); // the refused alert is not answered in the group either
         Assert.Single(h.Display.Texts); // nothing new reached the bar
     }
 
@@ -161,7 +162,7 @@ public class AlertServiceLoopTests
         await Wait.Settle();
 
         Assert.DoesNotContain(h.Queue.History, e => e.State == HistoryState.Shown);
-        Assert.Equal([TelegramReplies.Paused], h.Notifier.Sent);
+        Assert.Empty(h.Notifier.Sent);
     }
 
     [Fact]
@@ -185,13 +186,13 @@ public class AlertServiceLoopTests
     }
 
     [Fact]
-    public void A_pause_with_nothing_queued_still_tells_the_group_once()
+    public void A_pause_with_nothing_queued_says_nothing_to_the_group()
     {
         using var h = new ServiceHarness();
 
         h.Service.Pause();
 
-        Assert.Equal([TelegramReplies.Paused], h.Notifier.Sent);
+        Assert.Empty(h.Notifier.Sent);
     }
 
     [Fact]
@@ -496,7 +497,7 @@ public class AlertServiceLoopTests
         var outcome = h.Service.Replay(new QueueItem("x", "GOL", null, AlertSource.Telegram, false, h.Clock.GetUtcNow(), "1", null));
 
         Assert.Equal(SubmitKind.PausedRefused, outcome.Kind);
-        Assert.Equal([TelegramReplies.Paused], h.Notifier.Sent);
+        Assert.Empty(h.Notifier.Sent);
         await Task.CompletedTask;
     }
 

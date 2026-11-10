@@ -105,20 +105,4 @@ public class TelegramRepliesTests
     {
         Assert.Equal(HourglassDone + " O aviso expirou sem passar no tel\U000000E3o.", TelegramReplies.Expired);
     }
-
-    [Fact]
-    public void Paused_IsExact()
-    {
-        Assert.Equal(
-            Warning + " O pastor iniciou a prega\U000000E7\U000000E3o. O overlay foi pausado para n\U000000E3o atrapalhar o culto.",
-            TelegramReplies.Paused);
-    }
-
-    [Fact]
-    public void PausedRefused_IsExact()
-    {
-        Assert.Equal(
-            Pause + " Prega\U000000E7\U000000E3o em andamento: o tel\U000000E3o n\U000000E3o est\U000000E1 mostrando avisos.",
-            TelegramReplies.PausedRefused);
-    }
 }
