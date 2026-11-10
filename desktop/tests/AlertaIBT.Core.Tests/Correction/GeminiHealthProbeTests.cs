@@ -80,6 +80,31 @@ public class GeminiHealthProbeTests
         Assert.DoesNotContain(Key, entry.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task TheSameGoodNewsEveryHalfHourIsDebugAndAfterAFailureItIsInformationAgain()
+    {
+        var down = false;
+        var (probe, _) = Make(_ => Task.FromResult(down ? Reply(HttpStatusCode.ServiceUnavailable, "{}") : Reply(HttpStatusCode.OK, Ok())));
+
+        for (var i = 0; i < 5; i++)
+        {
+            await probe.ProbeAsync(CancellationToken.None);
+            _clock.Advance(TimeSpan.FromMinutes(30));
+        }
+
+        var informations = _log.Entries.Where(e => e.Level == LogLevel.Information).ToList();
+        Assert.Single(informations); // the first "conectado"; the four after it are debug
+        Assert.Equal(4, _log.Entries.Count(e => e.Level == LogLevel.Debug && e.Message.StartsWith("Gemini: conectado", StringComparison.Ordinal)));
+
+        down = true;
+        await probe.ProbeAsync(CancellationToken.None);
+        _clock.Advance(TimeSpan.FromMinutes(30));
+        down = false;
+        await probe.ProbeAsync(CancellationToken.None);
+
+        Assert.Equal(2, _log.Entries.Count(e => e.Level == LogLevel.Information && e.Message.StartsWith("Gemini: conectado", StringComparison.Ordinal)));
+    }
+
     [Theory]
     [InlineData("MAX_TOKENS", false)]
     [InlineData("STOP", true)]

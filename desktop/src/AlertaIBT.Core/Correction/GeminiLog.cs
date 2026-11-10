@@ -16,6 +16,7 @@ internal sealed class GeminiLog
     private readonly TimeProvider _clock;
     private readonly Lock _gate = new();
     private readonly Dictionary<string, DateTimeOffset> _last = new(StringComparer.Ordinal);
+    private bool _connectedAnnounced;
 
     public GeminiLog(ILogger? logger, TimeProvider? clock)
     {
@@ -27,12 +28,31 @@ internal sealed class GeminiLog
     /// <param name="kind">What makes two failures "the same reason" for the throttle (for example <c>http-403</c>).</param>
     /// <param name="reason">The text after "Gemini falhou:", in pt-BR, free of secrets.</param>
     /// <param name="model">The model id that was asked.</param>
-    public void Failure(string kind, string reason, string model) =>
-        Write(LogLevel.Warning, kind, "Gemini falhou: {Reason} (modelo {Model})", reason, model);
+    public void Failure(string kind, string reason, string model)
+    {
+        lock (_gate)
+        {
+            _connectedAnnounced = false; // the next success is news again
+        }
 
-    /// <summary>The health probe worked (Information): <c>Gemini: conectado (modelo {model}, {ms} ms)</c>.</summary>
-    public void Connected(string model, long milliseconds) =>
-        Write(LogLevel.Information, "connected", "Gemini: conectado (modelo {Model}, {Ms} ms)", model, milliseconds);
+        Write(LogLevel.Warning, kind, "Gemini falhou: {Reason} (modelo {Model})", reason, model);
+    }
+
+    /// <summary>
+    /// The health probe worked: <c>Gemini: conectado (modelo {model}, {ms} ms)</c>. Information the first time and after a failure; the probes that repeat
+    /// the same good news every half hour (48 lines a day) are Debug.
+    /// </summary>
+    public void Connected(string model, long milliseconds)
+    {
+        bool announce;
+        lock (_gate)
+        {
+            announce = !_connectedAnnounced;
+            _connectedAnnounced = true;
+        }
+
+        Write(announce ? LogLevel.Information : LogLevel.Debug, "connected", "Gemini: conectado (modelo {Model}, {Ms} ms)", model, milliseconds);
+    }
 
     /// <summary>Gemini answered but declined, or its answer was not used (Information): <c>Gemini: {what} (modelo {model})</c>.</summary>
     public void Note(string kind, string what, string model) =>

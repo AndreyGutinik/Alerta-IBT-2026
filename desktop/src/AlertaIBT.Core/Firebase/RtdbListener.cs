@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using AlertaIBT.Core.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -49,6 +50,7 @@ public sealed class RtdbListener
     private readonly string _path;
     private readonly TimeProvider _clock;
     private readonly ILogger _logger;
+    private readonly OutageLogger _retryOutage;
     private readonly object _gate = new();
     private JsonObject? _root;
     private ListenerState? _state;
@@ -66,6 +68,9 @@ public sealed class RtdbListener
         _path = path;
         _clock = clock ?? TimeProvider.System;
         _logger = logger ?? NullLogger.Instance;
+
+        // A connection that stays down is retried every 30 s: the first retry is one line, the rest are silent, the connection coming back is one line.
+        _retryOutage = new OutageLogger(_logger, new OutageWording("Banco de dados", "sem conexao", "voltou a conectar"), _clock);
     }
 
     /// <summary>Raised when the state changes, with a short detail for a problem; on the listener's own thread. A handler must not throw.</summary>
@@ -169,7 +174,11 @@ public sealed class RtdbListener
                     break;
             }
 
-            _logger.LogInformation("Banco de dados: nova tentativa em {Seconds:F0} s ({Detail})", wait.TotalSeconds, outcome.Detail ?? "sem detalhe");
+            _retryOutage.Failed(
+                outcome.Kind.ToString(),
+                string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Banco de dados: nova tentativa em {wait.TotalSeconds:F0} s ({outcome.Detail ?? "sem detalhe"}); as proximas ficam em silencio ate voltar"),
+                outcome.Detail,
+                LogLevel.Information);
             try
             {
                 await Task.Delay(wait, _clock, ct).ConfigureAwait(false);
@@ -261,6 +270,7 @@ public sealed class RtdbListener
                         {
                             healthy = true;
                             setHealthy(true);
+                            _retryOutage.Succeeded();
                             SetState(ListenerState.Connected, null);
                         }
 

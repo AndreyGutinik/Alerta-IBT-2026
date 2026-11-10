@@ -252,6 +252,25 @@ public sealed class SiteEngineLiveTests
     }
 
     [Fact]
+    public async Task A_refused_login_repeated_every_five_minutes_is_one_warning_not_one_per_try()
+    {
+        await using var rig = new SiteRig(password: "wrong-password");
+        rig.Engine.Start();
+        await rig.WaitFor(() => rig.States.Contains(SiteState.AuthError), "auth error");
+
+        for (var round = 0; round < 4; round++)
+        {
+            var states = rig.States.Length;
+            await rig.AdvanceAsync(SiteEngine.LoginRetry + TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30));
+            await rig.WaitFor(() => rig.States.Length > states, "another attempt");
+        }
+
+        var refused = rig.Log.Entries.Where(e => e.Message.StartsWith("Login do site recusado", StringComparison.Ordinal)).ToList();
+        Assert.Single(refused);
+        Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, refused[0].Level);
+    }
+
+    [Fact]
     public async Task Without_a_network_the_state_is_reconnecting_then_offline_after_a_minute_and_online_again_when_it_returns()
     {
         await using var rig = new SiteRig();

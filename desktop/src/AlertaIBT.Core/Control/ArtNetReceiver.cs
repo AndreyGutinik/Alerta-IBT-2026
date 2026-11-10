@@ -59,6 +59,7 @@ public sealed class ArtNetReceiver : IArtNetSource
     private readonly int _port;
     private readonly TimeSpan _retry;
     private readonly ILogger? _logger;
+    private readonly OutageLogger _bindOutage;
     private Socket? _socket;
     private Timer? _retryTimer;
     private ArtNetState _state = ArtNetState.Stopped;
@@ -74,6 +75,10 @@ public sealed class ArtNetReceiver : IArtNetSource
         _port = port;
         _retry = retry ?? DefaultRetry;
         _logger = logger;
+
+        // A port that stays taken is tried again every few seconds: the first failure is a Warning, the rest are silent, the success is one line.
+        var portText = port.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        _bindOutage = new OutageLogger(logger, new OutageWording("Art-Net", "sem abrir a porta " + portText, "abriu a porta " + portText));
     }
 
     /// <inheritdoc />
@@ -134,6 +139,7 @@ public sealed class ArtNetReceiver : IArtNetSource
             _wanted = false;
             CloseLocked();
             SetStateLocked(ArtNetState.Stopped);
+            _bindOutage.Reset();
         }
 
         RaiseStateChanged();
@@ -153,6 +159,7 @@ public sealed class ArtNetReceiver : IArtNetSource
             _wanted = false;
             CloseLocked();
             _state = ArtNetState.Stopped;
+            _bindOutage.Reset();
         }
     }
 
@@ -173,6 +180,7 @@ public sealed class ArtNetReceiver : IArtNetSource
             var thread = new Thread(() => ReceiveLoop(socket, generation)) { IsBackground = true, Name = "ArtNetReceiver" };
             thread.Start();
             SetStateLocked(ArtNetState.Listening);
+            _bindOutage.Succeeded();
         }
         catch (Exception ex)
         {
@@ -181,7 +189,12 @@ public sealed class ArtNetReceiver : IArtNetSource
             var inUse = ex is SocketException { SocketErrorCode: SocketError.AddressAlreadyInUse or SocketError.AccessDenied };
             SetStateLocked(inUse ? ArtNetState.PortInUse : ArtNetState.Error);
             Breadcrumbs.Add(inUse ? "artnet: porta em uso" : "artnet: erro ao abrir a porta");
-            _logger?.LogWarning("Art-Net: n\U000000E3o foi poss\U000000EDvel abrir a porta {Port} ({Kind}); tenta de novo em {Seconds:0} s", _port, ex.GetType().Name, _retry.TotalSeconds);
+            _bindOutage.Failed(
+                ex.GetType().Name,
+                string.Create(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    $"Art-Net: n\U000000E3o foi poss\U000000EDvel abrir a porta {_port} ({ex.GetType().Name}); tenta de novo a cada {_retry.TotalSeconds:0} s, sem repetir este aviso"),
+                ex.GetType().Name);
             _retryTimer = new Timer(_ => Retry(), null, _retry, Timeout.InfiniteTimeSpan);
         }
     }

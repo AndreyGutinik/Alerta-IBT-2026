@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using AlertaIBT.Core.Firebase;
 using AlertaIBT.Core.Tests.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 
 namespace AlertaIBT.Core.Tests.Firebase;
@@ -12,6 +13,7 @@ public sealed class RtdbListenerTests : IAsyncDisposable
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 10, 25, 9, 0, 0, TimeSpan.Zero));
+    private readonly CapturingLogger _log = new();
     private readonly FakeFirebase _fake;
     private readonly FirebaseAuthClient _auth;
     private readonly RtdbListener _listener;
@@ -26,7 +28,7 @@ public sealed class RtdbListenerTests : IAsyncDisposable
         _fake = new FakeFirebase(_clock);
         _auth = new FirebaseAuthClient(new HttpClient(_fake), FakeFirebase.ApiKey, clock: _clock);
         var db = new RealtimeDbClient(new HttpClient(_fake), "https://x-default-rtdb.firebaseio.com", _auth);
-        _listener = new RtdbListener(db, "requests", _clock);
+        _listener = new RtdbListener(db, "requests", _clock, _log);
         _listener.StateChanged += (state, detail) =>
         {
             lock (_gate)
@@ -266,6 +268,26 @@ public sealed class RtdbListenerTests : IAsyncDisposable
         {
             Assert.InRange(gaps[i], expected[i], expected[i] + 1);
         }
+    }
+
+    [Fact]
+    public async Task A_database_that_stays_down_is_told_once_and_its_return_once()
+    {
+        _fake.DbRule = (_, _) => HttpStatusCode.ServiceUnavailable;
+        await StartAsync();
+
+        await AdvanceAsync(70); // the waits of 1, 2, 4, 8, 16 and 30 seconds: six retries
+
+        Assert.True(_fake.Calls.Count(c => c.Method == "GET") >= 6, "it kept trying");
+        Assert.Single(_log.Entries, e => e.Message.StartsWith("Banco de dados: nova tentativa", StringComparison.Ordinal)); // not one per retry
+        Assert.DoesNotContain(_log.Entries, e => e.Level >= LogLevel.Warning);
+
+        _fake.DbRule = null;
+        await AdvanceAsync(35);
+        await Wait.Until(() => States.Contains(ListenerState.Connected), "connected again");
+
+        var back = Assert.Single(_log.Entries, e => e.Message.StartsWith("Banco de dados voltou a conectar", StringComparison.Ordinal));
+        Assert.Equal(LogLevel.Information, back.Level);
     }
 
     [Fact]

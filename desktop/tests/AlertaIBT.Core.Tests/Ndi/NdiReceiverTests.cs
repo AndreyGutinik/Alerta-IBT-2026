@@ -1,4 +1,6 @@
 using AlertaIBT.Core.Ndi;
+using AlertaIBT.Core.Tests.Services;
+using Microsoft.Extensions.Logging;
 
 namespace AlertaIBT.Core.Tests.Ndi;
 
@@ -245,6 +247,53 @@ public sealed class NdiReceiverTests
 
         Assert.True(WaitFor(() => receiver.FramesReceived == 1));
         Assert.True(broken.IsDisposed);
+    }
+
+    [Fact]
+    public void A_source_that_cannot_be_reached_for_many_tries_leaves_one_warning_and_one_line_when_it_returns()
+    {
+        var runtime = new FakeNdiRuntime();
+        for (var i = 0; i < 20; i++)
+        {
+            runtime.Plans.Enqueue(() => throw new InvalidOperationException("sem rede"));
+        }
+
+        runtime.Plans.Enqueue(() => Frames(1));
+        var log = new CapturingLogger();
+        using var receiver = new NdiReceiver(runtime, "cam", logger: log, options: Fast);
+
+        receiver.Connect(new NdiSourceRef("PC (Cam)", null));
+
+        Assert.True(WaitFor(() => receiver.FramesReceived == 1));
+        Assert.Equal(21, runtime.Created.Count);
+        var warning = Assert.Single(log.Entries, e => e.Level == LogLevel.Warning);
+        Assert.Contains("nao foi possivel conectar a", warning.Message, StringComparison.Ordinal);
+        Assert.Contains("sem rede", warning.Message, StringComparison.Ordinal);
+        var recovered = Assert.Single(log.Entries, e => e.Message.Contains("voltou a receber quadros", StringComparison.Ordinal));
+        Assert.Equal(LogLevel.Information, recovered.Level);
+        Assert.StartsWith("NDI cam voltou a receber quadros ap\U000000F3s ", recovered.Message, StringComparison.Ordinal);
+        Assert.EndsWith(", 20 tentativas", recovered.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(log.Entries, e => e.Level > LogLevel.Warning);
+    }
+
+    [Fact]
+    public void A_camera_that_stays_silent_is_recreated_again_and_again_with_one_warning()
+    {
+        var runtime = new FakeNdiRuntime();
+        for (var i = 0; i < 4; i++)
+        {
+            runtime.Plans.Enqueue(() => new FakeNativeReceiver()); // connects, never sends a frame
+        }
+
+        var log = new CapturingLogger();
+        using var receiver = new NdiReceiver(runtime, "cam", logger: log, options: Fast);
+
+        receiver.Connect(new NdiSourceRef("PC (Cam)", null));
+
+        Assert.True(WaitFor(() => runtime.Created.Count >= 4, 6000));
+        var warning = Assert.Single(log.Entries, e => e.Level == LogLevel.Warning);
+        Assert.Contains("sem quadros, recriando a conexao", warning.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(log.Entries, e => e.Level >= LogLevel.Information && e.Message.Contains(": Lost", StringComparison.Ordinal)); // the turns of Lost/Connecting during the outage are debug
     }
 
     [Fact]

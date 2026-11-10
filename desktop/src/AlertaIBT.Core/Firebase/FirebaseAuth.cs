@@ -227,7 +227,7 @@ public sealed class FirebaseAuthClient : ITokenSource, IDisposable
         var json = await PostAsync(uri, form, ct).ConfigureAwait(false);
         var session = ReadSession(json, "id_token", "refresh_token", "user_id", "expires_in", old);
         _session = session;
-        _logger.LogInformation("Token do Firebase renovado");
+        _logger.LogDebug("Token do Firebase renovado"); // routine, about once an hour: not worth a line a day in the file
         return session;
     }
 

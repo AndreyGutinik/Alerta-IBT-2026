@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Sockets;
 using AlertaIBT.Core.Control;
+using AlertaIBT.Core.Tests.Services;
+using Microsoft.Extensions.Logging;
 
 namespace AlertaIBT.Core.Tests.Control;
 
@@ -103,6 +105,27 @@ public sealed class ArtNetReceiverTests
         Assert.True(WaitFor(() => receiver.State == ArtNetState.Listening));
         Send(port, ArtNetParser.BuildDmx(0, new byte[4]));
         Assert.True(WaitFor(() => Volatile.Read(ref arrived) == 1));
+    }
+
+    [Fact]
+    public void A_taken_port_is_one_warning_however_many_times_it_is_retried_and_one_line_when_it_opens()
+    {
+        var port = FreePort();
+        var holder = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ExclusiveAddressUse = true };
+        holder.Bind(new IPEndPoint(IPAddress.Any, port));
+        var log = new CapturingLogger();
+        using var receiver = new ArtNetReceiver(port, TimeSpan.FromMilliseconds(20), log);
+
+        receiver.Start();
+        Thread.Sleep(500); // about twenty tries
+        holder.Dispose();
+        Assert.True(WaitFor(() => receiver.State == ArtNetState.Listening));
+
+        var warning = Assert.Single(log.Entries, e => e.Level == LogLevel.Warning);
+        Assert.Contains("n\U000000E3o foi poss\U000000EDvel abrir a porta " + port, warning.Message, StringComparison.Ordinal);
+        var opened = Assert.Single(log.Entries, e => e.Message.Contains("abriu a porta " + port, StringComparison.Ordinal));
+        Assert.Equal(LogLevel.Information, opened.Level);
+        Assert.StartsWith("Art-Net abriu a porta " + port + " ap\U000000F3s ", opened.Message, StringComparison.Ordinal);
     }
 
     [Fact]

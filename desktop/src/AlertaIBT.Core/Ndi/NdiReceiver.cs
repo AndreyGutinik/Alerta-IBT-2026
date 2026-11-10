@@ -1,3 +1,4 @@
+using AlertaIBT.Core.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace AlertaIBT.Core.Ndi;
@@ -31,6 +32,7 @@ public sealed class NdiReceiver : ICameraReceiver
     private readonly string _name;
     private readonly TimeProvider _clock;
     private readonly ILogger? _logger;
+    private readonly OutageLogger _outage;
     private readonly NdiReceiverOptions _options;
     private readonly object _gate = new();
     private readonly ManualResetEventSlim _wake = new(false);
@@ -65,6 +67,9 @@ public sealed class NdiReceiver : ICameraReceiver
         _clock = clock ?? TimeProvider.System;
         _logger = logger;
         _options = options ?? NdiReceiverOptions.Default;
+
+        // A camera that is off (a normal thing in the week) makes the receiver try again and again: one Warning for the outage, one line when frames come back.
+        _outage = new OutageLogger(logger, new OutageWording("NDI " + name, "sem quadros", "voltou a receber quadros"), _clock);
     }
 
     /// <inheritdoc />
@@ -130,6 +135,7 @@ public sealed class NdiReceiver : ICameraReceiver
             }
         }
 
+        _outage.Reset(); // another source (or none) is another story
         if (source is null)
         {
             SetState(NdiConnectionState.Idle);
@@ -169,7 +175,8 @@ public sealed class NdiReceiver : ICameraReceiver
             return;
         }
 
-        _logger?.LogInformation("NDI {Receiver}: {State} ({Source})", _name, state, Source);
+        // While the source is failing, the Connecting/Lost turns of every retry are not worth a line each; the recovery and the Connected state are.
+        _logger?.Log(_outage.IsDown && (state is NdiConnectionState.Connecting or NdiConnectionState.Lost) ? LogLevel.Debug : LogLevel.Information, "NDI {Receiver}: {State} ({Source})", _name, state, Source);
         try
         {
             StateChanged?.Invoke();
@@ -231,7 +238,7 @@ public sealed class NdiReceiver : ICameraReceiver
                     catch (Exception ex) when (ex is not OutOfMemoryException)
                     {
                         SetError(ex.Message);
-                        _logger?.LogWarning("NDI {Receiver}: nao foi possivel conectar a {Source}: {Reason}", _name, wanted, ex.Message);
+                        _outage.Failed("create", $"NDI {_name}: nao foi possivel conectar a {wanted}: {ex.Message}. Tento de novo em silencio e aviso quando voltar", ex.Message);
                         SetState(_runtime.IsAvailable ? NdiConnectionState.Lost : NdiConnectionState.Failed);
                         var delay = _options.Backoff[Math.Min(attempt, _options.Backoff.Count - 1)];
                         attempt++;
@@ -250,6 +257,7 @@ public sealed class NdiReceiver : ICameraReceiver
                         {
                             attempt = 0;
                             silenceStart = now;
+                            _outage.Succeeded();
                             Interlocked.Exchange(ref _lastFrame, now);
                             Volatile.Write(ref _width, handle.Width);
                             Volatile.Write(ref _height, handle.Height);
@@ -296,7 +304,7 @@ public sealed class NdiReceiver : ICameraReceiver
                         if (silence >= _options.RecreateAfter)
                         {
                             // Long silence: throw the connection away and build it again after a pause.
-                            _logger?.LogWarning("NDI {Receiver}: {Seconds:0} s sem quadros, recriando a conexao", _name, silence.TotalSeconds);
+                            _outage.Failed("silence", string.Create(System.Globalization.CultureInfo.InvariantCulture, $"NDI {_name}: {silence.TotalSeconds:0} s sem quadros, recriando a conexao (tento de novo em silencio e aviso quando voltar)"), "sem quadros");
                             DisposeNative(ref native);
                             SetState(NdiConnectionState.Lost);
                             var pause = _options.Backoff[Math.Min(attempt, _options.Backoff.Count - 1)];

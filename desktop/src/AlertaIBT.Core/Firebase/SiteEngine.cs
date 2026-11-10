@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Threading.Channels;
 using System.Text.Json.Nodes;
 using AlertaIBT.Core.Alerts;
+using AlertaIBT.Core.Diagnostics;
 using AlertaIBT.Core.Queue;
 using AlertaIBT.Core.Services;
 using AlertaIBT.Core.Settings;
@@ -345,11 +346,15 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
     private async Task SignInAsync(CancellationToken ct)
     {
         var attempt = 0;
+
+        // The internet down (or a wrong password) repeats the same failure every 30 s to 5 min: one line for the outage, one when the login works.
+        var outage = new OutageLogger(_logger, new OutageWording("Login do site", "sem entrar", "voltou a funcionar"), _clock);
         while (true)
         {
             try
             {
                 await _auth!.SignInAsync(_config.Email, _config.Password, ct).ConfigureAwait(false);
+                outage.Succeeded();
                 return;
             }
             catch (FirebaseAuthException ex)
@@ -359,13 +364,13 @@ public sealed class SiteEngine : ISiteEngine, ISiteHistory, IDisposable
                 {
                     DisarmOffline();
                     SetState(SiteState.AuthError, ex.Message);
-                    _logger.LogWarning("Login do site recusado ({Failure})", ex.Failure);
+                    outage.Failed("refused-" + ex.Failure, "Login do site recusado (" + ex.Failure + "); tentando de novo a cada 5 min, sem repetir este aviso", ex.Failure.ToString());
                     wait = LoginRetry;
                 }
                 else
                 {
                     MarkReconnecting(ex.Message);
-                    _logger.LogWarning("Login do site falhou ({Failure}); tentando de novo", ex.Failure);
+                    outage.Failed("failed-" + ex.Failure, "Login do site falhou (" + ex.Failure + "); tentando de novo, sem repetir este aviso", ex.Failure.ToString());
                     var backoff = RtdbListener.Backoff[Math.Min(attempt++, RtdbListener.Backoff.Count - 1)];
                     wait = ex.Failure == AuthFailure.RateLimited && backoff < TimeSpan.FromSeconds(60) ? TimeSpan.FromSeconds(60) : backoff;
                 }
