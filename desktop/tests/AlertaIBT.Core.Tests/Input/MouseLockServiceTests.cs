@@ -1,6 +1,7 @@
 using AlertaIBT.Core.Input;
 using AlertaIBT.Core.Screens;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 
 namespace AlertaIBT.Core.Tests.Input;
 
@@ -260,6 +261,82 @@ public sealed class MouseLockServiceTests
         }
 
         Assert.Single(_log.Lines.Skip(before));
+    }
+
+    // A program that undoes the lock now and then (123 times in a day at the church) is one line per ten minutes with the count, not one per redo.
+    private (MouseLockService Service, FakeTimeProvider Clock) WithClock()
+    {
+        var clock = new FakeTimeProvider();
+        var service = new MouseLockService(_cursor, _log, clock) { OutOfStepContext = () => "Code" };
+        service.Lock();
+        return (service, clock);
+    }
+
+    private void LoseAndRedo(MouseLockService service)
+    {
+        _cursor.Clip = FakeCursor.Virtual;
+        service.Verify(); // found undone: redone
+        service.Verify(); // the next look sees it in place again
+    }
+
+    private List<string> RedoLines => _log.Lines.Where(l => l.Contains("Travamento do mouse refeito", StringComparison.Ordinal)).ToList();
+
+    [Fact]
+    public void The_first_redo_is_logged_at_once_with_the_program_in_front()
+    {
+        var (service, _) = WithClock();
+
+        LoseAndRedo(service);
+
+        Assert.Equal(
+            ["Information: Travamento do mouse refeito (o sistema ou um programa o tinha soltado; programa em primeiro plano: Code)"],
+            RedoLines);
+    }
+
+    [Fact]
+    public void Redos_inside_ten_minutes_are_counted_and_the_next_window_tells_them_in_one_line()
+    {
+        var (service, clock) = WithClock();
+
+        for (var minute = 0; minute < 30; minute++)
+        {
+            LoseAndRedo(service);
+            clock.Advance(TimeSpan.FromMinutes(1));
+        }
+
+        // redos at minutes 0, 10 and 20 got through; the ones between were counted
+        Assert.Equal(3, RedoLines.Count);
+        Assert.Contains("10 vezes desde o ultimo aviso", RedoLines[1], StringComparison.Ordinal);
+        Assert.Contains("ultimo programa em primeiro plano: Code", RedoLines[1], StringComparison.Ordinal);
+
+        service.Unlock(); // the 9 held back since minute 20 are not lost
+        Assert.Contains(RedoLines, l => l.Contains("mais 9 vezes desde o ultimo aviso", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_count_waiting_in_a_quiet_hour_is_told_by_the_watchdog_when_the_window_ends()
+    {
+        var (service, clock) = WithClock();
+        LoseAndRedo(service);
+        clock.Advance(TimeSpan.FromSeconds(30));
+        LoseAndRedo(service);
+        clock.Advance(TimeSpan.FromSeconds(30));
+        LoseAndRedo(service);
+        Assert.Single(RedoLines);
+
+        clock.Advance(TimeSpan.FromMinutes(8));
+        service.Verify(); // 9 minutes since the first line: the window is not over yet
+        Assert.Single(RedoLines);
+
+        clock.Advance(TimeSpan.FromMinutes(1));
+        service.Verify(); // the once-a-second watchdog
+
+        Assert.Equal(2, RedoLines.Count);
+        Assert.Contains("mais 2 vezes desde o ultimo aviso", RedoLines[1], StringComparison.Ordinal);
+
+        clock.Advance(TimeSpan.FromMinutes(30));
+        service.Verify(); // nothing left to tell
+        Assert.Equal(2, RedoLines.Count);
     }
 
     [Fact]

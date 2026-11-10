@@ -37,20 +37,30 @@ public interface INativeCursor
 /// </summary>
 public sealed class MouseLockService : IDisposable
 {
+    /// <summary>The least time between two "lock redone" lines; the redos in between are counted and told in the next line.</summary>
+    public static readonly TimeSpan RedoLogEvery = TimeSpan.FromMinutes(10);
+
     private readonly INativeCursor _cursor;
     private readonly ILogger? _logger;
+    private readonly TimeProvider _clock;
     private ScreenRect _applied;
     private bool _outOfStep;
     private bool _applyFailing;
+    private long _redoLoggedAt;
+    private bool _redoEverLogged;
+    private int _redoHeldBack;
+    private string? _redoLastForeground;
 
     /// <param name="cursor">The system calls.</param>
     /// <param name="logger">Receives the lock, the release and a lost confinement (never one line per second).</param>
-    public MouseLockService(INativeCursor cursor, ILogger? logger = null)
+    /// <param name="clock">Times the "lock redone" lines (one per <see cref="RedoLogEvery"/> at most).</param>
+    public MouseLockService(INativeCursor cursor, ILogger? logger = null, TimeProvider? clock = null)
     {
         ArgumentNullException.ThrowIfNull(cursor);
 
         _cursor = cursor;
         _logger = logger;
+        _clock = clock ?? TimeProvider.System;
     }
 
     /// <summary>Tells (when set) which program had the focus when the confinement was found undone: it goes in the log line, to find out who releases it. Must not throw.</summary>
@@ -107,6 +117,7 @@ public sealed class MouseLockService : IDisposable
         }
 
         IsLocked = false;
+        FlushRedos();
         try
         {
             _cursor.Unclip();
@@ -155,6 +166,11 @@ public sealed class MouseLockService : IDisposable
                 _applyFailing = false;
             }
 
+            if (_redoHeldBack > 0 && _clock.GetElapsedTime(_redoLoggedAt) >= RedoLogEvery)
+            {
+                FlushRedos(); // the count of the last window is told even if nothing else gets lost
+            }
+
             return;
         }
 
@@ -173,7 +189,7 @@ public sealed class MouseLockService : IDisposable
         PullIn(wanted);
         if (!_outOfStep)
         {
-            _outOfStep = true; // one line when it is lost, not one per second while a program keeps resetting it
+            _outOfStep = true; // one lost lock is one redo, not one per second while a program keeps resetting it
             string? context = null;
             try
             {
@@ -184,7 +200,7 @@ public sealed class MouseLockService : IDisposable
                 // Only a clue for the log.
             }
 
-            _logger?.LogInformation("Travamento do mouse refeito (o sistema ou um programa o tinha soltado; programa em primeiro plano: {Foreground})", context ?? "desconhecido");
+            NoteRedo(context ?? "desconhecido");
         }
 
         _applyFailing = false;
@@ -204,6 +220,44 @@ public sealed class MouseLockService : IDisposable
 
         Verify();
         return _cursor.TrySetPosition(primary.CenterX, primary.CenterY);
+    }
+
+    // A lock that Windows or a program keeps undoing (123 times in a day on the church PC) is one line per RedoLogEvery with the count, not one per redo.
+    private void NoteRedo(string foreground)
+    {
+        _redoLastForeground = foreground;
+        if (_redoEverLogged && _clock.GetElapsedTime(_redoLoggedAt) < RedoLogEvery)
+        {
+            _redoHeldBack++;
+            return;
+        }
+
+        var times = _redoHeldBack + 1;
+        _redoHeldBack = 0;
+        _redoEverLogged = true;
+        _redoLoggedAt = _clock.GetTimestamp();
+        if (times == 1)
+        {
+            _logger?.LogInformation("Travamento do mouse refeito (o sistema ou um programa o tinha soltado; programa em primeiro plano: {Foreground})", foreground);
+        }
+        else
+        {
+            _logger?.LogInformation("Travamento do mouse refeito {Count} vezes desde o ultimo aviso (o sistema ou um programa o tinha soltado; ultimo programa em primeiro plano: {Foreground})", times, foreground);
+        }
+    }
+
+    // Tells the redos that were held back (the window ended, or the lock was released) so none is lost from the log.
+    private void FlushRedos()
+    {
+        if (_redoHeldBack == 0)
+        {
+            return;
+        }
+
+        var times = _redoHeldBack;
+        _redoHeldBack = 0;
+        _redoLoggedAt = _clock.GetTimestamp();
+        _logger?.LogInformation("Travamento do mouse refeito mais {Count} vezes desde o ultimo aviso (ultimo programa em primeiro plano: {Foreground})", times, _redoLastForeground ?? "desconhecido");
     }
 
     /// <summary>Gives the cursor back (see <see cref="Unlock"/>).</summary>
