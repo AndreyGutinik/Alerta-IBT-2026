@@ -56,12 +56,20 @@ O código do projeto **não** está nesta pasta: ele vem do GitHub (passo 3), qu
 
 ## O que ainda falta o Claude saber (responda quando estiver lá)
 
-- [ ] O PC da igreja tem internet? (decide entre clonar do GitHub e instalar offline)
-- [ ] Qual o nome de usuário do Windows lá?
-- [ ] O Holyrics de lá é o mesmo (versão 2.30.0) e o ambiente aparece como `PC TEMPLO MAIOR`?
-- [ ] A MA2 é console física, onPC, ou os dois? Qual o IP dela na rede do PC (hoje usamos `2.0.0.2`)?
-- [ ] A WING está em `10.10.2.1` (porta OSC `2223`) e o PC enxerga essa rede?
-- [ ] Em que monitor está o painel de LED (resolução 2560x768) e como ele aparece no Windows?
+Já respondido por você em 10/11/2026 (confirmar lá, são "acho que"):
+
+- [x] Internet no PC da igreja: **sim** (clonar do GitHub direto).
+- [x] O PC se chama provavelmente **PC-Projeção** (um Black Horse).
+- [x] MA2: **grandMA2 onPC** nesse mesmo PC, IP provavelmente **2.0.0.2**.
+- [x] O PC enxerga a rede da WING (`10.10.2.1`, OSC porta `2223`).
+- [x] Monitores: o **painel de LED está no monitor 2** e a **TV no monitor 3** (confirmar em Configurações > Tela do Windows).
+
+Ainda em aberto (responda lá):
+
+- [ ] Qual o nome de usuário do Windows? (`echo $env:USERNAME` no PowerShell)
+- [ ] O Holyrics é o mesmo (versão 2.30.0) e o ambiente aparece como `PC TEMPLO MAIOR`?
+- [ ] O IP da MA2 é mesmo `2.0.0.2`? (`ipconfig` no PC mostra a placa da rede 2.x)
+- [ ] O monitor 2 aparece com 2560x768? Qual o número que o Windows dá a ele?
 
 ## Resumo de segurança
 
