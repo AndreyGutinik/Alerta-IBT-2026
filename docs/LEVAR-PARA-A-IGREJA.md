@@ -59,17 +59,18 @@ O código do projeto **não** está nesta pasta: ele vem do GitHub (passo 3), qu
 Já respondido por você em 10/11/2026 (confirmar lá, são "acho que"):
 
 - [x] Internet no PC da igreja: **sim** (clonar do GitHub direto).
-- [x] O PC se chama provavelmente **PC-Projeção** (um Black Horse).
-- [x] MA2: **grandMA2 onPC** nesse mesmo PC, IP provavelmente **2.0.0.2**.
+- [x] O PC da projeção (onde rodam Holyrics e o app) se chama provavelmente **PC-Projeção**.
+- [x] MA2: a **console física grandMA2 Black Horse** (roda a MA2 onPC dentro dela), em outro equipamento, **IP 2.0.0.2**. A MA2 **não** roda no PC do Holyrics: o script e o app falam com ela pela rede (Telnet `2.0.0.2:30000`).
 - [x] O PC enxerga a rede da WING (`10.10.2.1`, OSC porta `2223`).
 - [x] Monitores: o **painel de LED está no monitor 2** e a **TV no monitor 3** (confirmar em Configurações > Tela do Windows).
 
 Ainda em aberto (responda lá):
 
 - [ ] Qual o nome de usuário do Windows? (`echo $env:USERNAME` no PowerShell)
-- [ ] O Holyrics é o mesmo (versão 2.30.0) e o ambiente aparece como `PC TEMPLO MAIOR`?
-- [ ] O IP da MA2 é mesmo `2.0.0.2`? (`ipconfig` no PC mostra a placa da rede 2.x)
-- [ ] O monitor 2 aparece com 2560x768? Qual o número que o Windows dá a ele?
+- [ ] O PC-Projeção alcança `2.0.0.2` (placa na rede 2.x)? Teste: `Test-NetConnection 2.0.0.2 -Port 30000`.
+- [ ] Qual o número que o Windows dá ao monitor do LED (2560x768, confirmado)?
+
+Confirmado: Holyrics 2.30.0, ambiente `PC TEMPLO MAIOR`, LED 2560x768.
 
 ## Resumo de segurança
 
