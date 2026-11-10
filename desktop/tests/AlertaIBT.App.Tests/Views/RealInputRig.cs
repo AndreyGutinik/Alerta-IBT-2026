@@ -133,7 +133,11 @@ internal sealed class RealInputRig : IDisposable
         ViewModel.SelectTabCommand.Execute(MainTab.Som);
         Window.Show();
         Pump();
+        RaiseAboveOtherPrograms(); // shown without activation, the window sits BEHIND the program the person works in
     }
+
+    // The window above every other program's normal windows (see TestWindows.RaiseAboveOtherPrograms); done again when something is found over it.
+    private void RaiseAboveOtherPrograms() => TestWindows.RaiseAboveOtherPrograms(new WindowInteropHelper(Window).Handle);
 
     public MainWindow Window { get; }
 
@@ -250,7 +254,8 @@ internal sealed class RealInputRig : IDisposable
     // mouse from WPF. Counted like a moved cursor, so the attempt is repeated (after a nudge that wakes the display), and named when it keeps failing.
     private void CheckNotCovered(Point screen)
     {
-        var hit = WindowFromPoint(new Native.Point { X = (int)Math.Round(screen.X), Y = (int)Math.Round(screen.Y) });
+        var point = new Native.Point { X = (int)Math.Round(screen.X), Y = (int)Math.Round(screen.Y) };
+        var hit = WindowFromPoint(point);
         if (hit == 0)
         {
             return;
@@ -259,6 +264,14 @@ internal sealed class RealInputRig : IDisposable
         var root = GetAncestor(hit, 2); // GA_ROOT
         GetWindowThreadProcessId(root, out var pid);
         if (pid == (uint)Environment.ProcessId)
+        {
+            return;
+        }
+
+        // Somebody's window got in front (the person clicked it, an editor was raised): put the test window back over it and look again before calling it interference.
+        RaiseAboveOtherPrograms();
+        hit = WindowFromPoint(point);
+        if (hit == 0 || GetWindowThreadProcessId(GetAncestor(hit, 2), out var againPid) != 0 && againPid == (uint)Environment.ProcessId)
         {
             return;
         }

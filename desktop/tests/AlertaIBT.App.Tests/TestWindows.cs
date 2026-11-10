@@ -171,6 +171,20 @@ internal static class TestWindows
         }
     }
 
+    /// <summary>
+    /// Raises a real-desktop test window above every other program's NORMAL windows without taking the keyboard focus from the person: topmost, then not topmost again.
+    /// <c>Show</c> with <c>ShowActivated = false</c> from a program that is not in front leaves the window BEHIND the window the person works in (a maximized editor or
+    /// browser covers the whole work area), and then the real cursor clicks that program, not the test window: this is why the real-mouse list box tests failed in a full run
+    /// (the rig named it: "a window of another program is over the test window: Chrome_WidgetWin_1", which is VS Code). Raising the z-order needs no foreground right,
+    /// unlike <c>SetForegroundWindow</c>. Windows that are topmost themselves stay above (the corner is picked away from them: <see cref="PickCornerLeft"/>).
+    /// </summary>
+    public static void RaiseAboveOtherPrograms(IntPtr handle)
+    {
+        const uint flags = SwpNoSize | SwpNoMove | SwpNoActivate;
+        SetWindowPos(handle, new IntPtr(-1), 0, 0, 0, 0, flags); // HWND_TOPMOST
+        SetWindowPos(handle, new IntPtr(-2), 0, 0, 0, 0, flags); // HWND_NOTOPMOST: the top of the normal windows
+    }
+
     /// <summary>Moves an existing window (a popup, a helper) off every monitor without resizing, activating or changing its stacking.</summary>
     public static void MoveOffScreen(IntPtr handle) =>
         SetWindowPos(handle, IntPtr.Zero, (int)OffScreenLeft, (int)OffScreenTop, 0, 0, SwpNoSize | SwpNoZOrder | SwpNoActivate);
@@ -212,6 +226,7 @@ internal static class TestWindows
     internal static extern bool EnumDisplayMonitors(IntPtr dc, IntPtr clip, MonitorEnumProc callback, IntPtr data);
 
     private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoMove = 0x0002;
     private const uint SwpNoZOrder = 0x0004;
     private const uint SwpNoActivate = 0x0010;
 
