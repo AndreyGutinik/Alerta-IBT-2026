@@ -25,7 +25,7 @@ public sealed class NdiHotkeyRegistry : INdiHotkeyRegistry, IDisposable
     /// <inheritdoc />
     public bool Register(int id, HotkeyModifiers modifiers, int virtualKey)
     {
-        if (!NativeMethods.RegisterHotKey(_window.Handle, id, (uint)modifiers | NativeMethods.MOD_NOREPEAT, (uint)virtualKey))
+        if (!NativeMethods.RegisterHotKey(_window.Handle, id, HotkeyFlags.ForRegistration(modifiers), (uint)virtualKey))
         {
             return false;
         }

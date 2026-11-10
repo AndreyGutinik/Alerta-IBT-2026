@@ -33,13 +33,26 @@ public sealed class BreadcrumbTrail
     /// <summary>The trail of the running app.</summary>
     public static BreadcrumbTrail Default { get; } = new();
 
-    /// <summary>Records one entry (it pushes out the oldest when the trail is full).</summary>
+    /// <summary>
+    /// Records one entry (it pushes out the oldest when the trail is full). The same text twice in a row is ONE entry that counts its repeats (<c>text x3</c>, with the
+    /// time of the last one): a key tapped ten times must not push everything else out of a 24-entry trail.
+    /// </summary>
     public void Add(string text)
     {
         var now = _clock.GetUtcNow();
         lock (_gate)
         {
-            _ring[_next] = new Entry(now, text);
+            if (_count > 0)
+            {
+                var last = (_next - 1 + _ring.Length) % _ring.Length;
+                if (string.Equals(_ring[last].Text, text, StringComparison.Ordinal))
+                {
+                    _ring[last] = new Entry(now, text, _ring[last].Repeats + 1);
+                    return;
+                }
+            }
+
+            _ring[_next] = new Entry(now, text, 1);
             _next = (_next + 1) % _ring.Length;
             if (_count < _ring.Length)
             {
@@ -58,7 +71,7 @@ public sealed class BreadcrumbTrail
             for (var i = 0; i < _count; i++)
             {
                 var entry = _ring[(start + i) % _ring.Length];
-                list.Add((entry.At, entry.Text));
+                list.Add((entry.At, entry.Repeats > 1 ? entry.Text + " x" + entry.Repeats.ToString(CultureInfo.InvariantCulture) : entry.Text));
             }
 
             return list;
@@ -92,7 +105,7 @@ public sealed class BreadcrumbTrail
         return text.ToString();
     }
 
-    private readonly record struct Entry(DateTimeOffset At, string Text);
+    private readonly record struct Entry(DateTimeOffset At, string Text, int Repeats);
 }
 
 /// <summary>Shorthand to record on the app's own <see cref="BreadcrumbTrail"/>.</summary>

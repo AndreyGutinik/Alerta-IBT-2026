@@ -213,6 +213,34 @@ public sealed class NdiSwitcher : IDisposable
     }
 
     /// <summary>
+    /// Whether <see cref="SelectPreview"/> of <paramref name="slot"/> would change nothing: the camera already is in Preview or on air (or has the same source as the one on
+    /// air). A cheap look, no reconnection, no side effect: the shortcut of a key tapped again asks this first so it does not even leave a trace.
+    /// </summary>
+    public bool IsPreviewNoOp(int slot)
+    {
+        if (slot is < 0 or >= NdiSettings.SlotCount)
+        {
+            return false;
+        }
+
+        var settings = _settings();
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return false;
+            }
+
+            if (_program.Slot == slot || _preview.Slot == slot)
+            {
+                return true;
+            }
+
+            return _program.Slot is int onAir && NdiSourceParser.Same(settings.Cameras[onAir].Source, settings.Cameras[slot].Source);
+        }
+    }
+
+    /// <summary>
     /// Puts camera <paramref name="slot"/> in Preview: only the Preview receiver reconnects (it keeps its last picture meanwhile). Selecting the
     /// camera that is on air, or the one already in Preview, changes nothing and succeeds.
     /// </summary>

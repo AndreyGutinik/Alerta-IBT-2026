@@ -30,6 +30,10 @@ internal static class NativeMethods
     public const int WM_SETTINGCHANGE = 0x001A;
     public const int WM_DISPLAYCHANGE = 0x007E;
     public const int WM_HOTKEY = 0x0312;
+    public const int WM_POWERBROADCAST = 0x0218;
+    public const int PBT_POWERSETTINGCHANGE = 0x8013;
+    public const int DEVICE_NOTIFY_WINDOW_HANDLE = 0;
+    public const int SM_REMOTESESSION = 0x1000;
     public const int SPI_SETWORKAREA = 0x002F;
     public const int MA_NOACTIVATE = 3;
     public const int HTTRANSPARENT = -1;
@@ -40,7 +44,6 @@ internal static class NativeMethods
     public const uint EDD_GET_DEVICE_INTERFACE_NAME = 0x1;
     public const uint MONITORINFOF_PRIMARY = 0x1;
     public const uint DISPLAY_DEVICE_ACTIVE = 0x1;
-    public const uint MOD_NOREPEAT = 0x4000;
     public const uint MONITOR_DEFAULTTONEAREST = 0x2;
     public const uint MONITOR_DEFAULTTOPRIMARY = 0x1;
 
@@ -215,6 +218,16 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    /// <summary>Asks Windows to send <c>WM_POWERBROADCAST</c> (PBT_POWERSETTINGCHANGE) to the window when the power setting <paramref name="setting"/> changes.</summary>
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr RegisterPowerSettingNotification(IntPtr recipient, ref Guid setting, int flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool UnregisterPowerSettingNotification(IntPtr handle);
+
+    /// <summary>The power setting of the display (0 off, 1 on, 2 dimmed): GUID_CONSOLE_DISPLAY_STATE.</summary>
+    public static readonly Guid ConsoleDisplayState = new("6fe69556-704a-47a0-8f24-c28d936fda47");
 
     /// <summary>Metric index of the width of a small icon (the notification-area icon), in pixels.</summary>
     public const int SM_CXSMICON = 49;

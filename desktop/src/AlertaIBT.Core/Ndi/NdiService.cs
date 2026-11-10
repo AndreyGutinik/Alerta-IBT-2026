@@ -273,6 +273,12 @@ public sealed class NdiService : INdiControl, IDisposable
             return OffInTemple();
         }
 
+        // The camera already is in Preview (or on air): a tapped-again shortcut is a no-op that leaves no trace and starts nothing.
+        if (_switcher.IsPreviewNoOp(slot))
+        {
+            return NdiResult.Ok;
+        }
+
         Breadcrumbs.Add("ndi: previa " + slot);
         var result = _switcher.SelectPreview(slot);
         if (result.Success)

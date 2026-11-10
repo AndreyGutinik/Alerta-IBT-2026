@@ -54,7 +54,7 @@ public sealed class HotkeyService : IHotkeyRegistrar, IDisposable
         ArgumentNullException.ThrowIfNull(gesture);
 
         Unregister();
-        if (!NativeMethods.RegisterHotKey(_window.Handle, _id, (uint)gesture.Modifiers | NativeMethods.MOD_NOREPEAT, (uint)gesture.VirtualKey))
+        if (!NativeMethods.RegisterHotKey(_window.Handle, _id, HotkeyFlags.ForRegistration(gesture.Modifiers), (uint)gesture.VirtualKey))
         {
             return false;
         }
