@@ -47,7 +47,8 @@ O código do projeto **não** está nesta pasta: ele vem do GitHub (passo 3), qu
 
 ## Pendências para testar na igreja
 
-- Luz antecipada com fade nos vídeos (`10s-f2`): conferir a sintaxe do Grand Master na MA2 (`FADE_GM_BAIXO`, `FADE_GM_SOBE`, `FADE_GM_SEGURANCA` no topo do script) e se o fade ficou suave.
+- Luz antecipada com fade nos vídeos (`10s-f2`): **testada em casa** (a luz sai 10 s antes do fim, na ordem certa). Falta só conferir, na MA2 real, a sintaxe `Master 2.1 At 100 Fade 2` (`FADE_GM_BAIXO`, `FADE_GM_SOBE`, `FADE_GM_SEGURANCA` no topo do script) e se o fade ficou suave.
+- Tema só pela tag e logo no telão: não deu para testar por API em casa; clique um tema sem tag (não pode acender cor) e um com tag, e veja a logo sumir/voltar nos vídeos.
 - Shutdown novo (`Shutdown-novo`): só roda quando o Holyrics fecha.
 - Logo: presets pelo comando novo e o `SetLogo` (liga/desliga) contra o `Ctrl+K` do Holyrics.
 - Tema só pela tag: um tema sem tag não pode acender nenhuma cor.
