@@ -23,6 +23,13 @@ Os scripts **não** estão no GitHub; estão em `2-api-holyrics\`.
 - Para **mandar o trabalho de lá para o GitHub**: peça "faz commit e push do que mudei aqui". Os scripts do Holyrics (`API Holyrics\`) ficam de fora do git de propósito.
 - Para **trazer o trabalho de lá para casa**: peça "atualiza a pasta levar-para-a-igreja a partir daqui" e copie de volta para o pen drive.
 
+## 3b. Ao ir embora (para ter tudo em casa)
+
+O `COLE-NO-CLAUDE.txt` já manda o Claude fazer commit a cada alteração e push no fim. Antes de sair, diga **"vou embora"**: ele confere que nada ficou sem commit nem push e copia para o pen drive o que não vai para o git (scripts do Holyrics e memórias). Em casa:
+
+1. Abra o projeto e peça "puxa o que veio da igreja" (`git pull`).
+2. Copie `2-api-holyrics\` do pen drive de volta para a pasta `API Holyrics` do projeto, conferindo antes qual versão é a mais nova.
+
 ## 4. O que tem no pen drive
 
 | Pasta / arquivo | Para que serve |

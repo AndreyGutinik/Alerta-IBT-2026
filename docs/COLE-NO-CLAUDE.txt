@@ -12,4 +12,10 @@ FACA NESTA ORDEM, sem eu precisar explicar mais:
 
 5. Depois proponha os testes pendentes da igreja (veja o pending-next-steps.md e o 4-checklists do pen drive): fade 10s-f2 na MA2 real, tema so por tag (um sem tag nao pode acender cor), logo sumindo/voltando nos videos, Shutdown-novo.
 
+6. SALVE TUDO PARA EU TER EM CASA. Esta regra vale o tempo todo:
+   a) Depois de CADA alteracao no codigo: faca commit (mensagem clara em portugues) e, ao encerrar um bloco de alteracoes, push para o GitHub (git push para o remoto do projeto, branch main). Nao espere eu pedir.
+   b) Antes de eu sair da igreja (quando eu disser "vou embora", "encerrar" ou "terminamos"): rode git status e confirme que NAO ficou nada sem commit nem sem push; me mostre o resultado do git log -3 e do git status.
+   c) O que NAO vai para o git (a pasta "API Holyrics", memorias do Claude): copie os arquivos que mudamos para o pen drive em <pendrive>\levar-para-a-igreja\2-api-holyrics (scripts do Holyrics) e <pendrive>\levar-para-a-igreja\1-memoria (memorias, so se mudaram), sobrescrevendo os antigos, e me diga o que copiou. Nunca copie tokens ou senhas para o pen drive.
+   d) Termine com uma lista curta: o que foi alterado, o que ficou testado de verdade na igreja, o que ficou pendente.
+
 Me diga em UMA mensagem curta o que voce entendeu e qual e o primeiro passo.
