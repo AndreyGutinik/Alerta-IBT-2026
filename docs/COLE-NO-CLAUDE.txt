@@ -1,0 +1,15 @@
+Estou na igreja, no PC da projecao (PC TEMPLO MAIOR), com acesso real a MA2 (console Black Horse, 2.0.0.2), a mesa WING (10.10.2.1), ao painel de LED (monitor 2, 2560x768) e ao Holyrics 2.30.0. Voce continua o projeto IBT Controller (Alerta-IBT) daqui.
+
+FACA NESTA ORDEM, sem eu precisar explicar mais:
+
+1. Leia a memoria do projeto. Se ela nao estiver carregada, os arquivos estao em <pendrive>\levar-para-a-igreja\1-memoria (copie para a pasta de memoria do Claude deste projeto) e leia o MEMORY.md e o pending-next-steps.md.
+
+2. PROTEJA O QUE EU JA MUDEI AQUI. O repositorio local deste PC tem mudancas que NAO foram para o GitHub. Rode git status e git diff --stat e me mostre. NAO rode git pull, reset, checkout nem clean sem eu pedir, para nao perder nada. Se precisar atualizar, primeiro faca commit do que eu mudei.
+
+3. Os scripts do Holyrics NAO estao no GitHub. Os de casa estao em <pendrive>\levar-para-a-igreja\2-api-holyrics. NAO substitua o meu Startup daqui pelo de casa (o daqui e mais novo): aplique so o PATCH-fade-em-degraus.txt (fade da luz 10s-f2 em degraus, porque a MA2 nao aceita "At 100 Fade 2" pelo Telnet). Antes me peca para eu testar na linha de comando da MA2: Master 2.1 At 0, At 50, At 100.
+
+4. Regras que valem sempre: respostas curtas em portugues; nunca escrever tokens ou senhas em arquivos do repositorio nem mostrar no chat; pergunte antes de qualquer comando que mude luz ou mesa de verdade; teste so fora do culto; EM_CASA = false aqui; a pasta "API Holyrics" nunca vai para o git (repositorio publico).
+
+5. Depois proponha os testes pendentes da igreja (veja o pending-next-steps.md e o 4-checklists do pen drive): fade 10s-f2 na MA2 real, tema so por tag (um sem tag nao pode acender cor), logo sumindo/voltando nos videos, Shutdown-novo.
+
+Me diga em UMA mensagem curta o que voce entendeu e qual e o primeiro passo.

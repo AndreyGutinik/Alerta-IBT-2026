@@ -52,7 +52,7 @@ try { $commit = (git -C $repoRoot rev-parse --short HEAD).Trim() } catch { }
 $data = Get-Date -Format 'dd/MM/yyyy HH:mm'
 
 # ---- recria as pastas -------------------------------------------------------
-foreach ($sub in '1-memoria', '2-api-holyrics', '3-instalador') {
+foreach ($sub in '1-memoria', '2-api-holyrics', '3-instalador', '4-checklists', '5-codigo-offline') {
   $p = Join-Path $Destino $sub
   if (Test-Path $p) { Remove-Item $p -Recurse -Force }
   New-Item -ItemType Directory -Path $p -Force | Out-Null
@@ -88,6 +88,35 @@ if ($pacote -and (Test-Path $setup)) {
   Copy-Item $setup (Join-Path $Destino '3-instalador') -Force
 } else {
   $avisos += 'Instalador nao encontrado em artifacts\Releases (3-instalador ficou vazia).'
+}
+
+# ---- 4. checklists -------------------------------------------------------------
+foreach ($doc in 'CHECKLIST-IGREJA.md', 'CONTROLE-MA2.md') {
+  $origem = Join-Path $repoRoot "docs\$doc"
+  if (Test-Path $origem) { Copy-Item $origem (Join-Path $Destino '4-checklists') -Force }
+  else { $avisos += "docs\$doc nao encontrado (4-checklists incompleta)." }
+}
+
+# ---- 5. codigo offline (git bundle da branch atual) -------------------------------
+$pacoteCodigo = Join-Path $Destino '5-codigo-offline\Alerta-IBT.bundle'
+try {
+  & git -C $repoRoot bundle create $pacoteCodigo HEAD 2>$null | Out-Null
+  if (-not (Test-Path $pacoteCodigo)) { throw 'bundle nao criado' }
+  [System.IO.File]::WriteAllText((Join-Path $Destino '5-codigo-offline\COMO-USAR.txt'),
+    "Copia do codigo no commit $commit (so o que ja foi enviado ao git; sem a pasta API Holyrics).`r`nSo use se o GitHub nao abrir:`r`n  git clone Alerta-IBT.bundle Alerta-IBT-offline`r`n",
+    (New-Object System.Text.UTF8Encoding($true)))
+} catch {
+  $avisos += 'Nao consegui criar o git bundle (5-codigo-offline ficou vazia).'
+}
+
+# ---- modelos: COMECE-AQUI e COLE-NO-CLAUDE -----------------------------------------
+foreach ($par in @(@('COMECE-AQUI-IGREJA.md', 'COMECE-AQUI.md'), @('COLE-NO-CLAUDE.txt', 'COLE-NO-CLAUDE.txt'))) {
+  $origem = Join-Path $repoRoot ('docs\' + $par[0])
+  if (Test-Path $origem) {
+    $t = [System.IO.File]::ReadAllText($origem, [System.Text.Encoding]::UTF8)
+    $t = $t.Replace('{{DATA}}', $data).Replace('{{VERSAO}}', $versao).Replace('{{COMMIT}}', $commit)
+    [System.IO.File]::WriteAllText((Join-Path $Destino $par[1]), $t, (New-Object System.Text.UTF8Encoding($true)))
+  } else { $avisos += "docs\$($par[0]) nao encontrado." }
 }
 
 # ---- LEIA-ME -----------------------------------------------------------------
