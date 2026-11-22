@@ -48,6 +48,7 @@ O código do projeto **não** está nesta pasta: ele vem do GitHub (passo 3), qu
 ## Pendências para testar na igreja
 
 - Luz antecipada com fade nos vídeos (`10s-f2`): **testada em casa** (a luz sai 10 s antes do fim, na ordem certa). Falta só conferir, na MA2 real, a sintaxe `Master 2.1 At 100 Fade 2` (`FADE_GM_BAIXO`, `FADE_GM_SOBE`, `FADE_GM_SEGURANCA` no topo do script) e se o fade ficou suave.
+- **Fade `10s-f2` na igreja (22/11):** a MA2 acendia de uma vez porque não aceita `At 100 Fade 2` no Telnet. O `api-holyrics-novo` desta pasta agora sobe o Grand Master em degraus (`FADE_GM_NIVEL`, `FADE_DEGRAUS_POR_SEGUNDO`); o arquivo `PATCH-fade-em-degraus.txt` traz só as duas trocas, caso o seu script da igreja seja mais novo. Falta confirmar na MA2 real.
 - Tema só pela tag e logo no telão: não deu para testar por API em casa; clique um tema sem tag (não pode acender cor) e um com tag, e veja a logo sumir/voltar nos vídeos.
 - Shutdown novo (`Shutdown-novo`): só roda quando o Holyrics fecha.
 - Logo: presets pelo comando novo e o `SetLogo` (liga/desliga) contra o `Ctrl+K` do Holyrics.
