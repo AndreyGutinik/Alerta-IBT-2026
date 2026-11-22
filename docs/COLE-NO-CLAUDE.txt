@@ -2,6 +2,10 @@ Estou na igreja, no PC da projecao (PC TEMPLO MAIOR), com acesso real a MA2 (con
 
 FACA NESTA ORDEM, sem eu precisar explicar mais:
 
+0. INSTALE O GUARDA DO GIT (para eu nao esquecer de salvar). Copie <pendrive>\levar-para-a-igreja\6-guarda-git\guarda-git.ps1 para <pasta do projeto>\.claude\guarda-git.ps1 e registre um hook "Stop" em <pasta do projeto>\.claude\settings.local.json (se o arquivo ja existir, MESCLE sem apagar nada; nao ponha no settings.json versionado):
+   {"hooks":{"Stop":[{"hooks":[{"type":"command","command":"powershell -NoProfile -File \"<pasta do projeto>\\.claude\\guarda-git.ps1\""}]}]}}
+   Ele confere o git toda vez que voce terminar uma resposta e te avisa se ha algo sem commit ou sem push. Alem disso, ao fim de TODA resposta em que voce mexeu em arquivos, mostre o resultado curto de "git status --short --branch".
+
 1. Leia a memoria do projeto. Se ela nao estiver carregada, os arquivos estao em <pendrive>\levar-para-a-igreja\1-memoria (copie para a pasta de memoria do Claude deste projeto) e leia o MEMORY.md e o pending-next-steps.md.
 
 2. PROTEJA O QUE EU JA MUDEI AQUI. O repositorio local deste PC tem mudancas que NAO foram para o GitHub. Rode git status e git diff --stat e me mostre. NAO rode git pull, reset, checkout nem clean sem eu pedir, para nao perder nada. Se precisar atualizar, primeiro faca commit do que eu mudei.

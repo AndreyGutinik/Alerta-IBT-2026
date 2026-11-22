@@ -109,6 +109,12 @@ try {
   $avisos += 'Nao consegui criar o git bundle (5-codigo-offline ficou vazia).'
 }
 
+# ---- 6. guarda do git (hook Stop que avisa de trabalho sem commit/push) --------------
+New-Item -ItemType Directory -Path (Join-Path $Destino '6-guarda-git') -Force | Out-Null
+$guarda = Join-Path $repoRoot 'docs\guarda-git.ps1'
+if (Test-Path $guarda) { Copy-Item $guarda (Join-Path $Destino '6-guarda-git') -Force }
+else { $avisos += 'docs\guarda-git.ps1 nao encontrado (6-guarda-git vazia).' }
+
 # ---- modelos: COMECE-AQUI e COLE-NO-CLAUDE -----------------------------------------
 foreach ($par in @(@('COMECE-AQUI-IGREJA.md', 'COMECE-AQUI.md'), @('COLE-NO-CLAUDE.txt', 'COLE-NO-CLAUDE.txt'))) {
   $origem = Join-Path $repoRoot ('docs\' + $par[0])

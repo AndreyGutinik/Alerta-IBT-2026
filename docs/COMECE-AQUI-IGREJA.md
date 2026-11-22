@@ -40,6 +40,7 @@ O `COLE-NO-CLAUDE.txt` já manda o Claude fazer commit a cada alteração e push
 | `2-api-holyrics\` | Scripts do Holyrics + o patch do fade. **Tem IPs e senha da MA2.** |
 | `3-instalador\` | Instalador do IBT Controller. |
 | `4-checklists\` | Checklist de testes na igreja e passos da MA2. |
+| `6-guarda-git\` | Hook que avisa o Claude, a cada resposta, se há trabalho sem commit/push (o `COLE-NO-CLAUDE.txt` manda instalar). |
 | `5-codigo-offline\` | Cópia do código (`git bundle`), para o caso de o GitHub não abrir. |
 
 ## 5. Segurança
